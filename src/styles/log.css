@@ -1,0 +1,70 @@
+.log-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .05);
+    margin-top: 1.5rem;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.log-card h3 {
+    margin-top: 0;
+    margin-bottom: .75rem;
+}
+
+.log-list {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    font-size: .9rem;
+}
+
+.log-item {
+    padding: .3rem .5rem;
+    border-radius: 6px;
+}
+
+.log-item.info {
+    background: #eef3ff;
+    color: #1e4bd1;
+}
+
+.log-item.ok {
+    background: #e8f7ee;
+    color: #107c41;
+}
+
+.log-item.err {
+    background: #fde8e8;
+    color: #b91c1c;
+}
+
+.log-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: .5rem;
+}
+
+.log-top {
+    font-size: .9rem;
+    opacity: .9;
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.log-msg {
+    margin: .25rem 0;
+}
+
+.log-payload {
+    font-size: .85rem;
+    opacity: .9;
+}
+
+.log-res {
+    margin: .25rem 0 0 .75rem;
+    font-size: .9rem;
+}

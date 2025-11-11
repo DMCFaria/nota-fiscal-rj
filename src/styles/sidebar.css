@@ -1,0 +1,163 @@
+.sidebar {
+    background: #0f3d5d;
+    color: #fff;
+    width: 250px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 0;
+    padding: 1rem 1.25rem;
+}
+
+.sidebar-header {
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    margin: 0 0 0.75rem 0;
+    padding-bottom: 1rem; 
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+}
+
+.logo-link {
+    display: inline-block;
+    line-height: 0;
+    margin-bottom: 0.95rem;
+}
+
+.logo-desktop {
+    display: block;
+    width: 180px;
+    height: auto;
+    margin: 0;
+}
+
+.logo-mobile {
+    display: none;
+    width: 38px;
+    height: 38px;
+}
+
+.sidebar-title {
+    margin: 0;
+    font-size: 1.25rem;
+    line-height: 1.2;
+}
+
+.subtitle {
+    margin: 0;
+    font-size: 0.75rem; 
+    opacity: 0.75;
+    line-height: 1.2;
+}
+
+.sidebar-nav {
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-content: flex-start;
+    gap: 0.25rem;
+    margin: 0;
+    padding-top: 0.5rem;
+}
+
+nav a,
+.menu-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: white;
+    text-decoration: none;
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: background 0.2s;
+}
+
+nav a:hover,
+nav a.active,
+.menu-toggle:hover {
+    background: #1e4bd1;
+}
+
+.icon {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+}
+
+.menu-group {
+    margin-bottom: 0;
+}
+
+.menu-toggle {
+    background: transparent;
+    border: none;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+}
+
+.arrow {
+    margin-left: auto;
+    transition: transform 0.25s;
+}
+
+.arrow.rotated {
+    transform: rotate(180deg);
+}
+
+.submenu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin: 0.35rem 0 0.35rem 1.5rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.submenu a {
+    padding: 0.4rem 0.5rem;
+    color: #dbe3ff;
+    font-size: 0.9rem;
+    border-radius: 4px;
+}
+
+.submenu a:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.submenu a.active {
+    color: #fff;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.sidebar footer {
+    grid-row: 3;
+    font-size: 0.75rem;
+    opacity: 0.7;
+    text-align: left;
+    margin: 0;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 640px) {
+    .logo-desktop {
+        display: none;
+    }
+
+    .logo-mobile {
+        display: block;
+    }
+    
+    .sidebar-title {
+        font-size: 1.1rem;
+    }
+    
+    .subtitle {
+        font-size: 0.7rem;
+    }
+}

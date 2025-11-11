@@ -1,0 +1,275 @@
+.empresa-inline {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  margin-bottom: .75rem;
+}
+
+.empresa-inline select {
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  padding: .4rem .6rem;
+  font: inherit;
+  background: #fff;
+}
+
+.hint {
+  background: #f7f8fa;
+  border: 1px dashed #e2e5ee;
+  border-radius: 8px;
+  padding: .5rem .75rem;
+  margin: .5rem 0;
+}
+
+pre {
+  margin: .25rem 0 0;
+}
+
+/* Container */
+.fc-page {
+  padding: 1.5rem 1.75rem;
+}
+
+.fc-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+  padding: 1.25rem 1.25rem 1rem;
+}
+
+/* Cabeçalho */
+.fc-header h1 {
+  margin: 0 0 .75rem;
+  font-size: 1.75rem;
+}
+
+/* Seções */
+.fc-section {
+  margin: 1rem 0;
+}
+
+.fc-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: .35rem;
+}
+
+.fc-subtitle {
+  font-weight: 600;
+  margin-bottom: .5rem;
+}
+
+/* Form */
+.fc-form {
+  margin-top: .25rem;
+}
+
+.fc-fieldset {
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  padding: .75rem;
+}
+
+.fc-fieldset legend {
+  padding: 0 .5rem;
+  font-weight: 600;
+}
+
+.fc-row {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+}
+
+.fc-input {
+  flex: 1;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  padding: .6rem .75rem;
+  outline: none;
+  font: inherit;
+  background: #fff;
+}
+
+.fc-input:focus {
+  border-color: #cdd6ff;
+  box-shadow: 0 0 0 3px rgba(30, 75, 209, .08);
+}
+
+/* Botões */
+.fc-btn {
+  border: none;
+  border-radius: 10px;
+  padding: .6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fc-btn[disabled] {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.fc-btn-primary {
+  background: #2853d4;
+  color: #fff;
+}
+
+.fc-btn-primary:hover {
+  background: #1e4bd1;
+}
+
+.fc-btn-accent {
+  background: #1e4bd1;
+  color: #fff;
+}
+
+.fc-btn-accent:hover {
+  background: #163b9a;
+}
+
+/* Preview */
+.fc-preview {
+  background: #f7f8fb;
+  border: 1px solid #eef1f5;
+  border-radius: 12px;
+  padding: .75rem;
+}
+
+.fc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem .75rem;
+  margin-bottom: .75rem;
+}
+
+.fc-col-span {
+  grid-column: 1 / -1;
+}
+
+.fc-table {
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.fc-thead,
+.fc-trow {
+  display: grid;
+  grid-template-columns: 1fr 160px;
+}
+
+.fc-thead {
+  background: #eef2ff;
+  font-weight: 600;
+}
+
+.fc-thead>div,
+.fc-trow>div {
+  padding: .6rem .75rem;
+}
+
+.fc-trow:nth-child(odd) {
+  background: #fff;
+}
+
+.fc-trow:nth-child(even) {
+  background: #f9fbff;
+}
+
+/* Placeholder e erros */
+.fc-placeholder {
+  background: #fff;
+  border: 1px dashed #d9def0;
+  color: #475569;
+  padding: .75rem;
+  border-radius: 8px;
+}
+
+.fc-erro {
+  margin-top: .5rem;
+  background: #fde8e8;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: .6rem .75rem;
+}
+
+/* Rodapé de ações */
+.fc-actions {
+  margin-top: .75rem;
+}
+
+/* Status */
+.fc-status {
+  margin: .75rem 0;
+  padding: .65rem .75rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-weight: 500;
+}
+
+.fc-status.ok {
+  background: #e8f7ee;
+  color: #107c41;
+  border-color: #bde7cc;
+}
+
+.fc-status.err {
+  background: #fde8e8;
+  color: #b91c1c;
+  border-color: #f5c2c7;
+}
+
+.fc-row .fc-btn-primary {
+  min-width: 120px;
+}
+
+.fc-col {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.fc-input-file {
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  padding: .5rem;
+  background: #fff;
+  font: inherit;
+}
+
+.fc-input-file:focus {
+  border-color: #cdd6ff;
+  box-shadow: 0 0 0 3px rgba(30, 75, 209, .08);
+}
+
+.fc-hint {
+  color: #475569;
+  opacity: .9;
+}
+
+.fc-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: .5rem;
+}
+
+.fc-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .5rem;
+}
+
+.fc-radio-group {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  background: #f8fafc;
+  border: 1px solid #e6e8ef;
+  border-radius: 8px;
+  padding: .5rem .75rem;
+}
+
+.fc-radio-group input {
+  margin-right: .25rem;
+}
