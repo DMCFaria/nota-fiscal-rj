@@ -13,7 +13,7 @@ export default function EmissaoPorFatura() {
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
   const [erro, setErro] = useState("");
-  const [status, setStatus] = useState(null); 
+  const [status, setStatus] = useState(null);
 
   const podeGerar = useMemo(() => !!empresa && !!fatura.trim(), [empresa, fatura]);
   const podeEmitir = useMemo(
@@ -103,7 +103,6 @@ export default function EmissaoPorFatura() {
         </header>
 
         <section className="fc-section">
-          <label className="fc-label">Selecione a empresa emissora:</label>
           <EmpresaSelect value={empresa} onChange={setEmpresa} />
         </section>
 
@@ -134,7 +133,7 @@ export default function EmissaoPorFatura() {
         {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
 
         <section className="fc-section">
-                   <LogEmissao entries={logs} maxHeight={180} emptyText="Sem registros ainda." />
+          <LogEmissao entries={logs} maxHeight={180} emptyText="Sem registros ainda." />
         </section>
 
         <section className="fc-section">

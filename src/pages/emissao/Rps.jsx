@@ -112,8 +112,7 @@ export default function EmissaoPorRps() {
         <header className="fc-header"><h1>Emissão · Por RPS</h1></header>
 
         <section className="fc-section">
-          <label className="fc-label">Selecione a empresa emissora:</label>
-          <EmpresaSelect value={empresa} onChange={setEmpresa} />
+                    <EmpresaSelect value={empresa} onChange={setEmpresa} />
         </section>
 
         <form className="fc-form" onSubmit={onGerar}>

@@ -89,7 +89,6 @@ export default function EmissaoIndividual() {
         <header className="fc-header"><h1>Emissão · Individual</h1></header>
 
         <section className="fc-section">
-          <label className="fc-label">Selecione a empresa emissora:</label>
           <EmpresaSelect value={empresa} onChange={setEmpresa} />
         </section>
 

@@ -273,3 +273,73 @@ pre {
 .fc-radio-group input {
   margin-right: .25rem;
 }
+
+/* Empresa emissora */
+/* estrutura em grid: label + select lado a lado */
+.empresa-grid {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* label no padrão visual */
+.empresa-label {
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+/* wrapper posiciona o chevron */
+.select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* select principal */
+.select-control {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 10px;
+  padding: .65rem .9rem;
+  padding-right: 2.25rem;
+  font: inherit;
+  color: #0f172a;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.select-control:hover {
+  border-color: #c7cfe6;
+}
+.select-control:focus {
+  border-color: #cdd6ff;
+  box-shadow: 0 0 0 3px rgba(30, 75, 209, .08);
+}
+
+/* ícone decorativo */
+.select-chevron {
+  position: absolute;
+  right: .65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: .9rem;
+  color: #64748b;
+}
+
+/* responsivo */
+@media (max-width: 640px) {
+  .empresa-grid {
+    grid-template-columns: 1fr;
+    gap: .5rem;
+  }
+  .empresa-label {
+    margin-bottom: .25rem;
+  }
+}
