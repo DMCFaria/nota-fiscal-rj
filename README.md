@@ -1,16 +1,87 @@
-# React + Vite
+# 🧾 Nota Fiscal 
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicação web desenvolvida em **React + Vite (JavaScript)** para emissão, consulta e gerenciamento de **notas fiscais eletrônicas (NF-e)**.  
+O projeto tem foco em **simplicidade, usabilidade e performance**, com interface escura e componentes reutilizáveis.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Tecnologias Utilizadas
 
-## React Compiler
+- **React (Vite)** — Framework principal do frontend  
+- **JavaScript (ESNext)** — Lógica da aplicação  
+- **CSS modular** — Estilização por página e componente  
+- **React Icons** — Ícones vetoriais  
+- **Axios / Fetch** — Requisições HTTP para os serviços  
+- **Local Storage / APIs simuladas** — Persistência local de dados  
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🧩 Estrutura do Projeto
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+nota-fiscal/
+├── public/ # Ícones, imagens e arquivos públicos
+├── src/
+│ ├── components/ # Componentes reutilizáveis (Ex: Modal, EmpresaSelect, LogEmissao)
+│ ├── pages/ # Páginas principais
+│ ├──── emissao/ 
+│ │ ├── Fatura.jsx
+│ │ ├── RPS.jsx
+│ │ └── Individual.jsx
+│ ├── Consultas.jsx
+│ ├── Configuracoes.jsx
+│ └── Historico.jsx
+│ ├── services/ # Comunicação com a API / funções utilitárias
+│ │ ├── notas.js
+│ │ ├── emissao.js
+│ │ ├── storage.js
+│ │ └── log.js
+│ ├── styles/ # Arquivos CSS globais e específicos
+│ │ ├── global.css
+│ │ ├── consultas.css
+│ │ ├── configuracoes.css
+│ │ ├── emissao.css
+│ │ ├── log.css
+│ │ ├── sidebar.css
+│ │ └── historico.css
+│ ├── App.jsx # Estrutura principal de rotas e layout
+│ └── main.jsx # Ponto de entrada do React + Vite
+│
+├── package.json
+├── vite.config.js
+└── README.md
+
+
+---
+
+## 💡 Funcionalidades
+
+- **Emissão de notas fiscais** (por fatura, RPS ou individual)  
+- **Transmissão automática** com feedback visual  
+- **Download do PDF** após emissão bem-sucedida  
+- **Histórico completo de notas** emitidas e com erro  
+- **Consulta detalhada** com accordions e ações rápidas  
+- **Cancelamento e substituição de notas** modal de confirmação  
+- **Sistema de logs e status visual** para cada operação  
+
+---
+
+🧪 Boas Práticas
+
+Componentes organizados e reutilizáveis.
+
+Evitar lógica de negócio dentro do JSX.
+
+Centralizar chamadas de API em services/.
+
+Utilizar classes e variáveis CSS para consistência visual.
+
+Manter responsividade mínima e foco no tema escuro.
+
+Tratar erros e status de forma visual (alertas, badges, logs).
+
+
+🧑‍💻 Desenvolvido por:
+
+Ingrid Aylana | Desenvolvedora Front-End | Linkedin: www.linkedin.com/in/ingryd-aylana-silva-dos-santos-4a2701158
+
+Daniel Mello | Desenvolvedor Back-end | Linkedin: https://www.linkedin.com/in/danielmellocf/ | GitHub: https://github.com/DMCFaria
