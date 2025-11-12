@@ -97,22 +97,22 @@ export default function EmissaoIndividual() {
           <div className="fc-grid-3">
             <input name="documento" placeholder="CPF/CNPJ" className="fc-input"
               value={tomador.documento} onChange={handleChange(tomador, setTomador)} />
-           
+
             <input name="nome" placeholder="Nome / Razão Social" className="fc-input"
               value={tomador.nome} onChange={handleChange(tomador, setTomador)} />
-           
+
             <input name="cep" placeholder="CEP" className="fc-input"
               value={tomador.cep} onChange={handleChange(tomador, setTomador)} />
-           
+
             <input name="logradouro" placeholder="Logradouro" className="fc-input"
               value={tomador.logradouro} onChange={handleChange(tomador, setTomador)} />
-           
+
             <input name="numero" placeholder="Número" className="fc-input"
               value={tomador.numero} onChange={handleChange(tomador, setTomador)} />
-           
+
             <input name="bairro" placeholder="Bairro" className="fc-input"
               value={tomador.bairro} onChange={handleChange(tomador, setTomador)} />
-           
+
             <input name="cidade" placeholder="Cidade" className="fc-input"
               value={tomador.cidade} onChange={handleChange(tomador, setTomador)} />
             <input name="uf" placeholder="UF" maxLength={2} className="fc-input"
@@ -123,8 +123,18 @@ export default function EmissaoIndividual() {
 
         <section className="fc-section">
           <h2 className="fc-subtitle">Discriminação dos Serviços</h2>
-          <textarea className="fc-input" rows={3} value={servico}
-            onChange={(e) => setServico(e.target.value)} placeholder="Descreva os serviços prestados…" />
+
+          <div className="fc-textarea-wrap">
+            <textarea
+              className="fc-textarea"
+              rows={5}                
+              maxLength={1000}        
+              value={servico}
+              onChange={(e) => setServico(e.target.value)}
+              placeholder="Descreva os serviços prestados…"
+              aria-label="Discriminação dos serviços"
+            />
+          </div>
         </section>
 
         <section className="fc-section">
@@ -133,19 +143,19 @@ export default function EmissaoIndividual() {
             <input name="valorNota" placeholder="Valor total da nota (R$)"
               className="fc-input" value={valores.valorNota}
               onChange={handleChange(valores, setValores)} />
-           
+
             <input name="deducoes" placeholder="Deduções (R$)" className="fc-input"
               value={valores.deducoes} onChange={handleChange(valores, setValores)} />
-            
+
             <input name="descontos" placeholder="Descontos (R$)" className="fc-input"
               value={valores.descontos} onChange={handleChange(valores, setValores)} />
-           
+
             <div className="fc-radio-group">
               <span>ISS Retido?</span>
-            
+
               <label><input type="radio" name="issRetido" value="sim"
                 checked={valores.issRetido === "sim"} onChange={handleChange(valores, setValores)} /> Sim</label>
-            
+
               <label><input type="radio" name="issRetido" value="nao"
                 checked={valores.issRetido === "nao"} onChange={handleChange(valores, setValores)} /> Não</label>
             </div>
@@ -155,7 +165,7 @@ export default function EmissaoIndividual() {
         {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
 
         <section className="fc-section">
-          
+
           <LogEmissao entries={logs} maxHeight={180} emptyText="Sem registros ainda." />
         </section>
 

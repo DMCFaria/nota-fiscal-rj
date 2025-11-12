@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
 import StatusBanner from "../../components/StatusBanner";
+import JSZip from "jszip";
 import { emitirNota, baixarPdf } from "../../services/emissao";
 import "../../styles/emissao.css";
 
@@ -14,6 +15,10 @@ export default function EmissaoPorRps() {
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
 
+  // paginação
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 10;
+
   const pushLog = useCallback((msg) => {
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-300));
   }, []);
@@ -24,8 +29,18 @@ export default function EmissaoPorRps() {
     return { qtd, total };
   }, [itens]);
 
+  const totalPaginas = useMemo(() => Math.max(1, Math.ceil(itens.length / porPagina)), [itens.length]);
+  const visiveis = useMemo(() => {
+    const inicio = (pagina - 1) * porPagina;
+    return itens.slice(inicio, inicio + porPagina);
+  }, [itens, pagina]);
+
   const podeGerar = useMemo(() => !!empresa && !!arquivo, [empresa, arquivo]);
   const podeEmitir = useMemo(() => itens.length > 0 && !loadingGerar && !loadingEmitir, [itens, loadingGerar, loadingEmitir]);
+
+  function moeda(v) {
+    return (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
 
   async function lerArquivo(file) {
     const txt = await file.text();
@@ -35,9 +50,11 @@ export default function EmissaoPorRps() {
         .map((l) => l.trim())
         .filter(Boolean)
         .map((l) => {
+          // aceita "RPS" OU "RPS,valor"
           const [rps, valor] = l.split(",").map((s) => s?.trim());
           return { rps, valor: valor ? Number(valor.replace(",", ".")) : undefined };
         })
+        // remove duplicados por RPS
         .filter((v, i, a) => a.findIndex((x) => x.rps === v.rps) === i)
     );
   }
@@ -48,6 +65,7 @@ export default function EmissaoPorRps() {
 
     setStatus(null);
     setItens([]);
+    setPagina(1);
     setLoadingGerar(true);
     pushLog(`Lendo arquivo para empresa ${empresa}…`);
 
@@ -57,7 +75,7 @@ export default function EmissaoPorRps() {
       pushLog(`Arquivo processado: ${arr.length} linha(s) válida(s).`);
       setStatus({
         type: "ok",
-        msg: `Prévia pronta: ${arr.length} RPS. Valor total ${arr.reduce((a, b) => a + (b.valor || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.`,
+        msg: `Prévia pronta: ${arr.length} RPS. Valor total ${moeda(arr.reduce((a, b) => a + (b.valor || 0), 0))}.`,
       });
     } catch (err) {
       setStatus({ type: "err", msg: "Não foi possível ler o arquivo." });
@@ -73,6 +91,11 @@ export default function EmissaoPorRps() {
     setLoadingEmitir(true);
 
     let ok = 0, erro = 0;
+
+    const zip = new JSZip();
+    const nomePasta = `NF_RPS_${empresa}_${new Date().toISOString().slice(0, 10)}`;
+    const pasta = zip.folder(nomePasta);
+
     pushLog(`Iniciando emissão em lote (${itens.length} RPS)…`);
 
     for (const item of itens) {
@@ -82,7 +105,10 @@ export default function EmissaoPorRps() {
           empresa,
           tipo: "RPS",
           numero: item.rps,
-          preview: { itens: [{ cliente: `RPS ${item.rps}`, valor: item.valor || 0 }], valorTotal: item.valor || 0 },
+          preview: {
+            itens: [{ cliente: `RPS ${item.rps}`, valor: item.valor || 0 }],
+            valorTotal: item.valor || 0,
+          },
         });
 
         if (!deuBom) {
@@ -92,13 +118,33 @@ export default function EmissaoPorRps() {
         }
 
         ok++;
-        pushLog(`OK RPS ${item.rps} — protocolo ${protocolo}. Baixando PDF…`);
-        baixarPdf(`NF_RPS_${empresa}_${item.rps}_${protocolo}.pdf`, pdfBlob);
+        const nomePdf = `NF_RPS_${empresa}_${item.rps}_${protocolo}.pdf`;
+        pasta.file(nomePdf, pdfBlob); 
+        pushLog(`OK RPS ${item.rps} — protocolo ${protocolo}. Adicionado ao ZIP.`);
       } catch {
         erro++;
         pushLog(`ERRO inesperado no RPS ${item.rps}.`);
       }
     }
+
+    if (ok === 0) {
+      const msgNone = `Nenhuma nota emitida — nada para compactar. (${erro} erro(s))`;
+      setStatus({ type: "err", msg: msgNone });
+      pushLog(msgNone);
+      setLoadingEmitir(false);
+      return;
+    }
+
+    pushLog("Compactando arquivos em ZIP…");
+    const zipBlob = await zip.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    });
+
+    const nomeZip = `Lote_RPS_${empresa}_${new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19)}.zip`;
+    baixarPdf(nomeZip, zipBlob);
+    pushLog(`ZIP gerado e download iniciado: ${nomeZip}`);
 
     const msg = `Lote finalizado: ${ok} sucesso(s), ${erro} erro(s).`;
     setStatus({ type: erro > 0 ? "err" : "ok", msg });
@@ -112,7 +158,7 @@ export default function EmissaoPorRps() {
         <header className="fc-header"><h1>Emissão · Por RPS</h1></header>
 
         <section className="fc-section">
-                    <EmpresaSelect value={empresa} onChange={setEmpresa} />
+          <EmpresaSelect value={empresa} onChange={setEmpresa} />
         </section>
 
         <form className="fc-form" onSubmit={onGerar}>
@@ -127,7 +173,12 @@ export default function EmissaoPorRps() {
                 className="fc-input-file"
               />
               <div className="fc-row">
-                <button className="fc-btn fc-btn-primary" type="submit" disabled={!podeGerar || loadingGerar} aria-busy={loadingGerar}>
+                <button
+                  className="fc-btn fc-btn-primary"
+                  type="submit"
+                  disabled={!podeGerar || loadingGerar}
+                  aria-busy={loadingGerar}
+                >
                   {loadingGerar ? "Processando..." : "GERAR"}
                 </button>
               </div>
@@ -141,7 +192,6 @@ export default function EmissaoPorRps() {
         {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
 
         <section className="fc-section">
-
           <LogEmissao entries={logs} maxHeight={160} emptyText="Sem registros ainda." />
         </section>
 
@@ -152,23 +202,42 @@ export default function EmissaoPorRps() {
                 <div><strong>Empresa:</strong> {empresa}</div>
                 <div><strong>RPS:</strong> {resumo.qtd}</div>
                 <div className="fc-col-span">
-                  <strong>Total:</strong>{" "}
-                  {resumo.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  <strong>Total:</strong> {moeda(resumo.total)}
                 </div>
               </div>
 
               <div className="fc-table">
                 <div className="fc-thead"><div>RPS</div><div>Valor</div></div>
-                {itens.slice(0, 10).map((it, i) => (
-                  <div className="fc-trow" key={i}>
+                {visiveis.map((it, i) => (
+                  <div className="fc-trow" key={`${pagina}-${i}`}>
                     <div>{it.rps}</div>
-                    <div>
-                      {(it.valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </div>
+                    <div>{moeda(it.valor)}</div>
                   </div>
                 ))}
               </div>
-              {itens.length > 10 && <small className="fc-hint">Mostrando 10 de {itens.length} itens…</small>}
+
+              {/* paginação */}
+              <div className="fc-pagination">
+                <button
+                  className="pg-btn"
+                  onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                  disabled={pagina === 1}
+                >
+                  ‹
+                </button>
+
+                <span className="pg-info">
+                  Página {pagina} de {totalPaginas}
+                </span>
+
+                <button
+                  className="pg-btn"
+                  onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                  disabled={pagina === totalPaginas}
+                >
+                  ›
+                </button>
+              </div>
             </div>
           ) : (
             <div className="fc-placeholder">A prévia aparecerá aqui após clicar em “GERAR”.</div>
@@ -176,7 +245,12 @@ export default function EmissaoPorRps() {
         </section>
 
         <footer className="fc-actions">
-          <button className="fc-btn fc-btn-accent" onClick={onEmitir} disabled={!podeEmitir} aria-busy={loadingEmitir}>
+          <button
+            className="fc-btn fc-btn-accent"
+            onClick={onEmitir}
+            disabled={!podeEmitir}
+            aria-busy={loadingEmitir}
+          >
             {loadingEmitir ? "Emitindo..." : "EMITIR"}
           </button>
         </footer>

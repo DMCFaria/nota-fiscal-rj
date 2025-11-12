@@ -275,7 +275,7 @@ pre {
 }
 
 /* Empresa emissora */
-/* estrutura em grid: label + select lado a lado */
+
 .empresa-grid {
   display: grid;
   grid-template-columns: 180px 1fr;
@@ -284,20 +284,17 @@ pre {
   margin-bottom: 1rem;
 }
 
-/* label no padrão visual */
 .empresa-label {
   font-weight: 600;
   color: #0f172a;
   white-space: nowrap;
 }
 
-/* wrapper posiciona o chevron */
 .select-wrap {
   position: relative;
   width: 100%;
 }
 
-/* select principal */
 .select-control {
   appearance: none;
   -webkit-appearance: none;
@@ -317,12 +314,12 @@ pre {
 .select-control:hover {
   border-color: #c7cfe6;
 }
+
 .select-control:focus {
   border-color: #cdd6ff;
   box-shadow: 0 0 0 3px rgba(30, 75, 209, .08);
 }
 
-/* ícone decorativo */
 .select-chevron {
   position: absolute;
   right: .65rem;
@@ -333,13 +330,106 @@ pre {
   color: #64748b;
 }
 
-/* responsivo */
 @media (max-width: 640px) {
   .empresa-grid {
     grid-template-columns: 1fr;
     gap: .5rem;
   }
+
   .empresa-label {
     margin-bottom: .25rem;
   }
+}
+
+/* Textarea - Emissao Ind */
+.fc-textarea-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+
+.fc-textarea {
+  width: 98%;
+  min-height: 128px;
+  resize: vertical;
+  border: 1px solid #dcdfe6;
+  border-radius: 10px;
+  padding: .65rem .9rem;
+  background: #fff;
+  font: inherit;
+  line-height: 1.5;
+  color: #0f172a;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.fc-textarea::placeholder {
+  color: #94a3b8;
+}
+
+.fc-textarea:hover {
+  border-color: #c7cfe6;
+}
+
+.fc-textarea:focus {
+  border-color: #cdd6ff;
+  box-shadow: 0 0 0 3px rgba(30, 75, 209, .08);
+}
+
+.fc-counter {
+  position: absolute;
+  right: .6rem;
+  bottom: .55rem;
+  font-size: .8rem;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.fc-textarea+.fc-hint {
+  margin-top: .15rem;
+}
+
+.fc-grid-3 input[name="uf"] {
+  max-width: 96px;
+}
+
+.fc-grid-3 input[name="cep"] {
+  max-width: 160px;
+}
+
+/* Paginação - RPS */
+
+.fc-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  padding: .75rem 0 .25rem;
+}
+
+.pg-btn {
+  border: 1px solid #d0d4e0;
+  background: #fff;
+  color: #1e4bd1;
+  border-radius: 6px;
+  font-weight: 600;
+  padding: .35rem .75rem;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.pg-btn:hover:not(:disabled) {
+  background: #eef2ff;
+}
+
+.pg-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.pg-info {
+  font-size: .9rem;
+  color: #334155;
+  font-weight: 500;
 }
