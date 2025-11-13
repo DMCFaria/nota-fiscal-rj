@@ -85,6 +85,8 @@ export default function EmissaoIndividual() {
 
   return (
     <div className="fc-page">
+              {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
+
       <div className="fc-card">
         <header className="fc-header"><h1>Emissão · Individual</h1></header>
 
@@ -161,8 +163,6 @@ export default function EmissaoIndividual() {
             </div>
           </div>
         </section>
-
-        {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
 
         <section className="fc-section">
 

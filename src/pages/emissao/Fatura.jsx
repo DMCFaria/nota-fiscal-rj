@@ -97,6 +97,8 @@ export default function EmissaoPorFatura() {
 
   return (
     <div className="fc-page">
+      {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
+      
       <div className="fc-card">
         <header className="fc-header">
           <h1>Emissão · Por Fatura</h1>
@@ -130,8 +132,6 @@ export default function EmissaoPorFatura() {
           </fieldset>
         </form>
 
-        {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
-
         <section className="fc-section">
           <LogEmissao entries={logs} maxHeight={180} emptyText="Sem registros ainda." />
         </section>
@@ -140,6 +140,8 @@ export default function EmissaoPorFatura() {
           {preview ? (
             <div className="fc-preview">
               <div className="fc-grid">
+                <div><h1>Prévia da Nota Fiscal</h1></div>
+                <br />
                 <div><strong>Empresa:</strong> {preview.empresa}</div>
                 <div><strong>Fatura:</strong> #{preview.fatura}</div>
                 <div><strong>NF(s):</strong> {preview.quantidadeNFs}</div>

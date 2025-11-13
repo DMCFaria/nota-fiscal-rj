@@ -1,33 +1,33 @@
-import { useEffect, useState } from "react";
 import "../styles/log.css";
 
-export default function LogEmissao() {
-  const [logs, setLogs] = useState([]);
-
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("logEmissao") || "[]");
-    setLogs(saved);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("logEmissao", JSON.stringify(logs));
-  }, [logs]);
-
-  function adicionarLog(msg, tipo = "info") {
-    setLogs((prev) => [
-      { id: Date.now(), msg, tipo, hora: new Date().toLocaleTimeString() },
-      ...prev,
-    ]);
-  }
-
-  useEffect(() => {
-    adicionarLog("Sistema de log iniciado", "info");
-  }, []);
+export default function LogEmissao({
+  title = "Log de Acompanhamento",
+  entries = [],
+  maxHeight = 180,
+  emptyText = "Sem registros ainda.",
+}) {
+  const normalizedHeight =
+    typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight;
 
   return (
     <div className="log-card">
-      <h3>Log de Acompanhamento</h3>
-      
+      <div className="log-header">
+        <h3 className="log-title">{title}</h3>
+      </div>
+
+      <div className="log-body" style={{ maxHeight: normalizedHeight }}>
+        {entries.length === 0 ? (
+          <div className="log-empty">{emptyText}</div>
+        ) : (
+          <ul className="log-list">
+            {entries.map((line, idx) => (
+              <li key={idx} className="log-item">
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

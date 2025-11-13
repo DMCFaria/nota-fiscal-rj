@@ -92,15 +92,7 @@ export default function Historico() {
               onChange={(e) => setFiltro(e.target.value)}
               aria-label="Filtrar histórico"
             />
-            {filtro && (
-              <button 
-                className="clear-search"
-                onClick={() => setFiltro("")}
-                aria-label="Limpar busca"
-              >
-                ×
-              </button>
-            )}
+           
           </div>
           <div className="results-count">
             {filtrados.length} {filtrados.length === 1 ? "resultado" : "resultados"}

@@ -154,6 +154,7 @@ export default function EmissaoPorRps() {
 
   return (
     <div className="fc-page">
+        {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
       <div className="fc-card">
         <header className="fc-header"><h1>Emissão · Por RPS</h1></header>
 
@@ -189,8 +190,6 @@ export default function EmissaoPorRps() {
           </fieldset>
         </form>
 
-        {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
-
         <section className="fc-section">
           <LogEmissao entries={logs} maxHeight={160} emptyText="Sem registros ainda." />
         </section>
@@ -199,6 +198,8 @@ export default function EmissaoPorRps() {
           {itens.length > 0 ? (
             <div className="fc-preview">
               <div className="fc-grid">
+                <div><h1>Prévia da Nota Fiscal</h1></div>
+                <br />
                 <div><strong>Empresa:</strong> {empresa}</div>
                 <div><strong>RPS:</strong> {resumo.qtd}</div>
                 <div className="fc-col-span">
