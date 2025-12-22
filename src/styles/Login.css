@@ -1,0 +1,225 @@
+.gradient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(to bottom right, #0F3D5D, #D3D3D2);
+  
+}
+
+.login-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100vw;
+  font-family: sans-serif;
+  padding: 1rem;
+  box-sizing: border-box;
+  
+}
+
+.logoImg {
+  width: 200px;
+  height: auto;
+  margin: 0 auto 1.5rem;
+  display: block;
+}
+
+.loginContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 2rem;
+  overflow: hidden;
+}
+
+.loginBox {
+  background-color: white;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+}
+
+.inputGroup {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.25rem;
+}
+
+.inputGroup label {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: #0F3D5D;
+}
+
+.inputGroup input {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.inputGroup input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+  outline: none;
+}
+
+.loginButton {
+  width: 100%;
+  padding: 0.9rem;
+  background-color: #0F3D5D;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.loginButton:hover {
+  background-color: #0056b3;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.loginButton:active {
+  transform: scale(0.98);
+}
+
+
+.titlePortal {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #0F3D5D;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.pPortal {
+  font-size: 1rem;
+  color: #444;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.forgot-password {
+  display: block;
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #0F3D5D;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.forgot-password:hover {
+  color: #0056b3;
+  text-decoration: underline;
+}
+
+.senhaWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.senhaWrapper input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.togglePassword {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #555;
+  font-size: 1rem;
+}
+
+.togglePassword:focus {
+  outline: none;
+}
+
+.error {
+  color: #c53030;
+  background-color: #ffe0e0;
+  border: 1px solid #ff9b9b;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+@media (min-width: 769px) {
+  .login-wrapper {
+    
+    flex-direction: row;
+    padding: 0;
+  }
+
+  .login-left {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .login-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logoImg {
+    width: 250px;
+  }
+
+  .loginBox {
+    padding: 2.5rem;
+    border-radius: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .loginBox {
+    padding: 1.5rem 1rem;
+    border-radius: 12px;
+  }
+
+  .logoLogin {
+    max-width: 100px;
+    margin-bottom: 1rem;
+  }
+
+  .titlePortal {
+    font-size: 1.2rem;
+    text-align: center;
+  }
+
+  .pPortal {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+
+  .inputGroup input {
+    font-size: 1rem;
+    padding: 0.7rem;
+  }
+
+  .loginButton {
+    font-size: 1rem;
+    padding: 0.75rem;
+  }
+}
