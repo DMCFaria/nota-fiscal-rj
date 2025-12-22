@@ -72,7 +72,7 @@ const Login = () => {
                   <input
                     type={showPassword ? "text" : "password"}
                     id="senha"
-                    placeholder="Digite sua senha."
+                    placeholder="Digite sua senha"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -99,9 +99,9 @@ const Login = () => {
                 {loading ? "Entrando..." : "Entrar"}
               </button>
 
-              <a href="/esqueci-senha" className="forgot-password">
+              {/* <a href="/esqueci-senha" className="forgot-password">
                 Esqueceu sua senha?
-              </a>
+              </a> */}
             </form>
           </div>
         </div>

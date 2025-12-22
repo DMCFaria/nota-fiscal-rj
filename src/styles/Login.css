@@ -3,7 +3,6 @@
   inset: 0;
   z-index: -1;
   background: linear-gradient(to bottom right, #0F3D5D, #D3D3D2);
-  
 }
 
 .login-wrapper {
@@ -16,7 +15,6 @@
   font-family: sans-serif;
   padding: 1rem;
   box-sizing: border-box;
-  
 }
 
 .logoImg {
@@ -93,7 +91,6 @@
   transform: scale(0.98);
 }
 
-
 .titlePortal {
   font-size: 1.6rem;
   font-weight: 700;
@@ -136,16 +133,20 @@
 }
 
 .togglePassword {
+  all: unset;
   position: absolute;
   right: 10px;
-  background: none;
-  border: none;
   cursor: pointer;
   color: #555;
   font-size: 1rem;
 }
 
-.togglePassword:focus {
+.togglePassword:hover,
+.togglePassword:focus,
+.togglePassword:active {
+  background: none;
+  color: #555;
+  box-shadow: none;
   outline: none;
 }
 
@@ -162,7 +163,6 @@
 
 @media (min-width: 769px) {
   .login-wrapper {
-    
     flex-direction: row;
     padding: 0;
   }
