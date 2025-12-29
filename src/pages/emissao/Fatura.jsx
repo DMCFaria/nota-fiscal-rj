@@ -85,7 +85,6 @@ export default function EmissaoPorFatura() {
       setStatus({ type: "ok", msg: `Emitida com sucesso. Protocolo ${protocolo}. Baixando PDF…` });
       pushLog(`Emissão concluída. Protocolo ${protocolo}.`);
 
-      // dispara download automático
       baixarPdf(`NF_${empresa}_${fatura}_${protocolo}.pdf`, pdfBlob);
     } catch {
       setStatus({ type: "err", msg: "Falha inesperada na emissão." });
@@ -98,7 +97,7 @@ export default function EmissaoPorFatura() {
   return (
     <div className="fc-page">
       {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
-      
+
       <div className="fc-card">
         <header className="fc-header">
           <h1>Emissão · Por Fatura</h1>
@@ -140,27 +139,17 @@ export default function EmissaoPorFatura() {
           {preview ? (
             <div className="fc-preview">
               <div className="fc-grid">
-                <div><h1>Prévia da Nota Fiscal</h1></div>
+                <header className="fc-header">
+                  <h1>Prévia da Nota Fiscal</h1>
+                </header>
                 <br />
                 <div><strong>Empresa:</strong> {preview.empresa}</div>
                 <div><strong>Fatura:</strong> #{preview.fatura}</div>
                 <div><strong>NF(s):</strong> {preview.quantidadeNFs}</div>
-                <div><strong>Total:</strong> {preview.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                <div><strong>Total Bruto:</strong> {preview.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
                 <div className="fc-col-span"><strong>Obs.:</strong> {preview.observacao}</div>
               </div>
 
-              <div className="fc-table">
-                <div className="fc-thead">
-                  <div>Cliente</div>
-                  <div>Valor</div>
-                </div>
-                {preview.itens.map((it, i) => (
-                  <div className="fc-trow" key={i}>
-                    <div>{it.cliente}</div>
-                    <div>{it.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
-                  </div>
-                ))}
-              </div>
             </div>
           ) : (
             <div className="fc-placeholder">A prévia aparecerá aqui após clicar em “GERAR”.</div>

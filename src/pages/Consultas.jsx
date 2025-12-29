@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import {
   getHistorico,
-  substituirNota,
   cancelarNota,
   transmitirNota,
   seedHistoricoSeVazio,
@@ -10,7 +9,6 @@ import {
   FiSearch,
   FiChevronRight,
   FiChevronDown,
-  FiRefreshCw,
   FiXCircle,
 } from "react-icons/fi";
 import "../styles/consultas.css";
@@ -75,7 +73,7 @@ function ModalConfirm({
   );
 }
 
-function Linha({ item, expanded, onToggle, onAskSubstituir, onAskCancelar }) {
+function Linha({ item, expanded, onToggle, onAskCancelar }) {
   const isOpen = expanded.has(item.id);
   const toggle = useCallback(() => onToggle(item.id), [item.id, onToggle]);
 
@@ -116,8 +114,9 @@ function Linha({ item, expanded, onToggle, onAskSubstituir, onAskCancelar }) {
           <td colSpan={3}>
             <div className="expansion-wrapper">
               {item.sistemas.map((s) => {
-                const podeAgir =
+                const podeCancelar =
                   s.status === "sucesso" && s.protocolo && !s.cancelada;
+
                 return (
                   <div key={s.nome} className="sist-bloco">
                     <div className="sist-header">
@@ -138,25 +137,11 @@ function Linha({ item, expanded, onToggle, onAskSubstituir, onAskCancelar }) {
                     <div className="sist-acoes">
                       <button
                         type="button"
-                        className="btn"
-                        disabled={!podeAgir}
-                        onClick={() => onAskSubstituir(item.id, s.nome)}
-                        title={
-                          podeAgir
-                            ? "Substituir a NFS-e"
-                            : "Ação indisponível para este status"
-                        }
-                      >
-                        <FiRefreshCw /> Substituir nota
-                      </button>
-
-                      <button
-                        type="button"
                         className="btn danger"
-                        disabled={!podeAgir}
+                        disabled={!podeCancelar}
                         onClick={() => onAskCancelar(item.id, s.nome)}
                         title={
-                          podeAgir
+                          podeCancelar
                             ? "Cancelar a NFS-e"
                             : "Ação indisponível para este status"
                         }
@@ -177,57 +162,71 @@ function Linha({ item, expanded, onToggle, onAskSubstituir, onAskCancelar }) {
 
 export default function Consultas() {
   const [dados, setDados] = useState([]);
-  const [texto, setTexto] = useState(""); // busca livre
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // digita aqui, mas só aplica quando clicar pesquisar
+  const [textoDigitado, setTextoDigitado] = useState("");
+  const [texto, setTexto] = useState("");
+
   const [sistema, setSistema] = useState("todos"); // todos|carioca|milhao
   const [expanded, setExpanded] = useState(() => new Set());
   const lastMockedRef = useRef("");
 
   const [modal, setModal] = useState({
     open: false,
-    action: null,
+    action: null, // "cancelar"
     id: null,
     sistema: null,
   });
   const [modalLoading, setModalLoading] = useState(false);
 
-  /* histórico */
-  useEffect(() => {
-    seedHistoricoSeVazio?.();
-    const h = getHistorico();
-    if (typeof h?.then === "function") {
-      h.then((res) => setDados(res || []));
-    } else {
-      setDados(h || []);
+  /* pesquisar: só aqui a tela ganha vida */
+  const onPesquisar = useCallback(async () => {
+    const q = textoDigitado.trim();
+    setTexto(q);
+    setHasSearched(true);
+
+    // limpa a lista se pesquisar vazio (tela fica "limpa" de novo)
+    if (!q) {
+      setDados([]);
+      setExpanded(new Set());
+      return;
     }
-  }, []);
 
-    useEffect(() => {
-    const q = texto.trim();
-    if (q.length < 3) return;
-    if (dados.length > 0) return;
-    if (lastMockedRef.current === q) return;
+    // semeia histórico apenas quando pesquisar
+    seedHistoricoSeVazio?.();
 
-    (async () => {
-      try {
-        lastMockedRef.current = q;
-        await transmitirNota({
-          empresa: "MOCK S/A",
-          tipo: "RPS",
-          faturamento: q,
-          sistemas: ["carioca", "milhao"],
-        });
-        const h = getHistorico();
-        if (typeof h?.then === "function") {
-          const res = await h;
-          setDados(res || []);
-        } else {
-          setDados(h || []);
-        }
-      } catch (e) {
-        console.error("Falha ao semear mock via pesquisa:", e);
-      }
-    })();
-  }, [texto, dados.length]);
+    if (q.length < 3) {
+      setDados([]);
+      setExpanded(new Set());
+      return;
+    }
+
+    // evita repetir a mesma simulação (e não fica acumulando lixo)
+    if (lastMockedRef.current === q && dados.length > 0) return;
+
+    try {
+      lastMockedRef.current = q;
+
+      // simula o retorno gerando uma transmissão
+      await transmitirNota({
+        empresa: "MOCK S/A",
+        tipo: "RPS",
+        faturamento: q,
+        sistemas: ["carioca", "milhao"],
+      });
+
+      // carrega e filtra depois
+      const h = getHistorico();
+      const res = typeof h?.then === "function" ? await h : h;
+      setDados(res || []);
+      setExpanded(new Set());
+    } catch (e) {
+      console.error("Falha ao pesquisar:", e);
+      setDados([]);
+      setExpanded(new Set());
+    }
+  }, [textoDigitado, dados.length]);
 
   /* accordion */
   const toggleRow = useCallback((id) => {
@@ -239,18 +238,12 @@ export default function Consultas() {
   }, []);
 
   const atualizarItem = useCallback((atualizado) => {
-    setDados((prev) => prev.map((x) => (x.id === atualizado.id ? atualizado : x)));
+    setDados((prev) =>
+      prev.map((x) => (x.id === atualizado.id ? atualizado : x))
+    );
   }, []);
 
-  /* modal */
-  const onAskSubstituir = useCallback((id, sistemaNome) => {
-    setModal({
-      open: true,
-      action: "substituir",
-      id,
-      sistema: sistemaNome,
-    });
-  }, []);
+  /* modal: cancelar */
   const onAskCancelar = useCallback((id, sistemaNome) => {
     setModal({
       open: true,
@@ -262,20 +255,16 @@ export default function Consultas() {
 
   /* confirmar do modal */
   const onConfirmModal = useCallback(async () => {
-    if (!modal.open || !modal.action) return;
+    if (!modal.open || modal.action !== "cancelar") return;
     setModalLoading(true);
+
     try {
-      if (modal.action === "substituir") {
-        const res = await substituirNota({ id: modal.id, sistema: modal.sistema });
-        if (res?.item) atualizarItem(res.item);
-      } else if (modal.action === "cancelar") {
-        const res = await cancelarNota({ id: modal.id, sistema: modal.sistema });
-        if (res?.item) atualizarItem(res.item);
-      }
+      const res = await cancelarNota({ id: modal.id, sistema: modal.sistema });
+      if (res?.item) atualizarItem(res.item);
       setModal((m) => ({ ...m, open: false }));
     } catch (e) {
       console.error(e);
-            alert(e.message || "Falha ao processar ação.");
+      alert(e.message || "Falha ao processar cancelamento.");
     } finally {
       setModalLoading(false);
     }
@@ -286,7 +275,7 @@ export default function Consultas() {
     setModal({ open: false, action: null, id: null, sistema: null });
   }, [modalLoading]);
 
-  /* filtro */
+  /* filtro (só filtra em cima do que veio) */
   const resultados = useMemo(() => {
     const t = norm(texto.trim());
 
@@ -300,7 +289,7 @@ export default function Consultas() {
           return nome.includes(t) || proto.includes(t);
         });
 
-    const matchSistema =
+      const matchSistema =
         sistema === "todos" ||
         (sistema === "carioca" &&
           item.sistemas.some((s) => norm(s.nome).includes("carioca"))) ||
@@ -311,22 +300,14 @@ export default function Consultas() {
     });
   }, [dados, texto, sistema]);
 
-  /* labels do modal conforme ação */
-  const modalTitle =
-    modal.action === "substituir"
-      ? "Confirmar substituição da NFS-e"
-      : modal.action === "cancelar"
-      ? "Confirmar cancelamento da NFS-e"
-      : "";
+  /* labels do modal */
+  const modalTitle = modal.action === "cancelar" ? "Confirmar cancelamento da NFS-e" : "";
   const modalDesc =
-    modal.action === "substituir"
-      ? `Você está prestes a substituir a nota no sistema "${modal.sistema}".`
-      : modal.action === "cancelar"
+    modal.action === "cancelar"
       ? `Você está prestes a cancelar a nota no sistema "${modal.sistema}".`
       : "";
-  const modalConfirm =
-    modal.action === "substituir" ? "Substituir" : "Cancelar";
-  const modalVariant = modal.action === "cancelar" ? "danger" : "default";
+  const modalConfirm = "Cancelar";
+  const modalVariant = "danger";
 
   return (
     <div className="consultas">
@@ -337,17 +318,36 @@ export default function Consultas() {
         <div className="input-inline consultas-input">
           <FiSearch className="icon" />
           <input
-            placeholder="Digite qualquer número para simular..."
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
+            placeholder="Digite número da fatura ou da nota fiscal para realizar a busca..."
+            value={textoDigitado}
+            onChange={(e) => setTextoDigitado(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onPesquisar();
+            }}
           />
         </div>
+
+        <button
+          type="button"
+          className="btn"
+          onClick={onPesquisar}
+          disabled={!textoDigitado.trim()}
+          title="Pesquisar"
+        >
+          <FiSearch /> Pesquisar
+        </button>
 
         <div className="consultas-filtros">
           <select
             className="select"
             value={sistema}
             onChange={(e) => setSistema(e.target.value)}
+            disabled={!hasSearched || resultados.length === 0}
+            title={
+              !hasSearched
+                ? "Faça uma pesquisa para habilitar os filtros"
+                : undefined
+            }
           >
             <option value="todos">Todos os sistemas</option>
             <option value="carioca">Nota Carioca</option>
@@ -356,55 +356,37 @@ export default function Consultas() {
         </div>
       </div>
 
-      <div className="card">
-        {resultados.length === 0 ? (
-          <div className="empty">
-            <p>Nenhum registro encontrado.</p>
-            <button
-              className="btn"
-              onClick={async () => {
-                await transmitirNota({
-                  empresa: "MOCK S/A",
-                  tipo: "RPS",
-                  faturamento: texto.trim() || "2024-000001",
-                  sistemas: ["carioca", "milhao"],
-                });
-                const h = getHistorico();
-                if (typeof h?.then === "function") {
-                  const res = await h;
-                  setDados(res || []);
-                } else {
-                  setDados(h || []);
-                }
-              }}
-            >
-              Gerar dados de teste
-            </button>
-          </div>
-        ) : (
-          <table className="tabela tabela-accordion">
-            <thead>
-              <tr>
-                <th>Faturamento</th>
-                <th>Data/Hora</th>
-                <th>Resultados</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resultados.map((item) => (
-                <Linha
-                  key={item.id}
-                  item={item}
-                  expanded={expanded}
-                  onToggle={toggleRow}
-                  onAskSubstituir={onAskSubstituir}
-                  onAskCancelar={onAskCancelar}
-                />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {/* Só mostra card depois de pesquisar */}
+      {hasSearched && (
+        <div className="card">
+          {resultados.length === 0 ? (
+            <div className="empty">
+              <p>Nenhum registro encontrado.</p>
+            </div>
+          ) : (
+            <table className="tabela tabela-accordion">
+              <thead>
+                <tr>
+                  <th>Faturamento</th>
+                  <th>Data/Hora</th>
+                  <th>Resultados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resultados.map((item) => (
+                  <Linha
+                    key={item.id}
+                    item={item}
+                    expanded={expanded}
+                    onToggle={toggleRow}
+                    onAskCancelar={onAskCancelar}
+                  />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       {/* Modal */}
       <ModalConfirm
