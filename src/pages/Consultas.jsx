@@ -40,15 +40,21 @@ function ModalConfirm({
   loading = false,
   onConfirm,
   onClose,
+  confirmDisabled = false,
+  children,
 }) {
   if (!open) return null;
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
         <div className="modal-header">
           <h3>{title}</h3>
         </div>
+
         {description && <p className="modal-desc">{description}</p>}
+
+        {children}
 
         <div className="modal-actions">
           <button
@@ -63,7 +69,10 @@ function ModalConfirm({
             type="button"
             className={`btn ${variant === "danger" ? "danger" : ""}`}
             onClick={onConfirm}
-            disabled={loading}
+            disabled={loading || confirmDisabled}
+            title={
+              confirmDisabled ? "Selecione um sistema para prosseguir" : undefined
+            }
           >
             {loading ? "Processando..." : confirmLabel}
           </button>
@@ -73,9 +82,13 @@ function ModalConfirm({
   );
 }
 
-function Linha({ item, expanded, onToggle, onAskCancelar }) {
+function Linha({ item, expanded, onToggle, onOpenCancelar }) {
   const isOpen = expanded.has(item.id);
   const toggle = useCallback(() => onToggle(item.id), [item.id, onToggle]);
+
+  const hasElegivel = item.sistemas.some(
+    (s) => s.status === "sucesso" && s.protocolo && !s.cancelada
+  );
 
   return (
     <>
@@ -94,7 +107,9 @@ function Linha({ item, expanded, onToggle, onAskCancelar }) {
             {item.faturamento}
           </button>
         </td>
+
         <td>{new Date(item.quando).toLocaleString("pt-BR")}</td>
+
         <td className="resultados-compactos">
           {item.sistemas.map((s) => (
             <span key={s.nome} className="sist-chip">
@@ -107,51 +122,46 @@ function Linha({ item, expanded, onToggle, onAskCancelar }) {
             </span>
           ))}
         </td>
+
+        <td className="acoes-col">
+          <button
+            type="button"
+            className="btn btn-xs danger"
+            disabled={!hasElegivel}
+            onClick={() => onOpenCancelar(item)}
+            title={
+              hasElegivel
+                ? "Cancelar uma nota deste faturamento"
+                : "Não há nota elegível para cancelamento"
+            }
+          >
+            <FiXCircle /> Cancelar
+          </button>
+        </td>
       </tr>
 
       {isOpen && (
         <tr id={`detalhes-${item.id}`} className="accordion-expansion">
-          <td colSpan={3}>
+          <td colSpan={4}>
             <div className="expansion-wrapper">
-              {item.sistemas.map((s) => {
-                const podeCancelar =
-                  s.status === "sucesso" && s.protocolo && !s.cancelada;
-
-                return (
-                  <div key={s.nome} className="sist-bloco">
-                    <div className="sist-header">
-                      <div className="sist-title">
-                        <strong>{s.nome}</strong>
-                        <Badge
-                          status={s.status}
-                          cancelada={s.cancelada}
-                          substituida={s.substituida}
-                        />
-                      </div>
-                      <div className="sist-proto">
-                        Protocolo:&nbsp;
-                        <span className="mono">{s.protocolo ?? "—"}</span>
-                      </div>
+              {item.sistemas.map((s) => (
+                <div key={s.nome} className="sist-bloco">
+                  <div className="sist-header">
+                    <div className="sist-title">
+                      <strong>{s.nome}</strong>
+                      <Badge
+                        status={s.status}
+                        cancelada={s.cancelada}
+                        substituida={s.substituida}
+                      />
                     </div>
-
-                    <div className="sist-acoes">
-                      <button
-                        type="button"
-                        className="btn danger"
-                        disabled={!podeCancelar}
-                        onClick={() => onAskCancelar(item.id, s.nome)}
-                        title={
-                          podeCancelar
-                            ? "Cancelar a NFS-e"
-                            : "Ação indisponível para este status"
-                        }
-                      >
-                        <FiXCircle /> Cancelar nota
-                      </button>
+                    <div className="sist-proto">
+                      Protocolo:&nbsp;
+                      <span className="mono">{s.protocolo ?? "—"}</span>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </td>
         </tr>
@@ -164,36 +174,32 @@ export default function Consultas() {
   const [dados, setDados] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // digita aqui, mas só aplica quando clicar pesquisar
   const [textoDigitado, setTextoDigitado] = useState("");
   const [texto, setTexto] = useState("");
 
-  const [sistema, setSistema] = useState("todos"); // todos|carioca|milhao
+  const [sistema, setSistema] = useState("todos");
   const [expanded, setExpanded] = useState(() => new Set());
   const lastMockedRef = useRef("");
 
   const [modal, setModal] = useState({
     open: false,
-    action: null, // "cancelar"
     id: null,
-    sistema: null,
+    sistema: "", // AGORA começa vazio
+    opcoes: [],
   });
   const [modalLoading, setModalLoading] = useState(false);
 
-  /* pesquisar: só aqui a tela ganha vida */
   const onPesquisar = useCallback(async () => {
     const q = textoDigitado.trim();
     setTexto(q);
     setHasSearched(true);
 
-    // limpa a lista se pesquisar vazio (tela fica "limpa" de novo)
     if (!q) {
       setDados([]);
       setExpanded(new Set());
       return;
     }
 
-    // semeia histórico apenas quando pesquisar
     seedHistoricoSeVazio?.();
 
     if (q.length < 3) {
@@ -202,13 +208,11 @@ export default function Consultas() {
       return;
     }
 
-    // evita repetir a mesma simulação (e não fica acumulando lixo)
     if (lastMockedRef.current === q && dados.length > 0) return;
 
     try {
       lastMockedRef.current = q;
 
-      // simula o retorno gerando uma transmissão
       await transmitirNota({
         empresa: "MOCK S/A",
         tipo: "RPS",
@@ -216,7 +220,6 @@ export default function Consultas() {
         sistemas: ["carioca", "milhao"],
       });
 
-      // carrega e filtra depois
       const h = getHistorico();
       const res = typeof h?.then === "function" ? await h : h;
       setDados(res || []);
@@ -228,7 +231,6 @@ export default function Consultas() {
     }
   }, [textoDigitado, dados.length]);
 
-  /* accordion */
   const toggleRow = useCallback((id) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -243,19 +245,36 @@ export default function Consultas() {
     );
   }, []);
 
-  /* modal: cancelar */
-  const onAskCancelar = useCallback((id, sistemaNome) => {
+  const onOpenCancelar = useCallback((item) => {
+    const opcoes = (item.sistemas || [])
+      .filter((s) => s.status === "sucesso" && s.protocolo && !s.cancelada)
+      .map((s) => s.nome)
+      .sort((a, b) => {
+        // só pra ordem ficar bonita, mas usuário escolhe no modal
+        const A = norm(a);
+        const B = norm(b);
+        const aIsMilhao = A.includes("milhao");
+        const bIsMilhao = B.includes("milhao");
+        if (aIsMilhao && !bIsMilhao) return -1;
+        if (!aIsMilhao && bIsMilhao) return 1;
+        return a.localeCompare(b);
+      });
+
     setModal({
       open: true,
-      action: "cancelar",
-      id,
-      sistema: sistemaNome,
+      id: item.id,
+      sistema: "", // 👈 placeholder por padrão
+      opcoes,
     });
   }, []);
 
-  /* confirmar do modal */
+  const onCloseModal = useCallback(() => {
+    if (modalLoading) return;
+    setModal({ open: false, id: null, sistema: "", opcoes: [] });
+  }, [modalLoading]);
+
   const onConfirmModal = useCallback(async () => {
-    if (!modal.open || modal.action !== "cancelar") return;
+    if (!modal.open || !modal.id || !modal.sistema) return;
     setModalLoading(true);
 
     try {
@@ -270,12 +289,6 @@ export default function Consultas() {
     }
   }, [modal, atualizarItem]);
 
-  const onCloseModal = useCallback(() => {
-    if (modalLoading) return;
-    setModal({ open: false, action: null, id: null, sistema: null });
-  }, [modalLoading]);
-
-  /* filtro (só filtra em cima do que veio) */
   const resultados = useMemo(() => {
     const t = norm(texto.trim());
 
@@ -300,14 +313,8 @@ export default function Consultas() {
     });
   }, [dados, texto, sistema]);
 
-  /* labels do modal */
-  const modalTitle = modal.action === "cancelar" ? "Confirmar cancelamento da NFS-e" : "";
-  const modalDesc =
-    modal.action === "cancelar"
-      ? `Você está prestes a cancelar a nota no sistema "${modal.sistema}".`
-      : "";
-  const modalConfirm = "Cancelar";
-  const modalVariant = "danger";
+  const modalTitle = "Confirmar cancelamento da NFS-e";
+  const modalDesc = "Selecione qual nota deseja cancelar para prosseguir.";
 
   return (
     <div className="consultas">
@@ -343,11 +350,7 @@ export default function Consultas() {
             value={sistema}
             onChange={(e) => setSistema(e.target.value)}
             disabled={!hasSearched || resultados.length === 0}
-            title={
-              !hasSearched
-                ? "Faça uma pesquisa para habilitar os filtros"
-                : undefined
-            }
+            title={!hasSearched ? "Faça uma pesquisa para habilitar os filtros" : undefined}
           >
             <option value="todos">Todos os sistemas</option>
             <option value="carioca">Nota Carioca</option>
@@ -356,7 +359,6 @@ export default function Consultas() {
         </div>
       </div>
 
-      {/* Só mostra card depois de pesquisar */}
       {hasSearched && (
         <div className="card">
           {resultados.length === 0 ? (
@@ -370,6 +372,7 @@ export default function Consultas() {
                   <th>Faturamento</th>
                   <th>Data/Hora</th>
                   <th>Resultados</th>
+                  <th style={{ width: 140, textAlign: "right" }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -379,7 +382,7 @@ export default function Consultas() {
                     item={item}
                     expanded={expanded}
                     onToggle={toggleRow}
-                    onAskCancelar={onAskCancelar}
+                    onOpenCancelar={onOpenCancelar}
                   />
                 ))}
               </tbody>
@@ -388,18 +391,54 @@ export default function Consultas() {
         </div>
       )}
 
-      {/* Modal */}
       <ModalConfirm
         open={modal.open}
         title={modalTitle}
         description={modalDesc}
-        confirmLabel={modalConfirm}
+        confirmLabel="Cancelar"
         cancelLabel="Voltar"
-        variant={modalVariant}
+        variant="danger"
         loading={modalLoading}
         onConfirm={onConfirmModal}
         onClose={onCloseModal}
-      />
+        confirmDisabled={!modal.sistema}
+      >
+        <div className={`modal-sistemas ${!modal.sistema ? "is-required" : ""}`}>
+          <div className="modal-sistemas-header">
+            <span className="label-sist">Sistema</span>
+            {!modal.sistema && (
+              <span className="modal-sistemas-hint">
+                Selecione uma opção para prosseguir
+              </span>
+            )}
+          </div>
+
+          <select
+            className="select modal-sistemas-select"
+            value={modal.sistema}
+            onChange={(e) =>
+              setModal((m) => ({ ...m, sistema: e.target.value }))
+            }
+            disabled={modalLoading || modal.opcoes.length === 0}
+          >
+            <option value="" disabled>
+              Selecione uma opção para prosseguir
+            </option>
+
+            {modal.opcoes.length === 0 ? (
+              <option value="" disabled>
+                Sem opções disponíveis
+              </option>
+            ) : (
+              modal.opcoes.map((nome) => (
+                <option key={nome} value={nome}>
+                  {nome}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+      </ModalConfirm>
     </div>
   );
 }

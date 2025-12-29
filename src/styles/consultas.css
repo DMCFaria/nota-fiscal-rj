@@ -434,3 +434,55 @@
 .btn.secondary:hover {
   background: #eef3fa;
 }
+
+.acoes-col {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.btn.btn-xs {
+  padding: .35rem .55rem;
+  font-size: .85rem;
+  gap: .35rem;
+}
+
+.btn.btn-xs svg {
+  width: 16px;
+  height: 16px;
+}
+
+.modal-sistemas {
+  margin-top: .75rem;
+  padding: .9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: rgba(255, 255, 255, .04);
+  display: grid;
+  gap: .55rem;
+}
+
+.modal-sistemas-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.label-sist {
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+
+.modal-sistemas-hint {
+  font-size: .85rem;
+  opacity: .85;
+}
+
+.modal-sistemas.is-required {
+  border-color: rgba(255, 82, 82, .55);
+  box-shadow: 0 0 0 3px rgba(255, 82, 82, .12);
+}
+
+.modal-sistemas-select {
+  height: 42px;
+}
