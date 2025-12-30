@@ -433,3 +433,19 @@ pre {
   color: #334155;
   font-weight: 500;
 }
+
+.fc-row--flag {
+  margin-bottom: .65rem;
+}
+
+.fc-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  cursor: pointer;
+}
+
+.fc-flag input {
+  width: 16px;
+  height: 16px;
+}

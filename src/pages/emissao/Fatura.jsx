@@ -8,6 +8,8 @@ import "../../styles/emissao.css";
 export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
   const [fatura, setFatura] = useState("");
+  const [parcelada, setParcelada] = useState(false);
+
   const [preview, setPreview] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loadingGerar, setLoadingGerar] = useState(false);
@@ -15,64 +17,85 @@ export default function EmissaoPorFatura() {
   const [erro, setErro] = useState("");
   const [status, setStatus] = useState(null);
 
-  const podeGerar = useMemo(() => !!empresa && !!fatura.trim(), [empresa, fatura]);
+  const podeGerar = useMemo(
+    () => !!empresa && !!fatura.trim(),
+    [empresa, fatura]
+  );
+
   const podeEmitir = useMemo(
     () => !!preview && !loadingGerar && !loadingEmitir,
     [preview, loadingGerar, loadingEmitir]
   );
 
   const pushLog = useCallback((msg) => {
-    setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-200));
+    setLogs((prev) =>
+      [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-200)
+    );
   }, []);
 
-  const handleGerar = useCallback(async (e) => {
-    e?.preventDefault();
-    if (!podeGerar) return;
+  const handleGerar = useCallback(
+    async (e) => {
+      e?.preventDefault();
+      if (!podeGerar) return;
 
-    setErro("");
-    setStatus(null);
-    setLoadingGerar(true);
-    setPreview(null);
-    pushLog(`Gerando prévia da fatura #${fatura} (${empresa})...`);
+      setErro("");
+      setStatus(null);
+      setLoadingGerar(true);
+      setPreview(null);
 
-    try {
-      await new Promise((r) => setTimeout(r, 500));
-      const resumoFake = {
-        empresa,
-        fatura,
-        quantidadeNFs: 12,
-        valorTotal: 15876.5,
-        observacao: "Serviços de corretagem — competência atual",
-        itens: [
-          { cliente: "ACME Ltda", valor: 4500.0 },
-          { cliente: "Globex S.A.", valor: 3200.0 },
-          { cliente: "Initech", valor: 2100.0 },
-        ],
-      };
-      setPreview(resumoFake);
-      pushLog("Prévia gerada com sucesso.");
-      setStatus({ type: "ok", msg: "Prévia pronta. Revise e clique em EMITIR." });
-    } catch {
-      setErro("Falha ao gerar a prévia.");
-      setStatus({ type: "err", msg: "Erro ao gerar a prévia." });
-      pushLog("Erro ao gerar prévia.");
-    } finally {
-      setLoadingGerar(false);
-    }
-  }, [empresa, fatura, podeGerar, pushLog]);
+      pushLog(
+        `Gerando prévia da fatura #${fatura} (${empresa})${
+          parcelada ? " [PARCELADA]" : ""
+        }...`
+      );
+
+      try {
+        await new Promise((r) => setTimeout(r, 500));
+
+        const resumoFake = {
+          empresa,
+          fatura,
+          parcelada, 
+          quantidadeNFs: 12,
+          valorTotal: 15876.5,
+          observacao: parcelada
+            ? "Fatura parcelada — emitir conforme parcelas/competência"
+            : "Serviços de corretagem — competência atual",
+          itens: [
+            { cliente: "ACME Ltda", valor: 4500.0 },
+            { cliente: "Globex S.A.", valor: 3200.0 },
+            { cliente: "Initech", valor: 2100.0 },
+          ],
+        };
+
+        setPreview(resumoFake);
+        pushLog("Prévia gerada com sucesso.");
+        setStatus({ type: "ok", msg: "Prévia pronta. Revise e clique em EMITIR." });
+      } catch {
+        setErro("Falha ao gerar a prévia.");
+        setStatus({ type: "err", msg: "Erro ao gerar a prévia." });
+        pushLog("Erro ao gerar prévia.");
+      } finally {
+        setLoadingGerar(false);
+      }
+    },
+    [empresa, fatura, parcelada, podeGerar, pushLog]
+  );
 
   const handleEmitir = useCallback(async () => {
     if (!podeEmitir) return;
     setErro("");
     setStatus(null);
     setLoadingEmitir(true);
-    pushLog("Iniciando emissão…");
+
+    pushLog(`Iniciando emissão…${parcelada ? " [PARCELADA]" : ""}`);
 
     try {
       const { ok, protocolo, pdfBlob, erro: erroApi } = await emitirNota({
         empresa,
         tipo: "FATURA",
         numero: fatura,
+        parcelada, 
         preview,
       });
 
@@ -82,7 +105,10 @@ export default function EmissaoPorFatura() {
         return;
       }
 
-      setStatus({ type: "ok", msg: `Emitida com sucesso. Protocolo ${protocolo}. Baixando PDF…` });
+      setStatus({
+        type: "ok",
+        msg: `Emitida com sucesso. Protocolo ${protocolo}. Baixando PDF…`,
+      });
       pushLog(`Emissão concluída. Protocolo ${protocolo}.`);
 
       baixarPdf(`NF_${empresa}_${fatura}_${protocolo}.pdf`, pdfBlob);
@@ -92,7 +118,7 @@ export default function EmissaoPorFatura() {
     } finally {
       setLoadingEmitir(false);
     }
-  }, [empresa, fatura, podeEmitir, preview, pushLog]);
+  }, [empresa, fatura, parcelada, podeEmitir, preview, pushLog]);
 
   return (
     <div className="fc-page">
@@ -110,6 +136,23 @@ export default function EmissaoPorFatura() {
         <form className="fc-form" onSubmit={handleGerar}>
           <fieldset className="fc-fieldset">
             <legend>Digite o nº da fatura</legend>
+
+            <div className="fc-row fc-row--flag">
+              <label className="fc-flag">
+                <input
+                  type="checkbox"
+                  checked={parcelada}
+                  onChange={(e) => {
+                    setParcelada(e.target.checked);
+                    
+                    setPreview(null);
+                    setStatus(null);
+                  }}
+                />
+                <span>Fatura Parcelada</span>
+              </label>
+            </div>
+
             <div className="fc-row">
               <input
                 className="fc-input"
@@ -142,14 +185,28 @@ export default function EmissaoPorFatura() {
                 <header className="fc-header">
                   <h1>Prévia da Nota Fiscal</h1>
                 </header>
+
                 <br />
+
                 <div><strong>Empresa:</strong> {preview.empresa}</div>
                 <div><strong>Fatura:</strong> #{preview.fatura}</div>
-                <div><strong>NF(s):</strong> {preview.quantidadeNFs}</div>
-                <div><strong>Total Bruto:</strong> {preview.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
-                <div className="fc-col-span"><strong>Obs.:</strong> {preview.observacao}</div>
-              </div>
 
+                <div>
+                  <strong>Parcelada:</strong> {preview.parcelada ? "Sim" : "Não"}
+                </div>
+
+                <div><strong>NF(s):</strong> {preview.quantidadeNFs}</div>
+                <div>
+                  <strong>Total Bruto:</strong>{" "}
+                  {preview.valorTotal.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </div>
+                <div className="fc-col-span">
+                  <strong>Obs.:</strong> {preview.observacao}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="fc-placeholder">A prévia aparecerá aqui após clicar em “GERAR”.</div>
