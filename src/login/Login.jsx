@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Adicionado useEffect
 import { useNavigate } from "react-router-dom";
 import "../styles/Login.css";
 import { useAuth } from "../context/AuthContext";
@@ -11,8 +11,15 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth(); // Importado isAuthenticated
   const navigate = useNavigate();
+
+  // 1. Redireciona se já estiver logado
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/emissao/fatura", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -20,19 +27,25 @@ const Login = () => {
     setError("");
 
     try {
+      // O seu login no Context já deve lidar com o localStorage e o setUser
       const result = await login({ email, password });
 
       if (result.success) {
         navigate("/emissao/fatura", { replace: true });
       } else {
-        setError(result.error || "Falha no login. Verifique suas credenciais.");
+        setError(result.error || "E-mail ou senha incorretos.");
       }
     } catch (err) {
-      console.error("Erro de login no componente:", err);
-      setError("Ocorreu um erro inesperado durante o login.");
+      setError("Falha na conexão com o servidor.");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Limpa o erro quando o usuário volta a digitar
+  const handleInputChange = (setter) => (e) => {
+    if (error) setError("");
+    setter(e.target.value);
   };
 
   return (
@@ -42,8 +55,9 @@ const Login = () => {
       <div className="login-wrapper">
         <div className="loginContainer">
           <div className="loginBox">
+            {/* Ajuste o caminho conforme onde sua imagem está guardada */}
             <img
-              src="../../imagens/LOGO.png"
+              src="/imagens/LOGO.png" 
               alt="Fedcorp Logo"
               className="logoImg"
             />
@@ -61,8 +75,9 @@ const Login = () => {
                   id="email"
                   placeholder="Digite seu e-mail"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleInputChange(setEmail)} // Uso da função de limpeza
                   required
+                  autoComplete="email"
                 />
               </div>
 
@@ -74,34 +89,34 @@ const Login = () => {
                     id="senha"
                     placeholder="Digite sua senha"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handleInputChange(setPassword)} // Uso da função de limpeza
                     required
+                    autoComplete="current-password"
                   />
 
                   <button
                     type="button"
                     className="togglePassword"
                     onClick={() => setShowPassword((p) => !p)}
-                    aria-label="Mostrar/ocultar senha"
+                    aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
                   >
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
               </div>
 
-              {error && <p className="error-message">{error}</p>}
+              {/* Melhoria visual do erro */}
+              <div className="error-container" style={{ minHeight: '20px' }}>
+                {error && <p className="error-message">{error}</p>}
+              </div>
 
               <button
                 type="submit"
-                className="loginButton"
+                className={`loginButton ${loading ? "btn-loading" : ""}`}
                 disabled={loading}
               >
-                {loading ? "Entrando..." : "Entrar"}
+                {loading ? "Processando..." : "Entrar"}
               </button>
-
-              {/* <a href="/esqueci-senha" className="forgot-password">
-                Esqueceu sua senha?
-              </a> */}
             </form>
           </div>
         </div>
