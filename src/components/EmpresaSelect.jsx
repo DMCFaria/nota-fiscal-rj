@@ -41,7 +41,7 @@ export default function EmpresaSelect({
         >
           <option value="">{placeholder}</option>
           {lista.map(o => (
-            <option key={o.value} value={o.value}>{o.label}{o.CNPJ}</option>
+            <option key={o.value} value={o.value}>{o.label} {o.CNPJ}</option>
           ))}
         </select>
         <span className="select-chevron" aria-hidden>▾</span>
