@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
 import {
@@ -7,6 +7,7 @@ import {
   startStatusPolling
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
+import { getEmpresas } from "../../services/empresas";
 
 export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
@@ -19,45 +20,11 @@ export default function EmissaoPorFatura() {
   const [logs, setLogs] = useState([]);
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
-  const [progresso, setProgresso] = useState(0);
+  const [erro, setErro] = useState("");
+  const [status, setStatus] = useState(null);
+  const [empresaData, setEmpresaData] = useState([]);
 
-  // Toast
-  const [toast, setToast] = useState(null); // { type: "ok" | "err" | "info", msg: string }
-  const [toastVisible, setToastVisible] = useState(false);
-
-  const showToast = useCallback((type, msg, duration = 3500) => {
-    setToast({ type, msg });
-    setToastVisible(true);
-
-    window.clearTimeout(showToast._t1);
-    window.clearTimeout(showToast._t2);
-
-    // inicia o "fade out" um pouco antes de sumir
-    showToast._t1 = window.setTimeout(() => setToastVisible(false), Math.max(800, duration - 300));
-    showToast._t2 = window.setTimeout(() => setToast(null), duration);
-  }, []);
-  // guarda timeouts na função
-  showToast._t1 = showToast._t1 || null;
-  showToast._t2 = showToast._t2 || null;
-
-  useEffect(() => {
-    return () => {
-      window.clearTimeout(showToast._t1);
-      window.clearTimeout(showToast._t2);
-    };
-  }, [showToast]);
-
-  // Lógica para Condomed habilitar campo de código de serviço
-  const isCondomed = useMemo(() => {
-    const nome = typeof empresa === "string" ? empresa : empresa?.nome;
-    return nome?.toLowerCase().includes("condomed");
-  }, [empresa]);
-
-  const podeGerar = useMemo(
-    () => !!empresa && !!fatura.trim() && !!observacao.trim(),
-    [empresa, fatura, observacao]
-  );
-
+  const podeGerar = useMemo(() => !!empresa && !!fatura.trim(), [empresa, fatura]);
   const podeEmitir = useMemo(
     () => !!preview && !loadingGerar && !loadingEmitir,
     [preview, loadingGerar, loadingEmitir]
@@ -181,19 +148,23 @@ export default function EmissaoPorFatura() {
       }
     } catch (err) {
       setLoadingEmitir(false);
-      const msg = err?.error || "Falha ao iniciar processo de emissão.";
-      showToast("err", msg);
-      pushLog(`ERRO: ${msg}`);
     }
-  }, [podeEmitir, preview, pushLog, showToast]);
+  }, [empresa, fatura, podeEmitir, preview, pushLog]);
 
-  const gerarBtnClass =
-    "fc-btn fc-btn-primary w-full " +
-    (!podeGerar || loadingGerar ? "is-disabled" : "is-enabled");
 
-  const emitirBtnClass =
-    "fc-btn fc-btn-accent " +
-    (!podeEmitir || loadingEmitir ? "is-disabled" : "is-enabled");
+  useEffect(() => {
+    const carregarEmpresas = async () => {
+      try {
+        const response = await getEmpresas();
+        setEmpresaData(response.data || []);
+      } catch (error) {
+        console.error("Erro ao carregar empresas:", error);
+      }
+    };
+    carregarEmpresas();
+  }, []);
+
+  console.log("empresaData:", empresaData);
 
   return (
     <div className="fc-page">
@@ -227,19 +198,23 @@ export default function EmissaoPorFatura() {
           <h2 className="fc-title">Emissão · Por Fatura</h2>
         </header>
 
-        <div className="fc-body">
-          <section className="fc-section fc-section-empresa">
-            <div className="fc-empresa-content">
-              <EmpresaSelect
-                value={empresa}
-                onChange={(val) => {
-                  setEmpresa(val);
-                  setPreview(null);
-                  showToast("info", "Empresa selecionada.");
-                }}
-              />
-            </div>
-          </section>
+        {/* <section className="fc-section">
+          <EmpresaSelect value={empresa} onChange={setEmpresa} />
+        </section> */}
+
+        <section className="fc-section">
+          <EmpresaSelect
+            value={empresa}
+            onChange={setEmpresa}
+            empresas={empresaData}
+          />
+        </section>
+
+        {/* <section className="fc-section">
+          {empresaData.resultados?.map((empresa) =>
+            {console.log(empresa.CEDENTE)}
+          )}
+        </section> */}
 
           <form onSubmit={handleGerar} className="fc-form">
             <h3 className="fc-form-title">Dados de Importação</h3>
