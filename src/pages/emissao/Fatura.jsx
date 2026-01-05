@@ -88,9 +88,7 @@ export default function EmissaoPorFatura() {
         const payload = {
           protocolo_id: "REQ_" + Date.now(),
           fatura_numero: fatura,
-          prestador_cnpj:
-            typeof empresa === "object" ? empresa.cnpj : "22.708.714/0001-91",
-          "codigo_serviço": codigoServico,
+          prestador_cnpj:empresa,
           observacao: observacao,
           parcela: parcelada
         };
