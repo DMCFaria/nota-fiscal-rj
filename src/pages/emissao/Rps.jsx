@@ -1,17 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
 import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
-import StatusBanner from "../../components/StatusBanner";
 import JSZip from "jszip";
 import { emitirNota, baixarPdf } from "../../services/emissao";
-import "../../styles/emissao.css";
+import "../../styles/emissaoRps.css";
 
 export default function EmissaoPorRps() {
   const [empresa, setEmpresa] = useState("");
   const [arquivo, setArquivo] = useState(null);
   const [itens, setItens] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState(null); // { type: "ok" | "err", msg: string }
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
 
@@ -20,7 +19,9 @@ export default function EmissaoPorRps() {
   const porPagina = 10;
 
   const pushLog = useCallback((msg) => {
-    setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-300));
+    setLogs((prev) =>
+      [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-300)
+    );
   }, []);
 
   const resumo = useMemo(() => {
@@ -29,68 +30,85 @@ export default function EmissaoPorRps() {
     return { qtd, total };
   }, [itens]);
 
-  const totalPaginas = useMemo(() => Math.max(1, Math.ceil(itens.length / porPagina)), [itens.length]);
+  const totalPaginas = useMemo(
+    () => Math.max(1, Math.ceil(itens.length / porPagina)),
+    [itens.length]
+  );
+
   const visiveis = useMemo(() => {
     const inicio = (pagina - 1) * porPagina;
     return itens.slice(inicio, inicio + porPagina);
   }, [itens, pagina]);
 
   const podeGerar = useMemo(() => !!empresa && !!arquivo, [empresa, arquivo]);
-  const podeEmitir = useMemo(() => itens.length > 0 && !loadingGerar && !loadingEmitir, [itens, loadingGerar, loadingEmitir]);
+  const podeEmitir = useMemo(
+    () => itens.length > 0 && !loadingGerar && !loadingEmitir,
+    [itens, loadingGerar, loadingEmitir]
+  );
 
   function moeda(v) {
-    return (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    return (Number(v) || 0).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL"
+    });
   }
 
   async function lerArquivo(file) {
     const txt = await file.text();
-    return (
-      txt
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter(Boolean)
-        .map((l) => {
-          // aceita "RPS" OU "RPS,valor"
-          const [rps, valor] = l.split(",").map((s) => s?.trim());
-          return { rps, valor: valor ? Number(valor.replace(",", ".")) : undefined };
-        })
-        // remove duplicados por RPS
-        .filter((v, i, a) => a.findIndex((x) => x.rps === v.rps) === i)
-    );
+    return txt
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => {
+        // aceita "RPS" OU "RPS,valor"
+        const [rps, valor] = l.split(",").map((s) => s?.trim());
+        return { rps, valor: valor ? Number(valor.replace(",", ".")) : undefined };
+      })
+      // remove duplicados por RPS
+      .filter((v, i, a) => a.findIndex((x) => x.rps === v.rps) === i);
   }
 
-  const onGerar = useCallback(async (e) => {
-    e?.preventDefault();
-    if (!podeGerar) return;
+  const onGerar = useCallback(
+    async (e) => {
+      e?.preventDefault();
+      if (!podeGerar) return;
 
-    setStatus(null);
-    setItens([]);
-    setPagina(1);
-    setLoadingGerar(true);
-    pushLog(`Lendo arquivo para empresa ${empresa}…`);
+      setStatus(null);
+      setItens([]);
+      setPagina(1);
+      setLoadingGerar(true);
 
-    try {
-      const arr = await lerArquivo(arquivo);
-      setItens(arr);
-      pushLog(`Arquivo processado: ${arr.length} linha(s) válida(s).`);
-      setStatus({
-        type: "ok",
-        msg: `Prévia pronta: ${arr.length} RPS. Valor total ${moeda(arr.reduce((a, b) => a + (b.valor || 0), 0))}.`,
-      });
-    } catch (err) {
-      setStatus({ type: "err", msg: "Não foi possível ler o arquivo." });
-      pushLog("Erro ao ler arquivo.");
-    } finally {
-      setLoadingGerar(false);
-    }
-  }, [arquivo, empresa, podeGerar, pushLog]);
+      pushLog(`Lendo arquivo para empresa ${empresa}…`);
+
+      try {
+        const arr = await lerArquivo(arquivo);
+        setItens(arr);
+        pushLog(`Arquivo processado: ${arr.length} linha(s) válida(s).`);
+
+        setStatus({
+          type: "ok",
+          msg: `Prévia pronta: ${arr.length} RPS. Valor total ${moeda(
+            arr.reduce((a, b) => a + (b.valor || 0), 0)
+          )}.`
+        });
+      } catch (err) {
+        setStatus({ type: "err", msg: "Não foi possível ler o arquivo." });
+        pushLog("Erro ao ler arquivo.");
+      } finally {
+        setLoadingGerar(false);
+      }
+    },
+    [arquivo, empresa, podeGerar, pushLog]
+  );
 
   const onEmitir = useCallback(async () => {
     if (!podeEmitir) return;
+
     setStatus(null);
     setLoadingEmitir(true);
 
-    let ok = 0, erro = 0;
+    let ok = 0,
+      erro = 0;
 
     const zip = new JSZip();
     const nomePasta = `NF_RPS_${empresa}_${new Date().toISOString().slice(0, 10)}`;
@@ -101,14 +119,15 @@ export default function EmissaoPorRps() {
     for (const item of itens) {
       try {
         pushLog(`Emitindo RPS ${item.rps}…`);
+
         const { ok: deuBom, protocolo, pdfBlob, erro: erroApi } = await emitirNota({
           empresa,
           tipo: "RPS",
           numero: item.rps,
           preview: {
             itens: [{ cliente: `RPS ${item.rps}`, valor: item.valor || 0 }],
-            valorTotal: item.valor || 0,
-          },
+            valorTotal: item.valor || 0
+          }
         });
 
         if (!deuBom) {
@@ -119,7 +138,7 @@ export default function EmissaoPorRps() {
 
         ok++;
         const nomePdf = `NF_RPS_${empresa}_${item.rps}_${protocolo}.pdf`;
-        pasta.file(nomePdf, pdfBlob); 
+        pasta.file(nomePdf, pdfBlob);
         pushLog(`OK RPS ${item.rps} — protocolo ${protocolo}. Adicionado ao ZIP.`);
       } catch {
         erro++;
@@ -139,10 +158,14 @@ export default function EmissaoPorRps() {
     const zipBlob = await zip.generateAsync({
       type: "blob",
       compression: "DEFLATE",
-      compressionOptions: { level: 6 },
+      compressionOptions: { level: 6 }
     });
 
-    const nomeZip = `Lote_RPS_${empresa}_${new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19)}.zip`;
+    const nomeZip = `Lote_RPS_${empresa}_${new Date()
+      .toISOString()
+      .replace(/[:T]/g, "-")
+      .slice(0, 19)}.zip`;
+
     baixarPdf(nomeZip, zipBlob);
     pushLog(`ZIP gerado e download iniciado: ${nomeZip}`);
 
@@ -153,29 +176,48 @@ export default function EmissaoPorRps() {
   }, [empresa, itens, podeEmitir, pushLog]);
 
   return (
-    <div className="fc-page">
-        {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
-      <div className="fc-card">
-        <header className="fc-header"><h1>Emissão · Por RPS</h1></header>
+    <div className="rps-page">
+      <div className="rps-card">
+        <header className="fc-header">
+          <h2 className="fc-title">Emissão · Por RPS</h2>
+        
+          {status && (
+            <div className={`rps-alert rps-alert--${status.type}`}>
+              {status.msg}
+            </div>
+          )}
+        </header>
 
-        <section className="fc-section">
-          <EmpresaSelect value={empresa} onChange={setEmpresa} />
-        </section>
+        <div className="rps-body">
+          <section className="rps-section">
+           
 
-        <form className="fc-form" onSubmit={onGerar}>
-          <fieldset className="fc-fieldset">
-            <legend>Importar arquivo</legend>
-            <div className="fc-col">
-              <input
-                type="file"
-                accept=".csv,.txt"
-                onChange={(e) => setArquivo(e.target.files?.[0] || null)}
-                aria-label="Arquivo de RPS"
-                className="fc-input-file"
-              />
-              <div className="fc-row">
+            <div className="rps-section__content">
+              <EmpresaSelect value={empresa} onChange={setEmpresa} />
+            </div>
+          </section>
+
+          <section className="rps-section">
+            <div className="rps-section__header">
+              <h3 className="rps-section__title">Importar arquivo</h3>
+              <p className="rps-section__hint">
+                Formatos aceitos: <code>RPS</code> ou <code>RPS,valor</code> (um por
+                linha). Duplicados são ignorados.
+              </p>
+            </div>
+
+            <form className="rps-form" onSubmit={onGerar}>
+              <div className="rps-upload">
+                <input
+                  type="file"
+                  accept=".csv,.txt"
+                  onChange={(e) => setArquivo(e.target.files?.[0] || null)}
+                  aria-label="Arquivo de RPS"
+                  className="rps-file"
+                />
+
                 <button
-                  className="fc-btn fc-btn-primary"
+                  className="rps-btn rps-btn--primary"
                   type="submit"
                   disabled={!podeGerar || loadingGerar}
                   aria-busy={loadingGerar}
@@ -183,71 +225,94 @@ export default function EmissaoPorRps() {
                   {loadingGerar ? "Processando..." : "GERAR"}
                 </button>
               </div>
-              <small className="fc-hint">
-                Formatos aceitos: <code>RPS</code> ou <code>RPS,valor</code> (um por linha). Duplicados são ignorados.
-              </small>
+            </form>
+          </section>
+
+          <section className="rps-section">
+            
+            <div className="rps-log">
+              <LogEmissao entries={logs} maxHeight={160} emptyText="Sem registros ainda." />
             </div>
-          </fieldset>
-        </form>
+          </section>
 
-        <section className="fc-section">
-          <LogEmissao entries={logs} maxHeight={160} emptyText="Sem registros ainda." />
-        </section>
+          <section className="rps-section">
+            <div className="rps-section__header">
+              <h3 className="rps-section__title">Prévia</h3>
+              <p className="rps-section__hint">
+                Conferência do lote antes de emitir.
+              </p>
+            </div>
 
-        <section className="fc-section">
-          {itens.length > 0 ? (
-            <div className="fc-preview">
-              <div className="fc-grid">
-                <div><h1>Prévia da Nota Fiscal</h1></div>
-                <br />
-                <div><strong>Empresa:</strong> {empresa}</div>
-                <div><strong>RPS:</strong> {resumo.qtd}</div>
-                <div className="fc-col-span">
-                  <strong>Total:</strong> {moeda(resumo.total)}
+            {itens.length > 0 ? (
+              <div className="rps-preview">
+                <div className="rps-metrics">
+                  <div className="rps-metric">
+                    <span className="rps-metric__label">Empresa</span>
+                    <p className="rps-metric__value">{empresa || "—"}</p>
+                  </div>
+
+                  <div className="rps-metric">
+                    <span className="rps-metric__label">RPS no lote</span>
+                    <p className="rps-metric__value">{resumo.qtd}</p>
+                  </div>
+
+                  <div className="rps-metric rps-metric--total">
+                    <span className="rps-metric__label">Total</span>
+                    <p className="rps-metric__value">{moeda(resumo.total)}</p>
+                  </div>
+                </div>
+
+                <div className="rps-table">
+                  <div className="rps-thead">
+                    <div>RPS</div>
+                    <div className="rps-right">Valor</div>
+                  </div>
+
+                  {visiveis.map((it, i) => (
+                    <div className="rps-trow" key={`${pagina}-${i}`}>
+                      <div className="rps-mono">{it.rps}</div>
+                      <div className="rps-right">{moeda(it.valor)}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rps-pagination">
+                  <button
+                    className="rps-pg-btn"
+                    onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                    disabled={pagina === 1}
+                    type="button"
+                    aria-label="Página anterior"
+                  >
+                    ‹
+                  </button>
+
+                  <span className="rps-pg-info">
+                    Página <strong>{pagina}</strong> de <strong>{totalPaginas}</strong>
+                  </span>
+
+                  <button
+                    className="rps-pg-btn"
+                    onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                    disabled={pagina === totalPaginas}
+                    type="button"
+                    aria-label="Próxima página"
+                  >
+                    ›
+                  </button>
                 </div>
               </div>
-
-              <div className="fc-table">
-                <div className="fc-thead"><div>RPS</div><div>Valor</div></div>
-                {visiveis.map((it, i) => (
-                  <div className="fc-trow" key={`${pagina}-${i}`}>
-                    <div>{it.rps}</div>
-                    <div>{moeda(it.valor)}</div>
-                  </div>
-                ))}
+            ) : (
+              <div className="rps-empty">
+                A prévia aparecerá aqui após clicar em <strong>GERAR</strong>.
               </div>
+            )}
+          </section>
+        </div>
 
-              {/* paginação */}
-              <div className="fc-pagination">
-                <button
-                  className="pg-btn"
-                  onClick={() => setPagina((p) => Math.max(1, p - 1))}
-                  disabled={pagina === 1}
-                >
-                  ‹
-                </button>
-
-                <span className="pg-info">
-                  Página {pagina} de {totalPaginas}
-                </span>
-
-                <button
-                  className="pg-btn"
-                  onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-                  disabled={pagina === totalPaginas}
-                >
-                  ›
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="fc-placeholder">A prévia aparecerá aqui após clicar em “GERAR”.</div>
-          )}
-        </section>
-
-        <footer className="fc-actions">
+        <footer className="rps-footer">
           <button
-            className="fc-btn fc-btn-accent"
+            className="rps-btn rps-btn--accent"
             onClick={onEmitir}
             disabled={!podeEmitir}
             aria-busy={loadingEmitir}

@@ -1,416 +1,457 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
-  FiSettings,
+  FiUser,
+  FiMail,
+  FiLock,
   FiSave,
-  FiAlertCircle,
+  FiRefreshCw,
   FiCheckCircle,
-  FiKey,
-  FiDatabase,
-  FiRefreshCw
+  FiAlertCircle
 } from "react-icons/fi";
 import "../styles/configuracoes.css";
 
+const LS_KEY = "user_settings_v1";
+
+function onlyDigits(s = "") {
+  return String(s).replace(/\D/g, "");
+}
+
+function maskCPF(v = "") {
+  const d = onlyDigits(v).slice(0, 11);
+  const p1 = d.slice(0, 3);
+  const p2 = d.slice(3, 6);
+  const p3 = d.slice(6, 9);
+  const p4 = d.slice(9, 11);
+  if (d.length <= 3) return p1;
+  if (d.length <= 6) return `${p1}.${p2}`;
+  if (d.length <= 9) return `${p1}.${p2}.${p3}`;
+  return `${p1}.${p2}.${p3}-${p4}`;
+}
+
+function maskPhone(v = "") {
+  const d = onlyDigits(v).slice(0, 11);
+  const dd = d.slice(0, 2);
+  const a = d.slice(2, 7);
+  const b = d.slice(7, 11);
+
+  if (d.length <= 2) return dd ? `(${dd}` : "";
+  if (d.length <= 7) return `(${dd}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${dd}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${dd}) ${a}-${b}`;
+}
+
+function validEmail(email = "") {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
+}
+
+function strongPassword(pw = "") {
+  // mínimo 8, 1 maiúscula, 1 minúscula, 1 número
+  const s = String(pw);
+  if (s.length < 8) return false;
+  if (!/[a-z]/.test(s)) return false;
+  if (!/[A-Z]/.test(s)) return false;
+  if (!/\d/.test(s)) return false;
+  return true;
+}
+
 export default function Configuracoes() {
-  const [abaSelecionada, setAbaSelecionada] = useState("certificado");
-  const [salvando, setSalvando] = useState(false);
-  const [mensagem, setMensagem] = useState({ tipo: "", texto: "" });
-  const [teste, setTeste] = useState({}); 
+  const [tab, setTab] = useState("perfil"); // perfil | email | senha
+  const [saving, setSaving] = useState(false);
 
-  const [config, setConfig] = useState({
-    // Certificado Digital
-    certificado: {
-      arquivo: null,
-      senha: "",
-      validade: null,
+  const [data, setData] = useState({
+    perfil: {
+      nome: "",
+      cpf: "",
+      telefone: "",
+      nascimento: "" // yyyy-mm-dd
     },
-
-    // Sistemas 
-    sistemas: [
-      {
-        id: "prefeitura",
-        nome: "Prefeitura (NFS-e)",
-        ativo: true,
-        url: "",
-        usuario: "",
-        senha: ""
-      },
-      {
-        id: "sefaz",
-        nome: "SEFAZ (NFe/NFC-e)",
-        ativo: false,
-        url: "",
-        usuario: "",
-        senha: ""
-      },
-      {
-        id: "sintegra",
-        nome: "Sintegra",
-        ativo: false,
-        url: "",
-        usuario: "",
-        senha: ""
-      }
-    ],
-
-    // Empresa
-    empresa: {
-      cnpj: "",
-      razaoSocial: "",
-      inscricaoEstadual: "",
-      inscricaoMunicipal: ""
+    email: {
+      atual: "usuario@exemplo.com",
+      novo: "",
+      senhaAtual: ""
     },
-
-    // Avançado
-    avancado: {
-      timeout: 30,
-      tentativasReenvio: 3,
-      logDetalhado: false,
-      validacaoRigida: true
+    senha: {
+      senhaAtual: "",
+      nova: "",
+      confirmar: ""
     }
   });
 
+  // Toast
+  const [toast, setToast] = useState(null); // { type, msg }
+  const [toastState, setToastState] = useState("idle"); // idle | in | out
+  const timerRef = useRef(null);
+
+  const showToast = useCallback((type, msg, ms = 3600) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    setToast({ type, msg });
+    setToastState("in");
+
+    timerRef.current = setTimeout(() => {
+      setToastState("out");
+      setTimeout(() => {
+        setToast(null);
+        setToastState("idle");
+      }, 220);
+    }, ms);
+  }, []);
+
+  const closeToast = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setToastState("out");
+    setTimeout(() => {
+      setToast(null);
+      setToastState("idle");
+    }, 220);
+  }, []);
+
   useEffect(() => {
-    const raw = localStorage.getItem("config_portal");
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  // Load local
+  useEffect(() => {
+    const raw = localStorage.getItem(LS_KEY);
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw);
-      setConfig((prev) => ({ ...prev, ...parsed }));
-    } catch {  }
+      setData((prev) => ({
+        ...prev,
+        ...parsed,
+        email: { ...prev.email, ...(parsed.email || {}) } // mantém defaults
+      }));
+    } catch {
+      // ignore
+    }
   }, []);
 
-  function handleNestedChange(grupo, campo, valor) {
-    setConfig((prev) => ({
-      ...prev,
-      [grupo]: { ...prev[grupo], [campo]: valor },
-    }));
-  }
+  // Helpers update
+  const setPerfil = (patch) =>
+    setData((prev) => ({ ...prev, perfil: { ...prev.perfil, ...patch } }));
+  const setEmail = (patch) =>
+    setData((prev) => ({ ...prev, email: { ...prev.email, ...patch } }));
+  const setSenha = (patch) =>
+    setData((prev) => ({ ...prev, senha: { ...prev.senha, ...patch } }));
 
-  function handleSistemaChange(id, campo, valor) {
-    setConfig((prev) => ({
-      ...prev,
-      sistemas: prev.sistemas.map((s) =>
-        s.id === id ? { ...s, [campo]: valor } : s
-      ),
-    }));
-  }
+  const canSave = useMemo(() => !saving, [saving]);
 
-  function handleCertificadoUpload(e) {
-    const arquivo = e.target.files?.[0];
-    if (!arquivo) return;
-    setConfig((prev) => ({
-      ...prev,
-      certificado: { ...prev.certificado, arquivo: arquivo.name },
-    }));
-  }
+  // Validações por aba
+  const errors = useMemo(() => {
+    const e = { perfil: [], email: [], senha: [] };
 
-  async function handleSalvar() {
-    setSalvando(true);
-    setMensagem({ tipo: "", texto: "" });
-    try {
-      const { empresa } = config;
-      if (empresa.cnpj && !validarCNPJ(empresa.cnpj)) {
-        throw new Error("CNPJ inválido");
-      }
-      localStorage.setItem("config_portal", JSON.stringify(config));
-      setMensagem({ tipo: "sucesso", texto: "Configurações salvas com sucesso!" });
-    } catch (erro) {
-      setMensagem({ tipo: "erro", texto: `Erro ao salvar: ${erro.message}` });
-    } finally {
-      setSalvando(false);
-      setTimeout(() => setMensagem({ tipo: "", texto: "" }), 5000);
+    // Perfil
+    if (!data.perfil.nome.trim()) e.perfil.push("Informe seu nome.");
+    if (onlyDigits(data.perfil.cpf).length > 0 && onlyDigits(data.perfil.cpf).length !== 11)
+      e.perfil.push("CPF deve ter 11 dígitos (ou deixe em branco).");
+
+    // Email
+    if (data.email.novo.trim()) {
+      if (!validEmail(data.email.novo)) e.email.push("Novo e-mail inválido.");
+      if (!data.email.senhaAtual) e.email.push("Confirme com sua senha atual.");
     }
-  }
 
-  function validarCNPJ(cnpj) {
-    const v = (cnpj || "").replace(/\D/g, "");
-    if (!v || v.length !== 14 || /^(\d)\1+$/.test(v)) return false;
-    const calc = (base) => {
-      let soma = 0, pos = base.length - 7;
-      for (let i = base.length; i >= 1; i--) {
-        soma += base[base.length - i] * pos--;
-        if (pos < 2) pos = 9;
-      }
-      return (soma % 11 < 2) ? 0 : 11 - (soma % 11);
-    };
-    const nums = v.substr(0, 12).split("").map(Number);
-    const d1 = calc(nums);
-    const d2 = calc([...nums, d1]);
-    return v.endsWith(`${d1}${d2}`);
-  }
+    // Senha
+    const { senhaAtual, nova, confirmar } = data.senha;
+    if (nova || confirmar || senhaAtual) {
+      if (!senhaAtual) e.senha.push("Informe a senha atual.");
+      if (!nova) e.senha.push("Informe a nova senha.");
+      if (nova && !strongPassword(nova))
+        e.senha.push("Nova senha fraca (mín. 8, maiúscula, minúscula e número).");
+      if (confirmar !== nova) e.senha.push("Confirmação não confere com a nova senha.");
+    }
 
-  async function testarConexao(sistema) {
-    setTeste((t) => ({ ...t, [sistema.id]: "testando" }));
+    return e;
+  }, [data]);
+
+  const hasErrors = (key) => errors[key].length > 0;
+
+  async function handleSave() {
+    if (!canSave) return;
+
+    // regra: salva apenas a aba atual (e mantém as outras no estado)
+    if (tab === "perfil" && hasErrors("perfil")) {
+      showToast("err", errors.perfil[0]);
+      return;
+    }
+    if (tab === "email" && hasErrors("email")) {
+      showToast("err", errors.email[0]);
+      return;
+    }
+    if (tab === "senha" && hasErrors("senha")) {
+      showToast("err", errors.senha[0]);
+      return;
+    }
+
+    setSaving(true);
+    showToast("info", "Salvando…");
+
     try {
-      await new Promise((r) => setTimeout(r, 800));
-      if (!sistema.url) throw new Error("URL não configurada");
-      setTeste((t) => ({ ...t, [sistema.id]: "ok" }));
+      // aqui você liga na API depois. Por ora: localStorage.
+      const payload = {
+        perfil: data.perfil,
+        email: {
+          atual: data.email.atual,
+          // não persiste senha atual
+          novo: data.email.novo
+        }
+        // não persiste senha
+      };
+
+      localStorage.setItem(LS_KEY, JSON.stringify(payload));
+
+      // simula sucesso
+      await new Promise((r) => setTimeout(r, 350));
+
+      if (tab === "email" && data.email.novo.trim()) {
+        // aplica como “atual” e limpa campos
+        setData((prev) => ({
+          ...prev,
+          email: { ...prev.email, atual: prev.email.novo.trim(), novo: "", senhaAtual: "" }
+        }));
+      }
+
+      if (tab === "senha") {
+        setData((prev) => ({ ...prev, senha: { senhaAtual: "", nova: "", confirmar: "" } }));
+      }
+
+      showToast("ok", "Alterações salvas com sucesso.");
     } catch (e) {
-      setTeste((t) => ({ ...t, [sistema.id]: "erro" }));
+      showToast("err", "Não foi possível salvar. Tente novamente.");
     } finally {
-      setTimeout(() => setTeste((t) => ({ ...t, [sistema.id]: "" })), 3000);
+      setSaving(false);
     }
   }
 
   return (
-    <div className="configuracoes-container">
-      {/* Cabeçalho */}
-      <div className="config-header">
-        <div className="header-content">
-          <h1 className="titulo">
-            <FiSettings className="titulo-icon" />
-            Configurações do Portal
-          </h1>
-          <p className="subtitulo">
-            Configure os parâmetros de integração e transmissão das notas fiscais
-          </p>
-        </div>
-
-        <button className="btn-salvar" onClick={handleSalvar} disabled={salvando}>
-          {salvando ? (
-            <>
-              <FiRefreshCw className="icon-spin" />
-              Salvando...
-            </>
-          ) : (
-            <>
-              <FiSave />
-              Salvar Configurações
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Feedback */}
-      {mensagem.texto && (
-        <div className={`mensagem mensagem-${mensagem.tipo}`}>
-          {mensagem.tipo === "sucesso" ? <FiCheckCircle /> : <FiAlertCircle />}
-          <span>{mensagem.texto}</span>
+    <div className="cfg-page">
+      {toast && (
+        <div className={`cfg-toast-wrap ${toastState === "in" ? "is-in" : ""} ${toastState === "out" ? "is-out" : ""}`}>
+          <div className={`cfg-toast cfg-toast--${toast.type}`}>
+            <div className="cfg-toast__msg">{toast.msg}</div>
+            <button className="cfg-toast__close" onClick={closeToast} aria-label="Fechar">
+              ×
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Abas */}
-      <div className="tabs">
-        <button
-          className={`tab ${abaSelecionada === "certificado" ? "tab-ativa" : ""}`}
-          onClick={() => setAbaSelecionada("certificado")}
-        >
-          <FiKey />
-          Certificado
-        </button>
-        <button
-          className={`tab ${abaSelecionada === "sistemas" ? "tab-ativa" : ""}`}
-          onClick={() => setAbaSelecionada("sistemas")}
-        >
-          <FiDatabase />
-          Sistemas
-        </button>
-        <button
-          className={`tab ${abaSelecionada === "empresa" ? "tab-ativa" : ""}`}
-          onClick={() => setAbaSelecionada("empresa")}
-        >
-          <FiSettings />
-          Empresa
-        </button>
-      </div>
+      <div className="cfg-card">
+        <header className="cfg-header">
+          <div className="cfg-head">
+            <h1 className="cfg-title">Configurações da Conta</h1>
+            <p className="cfg-subtitle">Gerencie seus dados pessoais, e-mail e senha.</p>
+          </div>
 
-      {/* Conteúdo */}
-      <div className="config-content">
-        {/* Certificado */}
-        {abaSelecionada === "certificado" && (
-          <div className="card">
-            <h2 className="card-titulo">Certificado Digital</h2>
-            <p className="card-descricao">Configure o certificado A1 para assinatura das notas</p>
-
-            <div className="form-group">
-              <label className="label">Arquivo do Certificado (.pfx/.p12)</label>
-              <div className="file-upload">
-                <input
-                  type="file"
-                  id="certificado"
-                  accept=".pfx,.p12"
-                  onChange={handleCertificadoUpload}
-                  className="file-input"
-                />
-                <label htmlFor="certificado" className="file-label">
-                  <FiKey />
-                  {config.certificado.arquivo || "Selecionar arquivo..."}
-                </label>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="label">Senha do Certificado</label>
-              <input
-                type="password"
-                className="input"
-                placeholder="Digite a senha do certificado"
-                value={config.certificado.senha}
-                onChange={(e) => handleNestedChange("certificado", "senha", e.target.value)}
-              />
-            </div>
-
-            {config.certificado.arquivo && (
-              <div className="alert alert-success">
-                <FiCheckCircle />
-                <div>
-                  <strong>Certificado carregado:</strong> {config.certificado.arquivo}
-                  {config.certificado.validade && (
-                    <div className="cert-validade">Válido até: {config.certificado.validade}</div>
-                  )}
-                </div>
-              </div>
+          <button className="cfg-save" onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <FiRefreshCw className="cfg-spin" />
+                Salvando…
+              </>
+            ) : (
+              <>
+                <FiSave />
+                Salvar
+              </>
             )}
-          </div>
-        )}
+          </button>
+        </header>
 
-        {/* Sistemas */}
-        {abaSelecionada === "sistemas" && (
-          <div className="card">
-            <h2 className="card-titulo">Sistemas Integrados</h2>
-            <p className="card-descricao">Configure as credenciais dos serviços externos</p>
+        <nav className="cfg-tabs" role="tablist" aria-label="Configurações da conta">
+          <button
+            className={`cfg-tab ${tab === "perfil" ? "is-active" : ""}`}
+            onClick={() => setTab("perfil")}
+            role="tab"
+            aria-selected={tab === "perfil"}
+          >
+            <FiUser /> Perfil
+          </button>
+          <button
+            className={`cfg-tab ${tab === "email" ? "is-active" : ""}`}
+            onClick={() => setTab("email")}
+            role="tab"
+            aria-selected={tab === "email"}
+          >
+            <FiMail /> E-mail
+          </button>
+          <button
+            className={`cfg-tab ${tab === "senha" ? "is-active" : ""}`}
+            onClick={() => setTab("senha")}
+            role="tab"
+            aria-selected={tab === "senha"}
+          >
+            <FiLock /> Senha
+          </button>
+        </nav>
 
-            {config.sistemas.map((sistema) => (
-              <div key={sistema.id} className="sistema-card">
-                <div className="sistema-header">
-                  <div className="sistema-info">
-                    <h3 className="sistema-nome">{sistema.nome}</h3>
-                    <label className="toggle">
-                      <input
-                        type="checkbox"
-                        checked={sistema.ativo}
-                        onChange={(e) => handleSistemaChange(sistema.id, "ativo", e.target.checked)}
-                      />
-                      <span className="toggle-slider"></span>
-                      <span className="toggle-label">{sistema.ativo ? "Ativo" : "Inativo"}</span>
-                    </label>
+        <div className="cfg-body">
+          {tab === "perfil" && (
+            <section className="cfg-section">
+              <div className="cfg-section__head">
+                <h2>Dados pessoais</h2>
+                <p>Esses dados são usados para identificação e emissão.</p>
+              </div>
+
+              <div className="cfg-grid cfg-grid--2">
+                <div className="cfg-field">
+                  <label className="cfg-label">Nome</label>
+                  <input
+                    className="cfg-input"
+                    value={data.perfil.nome}
+                    onChange={(e) => setPerfil({ nome: e.target.value })}
+                    placeholder="Seu nome"
+                  />
+                </div>
+
+                <div className="cfg-field">
+                  <label className="cfg-label">CPF</label>
+                  <input
+                    className="cfg-input"
+                    value={data.perfil.cpf}
+                    onChange={(e) => setPerfil({ cpf: maskCPF(e.target.value) })}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                  />
+                </div>
+
+                <div className="cfg-field">
+                  <label className="cfg-label">Telefone</label>
+                  <input
+                    className="cfg-input"
+                    value={data.perfil.telefone}
+                    onChange={(e) => setPerfil({ telefone: maskPhone(e.target.value) })}
+                    placeholder="(00) 00000-0000"
+                    inputMode="tel"
+                  />
+                </div>
+
+                <div className="cfg-field">
+                  <label className="cfg-label">Data de nascimento</label>
+                  <input
+                    className="cfg-input"
+                    type="date"
+                    value={data.perfil.nascimento}
+                    onChange={(e) => setPerfil({ nascimento: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {errors.perfil.length > 0 && (
+                <div className="cfg-inline-alert cfg-inline-alert--err">
+                  <FiAlertCircle />
+                  <span>{errors.perfil[0]}</span>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "email" && (
+            <section className="cfg-section">
+              <div className="cfg-section__head">
+                <h2>Alterar e-mail</h2>
+                <p>Para trocar o e-mail, confirme com sua senha atual.</p>
+              </div>
+
+              <div className="cfg-grid cfg-grid--2">
+                <div className="cfg-field">
+                  <label className="cfg-label">E-mail atual</label>
+                  <input className="cfg-input" value={data.email.atual} readOnly />
+                </div>
+
+                <div className="cfg-field">
+                  <label className="cfg-label">Novo e-mail</label>
+                  <input
+                    className="cfg-input"
+                    value={data.email.novo}
+                    onChange={(e) => setEmail({ novo: e.target.value })}
+                    placeholder="novo@email.com"
+                    inputMode="email"
+                  />
+                </div>
+
+                <div className="cfg-field cfg-span-2">
+                  <label className="cfg-label">Senha atual (confirmação)</label>
+                  <input
+                    className="cfg-input"
+                    type="password"
+                    value={data.email.senhaAtual}
+                    onChange={(e) => setEmail({ senhaAtual: e.target.value })}
+                    placeholder="Digite sua senha atual"
+                  />
+                </div>
+              </div>
+
+              <div className="cfg-tip">
+                <FiCheckCircle />
+                <span>Se o campo “Novo e-mail” ficar vazio, nada será alterado.</span>
+              </div>
+
+              {errors.email.length > 0 && (
+                <div className="cfg-inline-alert cfg-inline-alert--err">
+                  <FiAlertCircle />
+                  <span>{errors.email[0]}</span>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "senha" && (
+            <section className="cfg-section">
+              <div className="cfg-section__head">
+                <h2>Alterar senha</h2>
+                <p>Use uma senha forte. Sim, a gente vai julgar se for “123456”.</p>
+              </div>
+
+              <div className="cfg-grid cfg-grid--2">
+                <div className="cfg-field cfg-span-2">
+                  <label className="cfg-label">Senha atual</label>
+                  <input
+                    className="cfg-input"
+                    type="password"
+                    value={data.senha.senhaAtual}
+                    onChange={(e) => setSenha({ senhaAtual: e.target.value })}
+                    placeholder="Senha atual"
+                  />
+                </div>
+
+                <div className="cfg-field">
+                  <label className="cfg-label">Nova senha</label>
+                  <input
+                    className="cfg-input"
+                    type="password"
+                    value={data.senha.nova}
+                    onChange={(e) => setSenha({ nova: e.target.value })}
+                    placeholder="Nova senha"
+                  />
+                  <div className="cfg-help">
+                    Mín. 8, com maiúscula, minúscula e número.
                   </div>
                 </div>
 
-                {sistema.ativo && (
-                  <div className="sistema-form">
-                    <div className="form-group">
-                      <label className="input-label">URL do Serviço</label>
-                      <input
-                        type="url"
-                        className="input"
-                        placeholder="https://..."
-                        value={sistema.url}
-                        onChange={(e) => handleSistemaChange(sistema.id, "url", e.target.value)}
-                      />
-                    </div>
-
-                    <div className="input-row">
-                      <div className="input-group">
-                        <label className="input-label">Usuário</label>
-                        <input
-                          type="text"
-                          className="input"
-                          placeholder="Digite o usuário"
-                          value={sistema.usuario}
-                          onChange={(e) => handleSistemaChange(sistema.id, "usuario", e.target.value)}
-                        />
-                      </div>
-
-                      <div className="input-group">
-                        <label className="input-label">Senha</label>
-                        <input
-                          type="password"
-                          className="input"
-                          placeholder="Digite a senha"
-                          value={sistema.senha}
-                          onChange={(e) => handleSistemaChange(sistema.id, "senha", e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      className={`btn-testar ${teste[sistema.id]}`}
-                      onClick={() => testarConexao(sistema)}
-                      disabled={teste[sistema.id] === "testando"}
-                    >
-                      {teste[sistema.id] === "testando" ? (
-                        <>
-                          <FiRefreshCw className="icon-spin" />
-                          Testando...
-                        </>
-                      ) : teste[sistema.id] === "ok" ? (
-                        <>
-                          <FiCheckCircle />
-                          Conectado
-                        </>
-                      ) : teste[sistema.id] === "erro" ? (
-                        <>
-                          <FiAlertCircle />
-                          Falhou
-                        </>
-                      ) : (
-                        <>
-                          <FiRefreshCw />
-                          Testar Conexão
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Empresa */}
-        {abaSelecionada === "empresa" && (
-          <div className="card">
-            <h2 className="card-titulo">Dados da Empresa</h2>
-            <p className="card-descricao">Informações da empresa emitente</p>
-
-            <div className="form-group">
-              <label className="label">CNPJ</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="00.000.000/0000-00"
-                value={config.empresa.cnpj}
-                onChange={(e) => handleNestedChange("empresa", "cnpj", e.target.value)}
-                maxLength={18}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="label">Razão Social</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="Digite a razão social"
-                value={config.empresa.razaoSocial}
-                onChange={(e) => handleNestedChange("empresa", "razaoSocial", e.target.value)}
-              />
-            </div>
-
-            <div className="input-row">
-              <div className="input-group">
-                <label className="input-label">Inscrição Estadual</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="000.000.000.000"
-                  value={config.empresa.inscricaoEstadual}
-                  onChange={(e) => handleNestedChange("empresa", "inscricaoEstadual", e.target.value)}
-                />
+                <div className="cfg-field">
+                  <label className="cfg-label">Confirmar nova senha</label>
+                  <input
+                    className="cfg-input"
+                    type="password"
+                    value={data.senha.confirmar}
+                    onChange={(e) => setSenha({ confirmar: e.target.value })}
+                    placeholder="Confirme a nova senha"
+                  />
+                </div>
               </div>
 
-              <div className="input-group">
-                <label className="input-label">Inscrição Municipal</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="00000000"
-                  value={config.empresa.inscricaoMunicipal}
-                  onChange={(e) => handleNestedChange("empresa", "inscricaoMunicipal", e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        )}
+              {errors.senha.length > 0 && (
+                <div className="cfg-inline-alert cfg-inline-alert--err">
+                  <FiAlertCircle />
+                  <span>{errors.senha[0]}</span>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
       </div>
     </div>
   );
