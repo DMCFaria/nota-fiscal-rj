@@ -1,9 +1,10 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
 import StatusBanner from "../../components/StatusBanner";
 import { emitirNota, baixarPdf } from "../../services/emissao";
 import "../../styles/emissao.css";
+import { getEmpresas } from "../../services/empresas";
 
 export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
@@ -14,6 +15,7 @@ export default function EmissaoPorFatura() {
   const [loadingEmitir, setLoadingEmitir] = useState(false);
   const [erro, setErro] = useState("");
   const [status, setStatus] = useState(null);
+  const [empresaData, setEmpresaData] = useState([]);
 
   const podeGerar = useMemo(() => !!empresa && !!fatura.trim(), [empresa, fatura]);
   const podeEmitir = useMemo(
@@ -95,6 +97,21 @@ export default function EmissaoPorFatura() {
     }
   }, [empresa, fatura, podeEmitir, preview, pushLog]);
 
+
+  useEffect(() => {
+    const carregarEmpresas = async () => {
+      try {
+        const response = await getEmpresas();
+        setEmpresaData(response.data || []);
+      } catch (error) {
+        console.error("Erro ao carregar empresas:", error);
+      }
+    };
+    carregarEmpresas();
+  }, []);
+
+  console.log("empresaData:", empresaData);
+
   return (
     <div className="fc-page">
       {status && <StatusBanner type={status.type}>{status.msg}</StatusBanner>}
@@ -104,9 +121,23 @@ export default function EmissaoPorFatura() {
           <h1>Emissão · Por Fatura</h1>
         </header>
 
-        <section className="fc-section">
+        {/* <section className="fc-section">
           <EmpresaSelect value={empresa} onChange={setEmpresa} />
+        </section> */}
+
+        <section className="fc-section">
+          <EmpresaSelect
+            value={empresa}
+            onChange={setEmpresa}
+            empresas={empresaData}
+          />
         </section>
+
+        {/* <section className="fc-section">
+          {empresaData.resultados?.map((empresa) =>
+            {console.log(empresa.CEDENTE)}
+          )}
+        </section> */}
 
         <form className="fc-form" onSubmit={handleGerar}>
           <fieldset className="fc-fieldset">
