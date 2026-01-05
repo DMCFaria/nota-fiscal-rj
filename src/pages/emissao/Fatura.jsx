@@ -84,13 +84,30 @@ export default function EmissaoPorFatura() {
       pushLog(`Consultando dados da fatura #${fatura} no banco local (Firebird)...`);
       showToast("info", "Consultando dados da fatura...");
 
+      let emp = ""
+      let raz = ""
+      if (empresa === "FEDCORP ADMINISTRADORA DE BENEFICIOS LTDA"){
+        emp="35.315.360/0001-67"
+        raz="FEDCORP ADMINISTRADORA DE BENEFICIOS LTDA"
+      }else if((empresa === "CONDOCORP SERVIÇOS DE INTERMEDIAÇÃO")){
+        emp="22.708.714/0001-91"
+        raz="CONDOCORP SERVIÇOS DE INTERMEDIAÇÃO"
+      }else if((empresa === "CONDOMED RIO SEGURANCA E MEDICINA DO TRAB EIRELI")){
+        emp ="27.892.999/0001-87"
+        raz="CONDOMED RIO SEGURANCA E MEDICINA DO TRAB EIRELI"
+      }else{
+        emp = "null"
+      }
+
       try {
         const payload = {
           protocolo_id: "REQ_" + Date.now(),
           fatura_numero: fatura,
-          prestador_cnpj:empresa,
+          prestador_cnpj:emp,
+          razaoSocial: empresa,
           observacao: observacao,
-          parcela: parcelada
+          parcela: parcelada,
+          codigo: codigoServico
         };
 
         const response = await getNfsePreview(payload);
