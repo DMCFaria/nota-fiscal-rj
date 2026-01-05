@@ -346,6 +346,6 @@ export default function EmissaoPorFatura() {
           </button>
         </footer>
       </div>
-    </div>
+    
   );
 }
