@@ -7,7 +7,6 @@ import {
   startStatusPolling
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
-import { useSnackbar } from 'notistack';
 import { getEmpresas } from "../../services/empresas";
 
 export default function EmissaoPorFatura() {
@@ -21,16 +20,11 @@ export default function EmissaoPorFatura() {
   const [logs, setLogs] = useState([]);
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
-
+  const [erro, setErro] = useState("");
+  const [status, setStatus] = useState(null);
   const [empresaData, setEmpresaData] = useState([]);
-  const [progresso, setProgresso] = useState(0);
-
-  const { enqueueSnackbar } = useSnackbar();
-
-  console.log("Empresa selecionada:", empresa);
 
   const podeGerar = useMemo(() => !!empresa && !!fatura.trim(), [empresa, fatura]);
-  
   const podeEmitir = useMemo(
     () => !!preview && !loadingGerar && !loadingEmitir,
     [preview, loadingGerar, loadingEmitir]
@@ -46,7 +40,7 @@ export default function EmissaoPorFatura() {
     async (e) => {
       e?.preventDefault();
       if (!podeGerar) {
-        enqueueSnackbar('Preencha empresa, fatura e observação para gerar a prévia', { variant: 'error' });
+        showToast("err", "Preencha empresa, fatura e observação para gerar a prévia.");
         return;
       }
 
@@ -55,57 +49,59 @@ export default function EmissaoPorFatura() {
       setProgresso(0);
 
       pushLog(`Consultando dados da fatura #${fatura} no banco local (Firebird)...`);
-      enqueueSnackbar('Consultando dados da fatura...', { variant: 'info' });
+      showToast("info", "Consultando dados da fatura...");
 
-      // DEBUG
-      console.log("=== DEBUG EMPRESA ===");
-      console.log("Empresa selecionada:", empresa);
-      console.log("CNPJ:", empresa?.CNPJ);
-      console.log("CEDENTE:", empresa?.CEDENTE);
-      
-      if (!empresa || !empresa.CNPJ || !empresa.CEDENTE) {
-        enqueueSnackbar('Dados da empresa incompletos. Selecione novamente.', { variant: 'error' });
-        setLoadingGerar(false);
-        return;
+      let emp = ""
+      let raz = ""
+      if (empresa === "FEDCORP ADMINISTRADORA DE BENEFICIOS LTDA"){
+        emp="35.315.360/0001-67"
+        raz="FEDCORP ADMINISTRADORA DE BENEFICIOS LTDA"
+      }else if((empresa === "CONDOCORP SERVIÇOS DE INTERMEDIAÇÃO")){
+        emp="22.708.714/0001-91"
+        raz="CONDOCORP SERVIÇOS DE INTERMEDIAÇÃO"
+      }else if((empresa === "CONDOMED RIO SEGURANCA E MEDICINA DO TRAB EIRELI")){
+        emp ="27.892.999/0001-87"
+        raz="CONDOMED RIO SEGURANCA E MEDICINA DO TRAB EIRELI"
+      }else{
+        emp = "null"
       }
 
       try {
         const payload = {
           protocolo_id: "REQ_" + Date.now(),
           fatura_numero: fatura,
-          prestador_cnpj: empresa.CNPJ,
-          razaoSocial: empresa.CEDENTE,
+          prestador_cnpj:emp,
+          razaoSocial: empresa,
           observacao: observacao,
           parcela: parcelada,
           codigo: codigoServico
         };
 
-        console.log("Payload enviado para API:", payload);
         const response = await getNfsePreview(payload);
 
         if (response.sucesso) {
           setPreview(response.data);
           pushLog("Dados importados com sucesso. Por favor, valide os detalhes abaixo.");
-          enqueueSnackbar('Dados carregados. Verifique antes de emitir.', { variant: 'success' });
+          showToast("ok", "Dados carregados. Verifique antes de emitir.");
         } else {
           const msg = response?.erro || "Falha ao obter prévia da nota.";
-          enqueueSnackbar('Erro: ' + msg, { variant: 'error' });
+          showToast("err", msg);
           pushLog(`ERRO: ${msg}`);
         }
       } catch (err) {
         const msg = err?.error || "Erro ao ligar ao serviço de base de dados.";
-        enqueueSnackbar('Erro: ' + msg, { variant: 'error' });
+        showToast("err", msg);
         pushLog(`ERRO: ${msg}`);
       } finally {
         setLoadingGerar(false);
       }
     },
-    [empresa, fatura, parcelada, observacao, codigoServico, podeGerar, pushLog, enqueueSnackbar]
+    [empresa, fatura, parcelada, observacao, codigoServico, podeGerar, pushLog, showToast]
   );
 
   const handleEmitir = useCallback(async () => {
     if (!podeEmitir) {
-      enqueueSnackbar("Gere a prévia antes de emitir.", { variant: 'error' });
+      showToast("err", "Gere a prévia antes de emitir.");
       return;
     }
 
@@ -113,7 +109,8 @@ export default function EmissaoPorFatura() {
     setProgresso(10);
 
     pushLog("A enviar lote para processamento...");
-    enqueueSnackbar("Iniciando emissão da nota fiscal...", { variant: 'info' });
+    showToast("info", "Enviando lote para processamento...");
+
     try {
       const res = await iniciarEmissao(preview);
 
@@ -123,7 +120,7 @@ export default function EmissaoPorFatura() {
         );
 
         const faturaParts = res.protocolo_lote.split("_");
-        enqueueSnackbar("Lote aceito. Aguardando processamento...", { variant: 'info' });
+        showToast("info", "Lote aceito. Aguardando prefeitura...", 4000);
 
         startStatusPolling(
           faturaParts[1],
@@ -133,20 +130,20 @@ export default function EmissaoPorFatura() {
           },
           (pdfUrl) => {
             setLoadingEmitir(false);
-            enqueueSnackbar("Nota autorizada! Abrindo PDF...", { variant: 'success' });
+            showToast("ok", "Nota autorizada! Abrindo PDF...", 4500);
             pushLog("Sucesso! PDF gerado.");
             if (pdfUrl) window.open(pdfUrl, "_blank");
           },
           (erroMsg) => {
             setLoadingEmitir(false);
-            enqueueSnackbar('Erro: ' + erroMsg || "Rejeição no processamento.", { variant: 'error' });
+            showToast("err", erroMsg || "Rejeição no processamento.");
             pushLog(`REJEIÇÃO: ${erroMsg}`);
           }
         );
       } else {
         setLoadingEmitir(false);
         const msg = res?.erro || "Falha ao iniciar emissão.";
-        enqueueSnackbar('Erro: ' + msg, { variant: 'error' });
+        showToast("err", msg);
         pushLog(`ERRO: ${msg}`);
       }
     } catch (err) {
@@ -161,7 +158,6 @@ export default function EmissaoPorFatura() {
         const response = await getEmpresas();
         setEmpresaData(response.data || []);
       } catch (error) {
-        enqueueSnackbar('Erro ao carregar empresas', { variant: 'error' });
         console.error("Erro ao carregar empresas:", error);
       }
     };
@@ -170,21 +166,41 @@ export default function EmissaoPorFatura() {
 
   console.log("empresaData:", empresaData);
 
-  const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
-  
-  const gerarBtnClass = podeGerar
-    ? "fc-btn fc-btn--primary fc-btn--full"
-    : "fc-btn fc-btn--primary fc-btn--full fc-btn--disabled";
-  const emitirBtnClass = podeEmitir
-    ? "fc-btn fc-btn--success fc-btn--full"
-    : "fc-btn fc-btn--success fc-btn--full fc-btn--disabled";
-
   return (
     <div className="fc-page">
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fc-toast-wrap ${toastVisible ? "is-in" : "is-out"}`}
+          role="status"
+          aria-live="polite"
+        >
+          <div className={`fc-toast fc-toast--${toast.type}`}>
+            <div className="fc-toast__msg">{toast.msg}</div>
+            <button
+              type="button"
+              className="fc-toast__close"
+              onClick={() => {
+                setToastVisible(false);
+                window.setTimeout(() => setToast(null), 250);
+              }}
+              aria-label="Fechar"
+              title="Fechar"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="fc-card">
         <header className="fc-header">
           <h2 className="fc-title">Emissão · Por Fatura</h2>
         </header>
+
+        {/* <section className="fc-section">
+          <EmpresaSelect value={empresa} onChange={setEmpresa} />
+        </section> */}
 
         <section className="fc-section">
           <EmpresaSelect
@@ -193,6 +209,12 @@ export default function EmissaoPorFatura() {
             empresas={empresaData}
           />
         </section>
+
+        {/* <section className="fc-section">
+          {empresaData.resultados?.map((empresa) =>
+            {console.log(empresa.CEDENTE)}
+          )}
+        </section> */}
 
           <form onSubmit={handleGerar} className="fc-form">
             <h3 className="fc-form-title">Dados de Importação</h3>
