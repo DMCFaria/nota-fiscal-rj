@@ -752,3 +752,40 @@ button {
     transform: translate3d(0, -6px, 0) scale(0.98);
   }
 }
+
+.fc-parcelas-card{
+  margin: .5rem 0 0;
+  padding: .5rem .5rem;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  border-radius: 12px;
+}
+
+.fc-parcelas-card__title{
+  font-weight: 700;
+  margin-bottom: .5rem;
+  letter-spacing: .2px;
+  opacity: .95;
+}
+
+.fc-parcelas-card__content{
+  display: grid;
+  grid-template-columns: 1fr 100px auto;
+  gap: .5rem;
+  align-items: end;
+}
+
+.fc-parcelas-card__label{
+  font-size: .9rem;
+  opacity: .85;
+}
+
+.fc-input--parcelas{
+  text-align: center;
+}
+
+.fc-parcelas-card__hint{
+  font-size: .9rem;
+  opacity: .75;
+  padding-bottom: .25rem;
+}
