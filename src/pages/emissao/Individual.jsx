@@ -3,9 +3,12 @@ import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
 import { emitirNota, baixarPdf } from "../../services/emissao";
 import "../../styles/emissaoIndividual.css";
+import { getEmpresas } from "../../services/empresas";
+import { enqueueSnackbar } from "notistack";
 
 export default function EmissaoIndividual() {
   const [empresa, setEmpresa] = useState("");
+  const [empresaData, setEmpresaData] = useState([]);
   const [tomador, setTomador] = useState({
     documento: "",
     nome: "",
@@ -31,6 +34,21 @@ export default function EmissaoIndividual() {
   const [toast, setToast] = useState(null); // { type: "ok" | "err" | "info", msg: string }
   const [toastState, setToastState] = useState("idle"); // idle | in | out
   const toastTimerRef = useRef(null);
+
+  console.log("Empresa selecionada:", empresa);
+
+  useEffect(() => {
+    const carregarEmpresas = async () => {
+      try {
+        const response = await getEmpresas();
+        setEmpresaData(response.data || []);
+      } catch (error) {
+        enqueueSnackbar('Erro ao carregar empresas', { variant: 'error' });
+        console.error("Erro ao carregar empresas:", error);
+      }
+    };
+    carregarEmpresas();
+  }, []);
 
   const showToast = useCallback((type, msg, ms = 3800) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -211,15 +229,12 @@ export default function EmissaoIndividual() {
         </header>
 
         <div className="ind-body">
-          <section className="ind-section">
-            <div className="ind-section__content">
-              <EmpresaSelect
-                value={empresa}
-                onChange={(v) => {
-                  setEmpresa(v);
-                }}
-              />
-            </div>
+          <section className="fc-section">
+            <EmpresaSelect
+              value={empresa}
+              onChange={setEmpresa}
+              empresas={empresaData}
+            />
           </section>
 
           <section className="ind-section">

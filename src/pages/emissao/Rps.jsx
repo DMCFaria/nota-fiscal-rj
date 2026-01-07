@@ -1,12 +1,15 @@
-import { useCallback, useMemo, useState } from "react";
-import EmpresaSelect from "../../components/EmpresaSelect";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import LogEmissao from "../../components/LogEmissao";
 import JSZip from "jszip";
 import { emitirNota, baixarPdf } from "../../services/emissao";
 import "../../styles/emissaoRps.css";
+import { getEmpresas } from "../../services/empresas";
+import { enqueueSnackbar } from "notistack";
+import EmpresaSelect from "../../components/EmpresaSelect";
 
 export default function EmissaoPorRps() {
   const [empresa, setEmpresa] = useState("");
+  const [empresaData, setEmpresaData] = useState([]);
   const [arquivo, setArquivo] = useState(null);
   const [itens, setItens] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -14,9 +17,24 @@ export default function EmissaoPorRps() {
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
 
+  console.log("Empresa selecionada:", empresa);
+
   // paginação
   const [pagina, setPagina] = useState(1);
   const porPagina = 10;
+
+  useEffect(() => {
+    const carregarEmpresas = async () => {
+      try {
+        const response = await getEmpresas();
+        setEmpresaData(response.data || []);
+      } catch (error) {
+        enqueueSnackbar('Erro ao carregar empresas', { variant: 'error' });
+        console.error("Erro ao carregar empresas:", error);
+      }
+    };
+    carregarEmpresas();
+  }, []);
 
   const pushLog = useCallback((msg) => {
     setLogs((prev) =>
@@ -41,6 +59,7 @@ export default function EmissaoPorRps() {
   }, [itens, pagina]);
 
   const podeGerar = useMemo(() => !!empresa && !!arquivo, [empresa, arquivo]);
+
   const podeEmitir = useMemo(
     () => itens.length > 0 && !loadingGerar && !loadingEmitir,
     [itens, loadingGerar, loadingEmitir]
@@ -190,11 +209,13 @@ export default function EmissaoPorRps() {
 
         <div className="rps-body">
           <section className="rps-section">
-           
-
-            <div className="rps-section__content">
-              <EmpresaSelect value={empresa} onChange={setEmpresa} />
-            </div>
+            <section className="fc-section">
+              <EmpresaSelect
+                value={empresa}
+                onChange={setEmpresa}
+                empresas={empresaData}
+              />
+            </section>
           </section>
 
           <section className="rps-section">
