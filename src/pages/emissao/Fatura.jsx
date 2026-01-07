@@ -12,6 +12,8 @@ export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
   const [fatura, setFatura] = useState("");
   const [parcelada, setParcelada] = useState(false);
+  const [qtdParcelas, setQtdParcelas] = useState(2);
+
   const [observacao, setObservacao] = useState("");
   const [codigoServico, setCodigoServico] = useState("170901");
 
@@ -21,8 +23,7 @@ export default function EmissaoPorFatura() {
   const [loadingEmitir, setLoadingEmitir] = useState(false);
   const [progresso, setProgresso] = useState(0);
 
-  // Toast
-  const [toast, setToast] = useState(null); // { type: "ok" | "err" | "info", msg: string }
+  const [toast, setToast] = useState(null);
   const [toastVisible, setToastVisible] = useState(false);
 
   const showToast = useCallback((type, msg, duration = 3500) => {
@@ -32,11 +33,13 @@ export default function EmissaoPorFatura() {
     window.clearTimeout(showToast._t1);
     window.clearTimeout(showToast._t2);
 
-    // inicia o "fade out" um pouco antes de sumir
-    showToast._t1 = window.setTimeout(() => setToastVisible(false), Math.max(800, duration - 300));
+    showToast._t1 = window.setTimeout(
+      () => setToastVisible(false),
+      Math.max(800, duration - 300)
+    );
     showToast._t2 = window.setTimeout(() => setToast(null), duration);
   }, []);
-  // guarda timeouts na função
+  
   showToast._t1 = showToast._t1 || null;
   showToast._t2 = showToast._t2 || null;
 
@@ -47,15 +50,18 @@ export default function EmissaoPorFatura() {
     };
   }, [showToast]);
 
-  // Lógica para Condomed habilitar campo de código de serviço
   const isCondomed = useMemo(() => {
     const nome = typeof empresa === "string" ? empresa : empresa?.nome;
     return nome?.toLowerCase().includes("condomed");
   }, [empresa]);
 
   const podeGerar = useMemo(
-    () => !!empresa && !!fatura.trim() && !!observacao.trim(),
-    [empresa, fatura, observacao]
+    () =>
+      !!empresa &&
+      !!fatura.trim() &&
+      !!observacao.trim() &&
+      (!parcelada || Number(qtdParcelas) >= 2),
+    [empresa, fatura, observacao, parcelada, qtdParcelas]
   );
 
   const podeEmitir = useMemo(
@@ -73,6 +79,10 @@ export default function EmissaoPorFatura() {
     async (e) => {
       e?.preventDefault();
       if (!podeGerar) {
+        if (parcelada && Number(qtdParcelas) < 2) {
+          showToast("err", "Informe uma quantidade válida de parcelas (mínimo 2).");
+          return;
+        }
         showToast("err", "Preencha empresa, fatura e observação para gerar a prévia.");
         return;
       }
@@ -92,7 +102,8 @@ export default function EmissaoPorFatura() {
             typeof empresa === "object" ? empresa.cnpj : "22.708.714/0001-91",
           "codigo_serviço": codigoServico,
           observacao: observacao,
-          parcela: parcelada
+          parcelada,
+          qtd_parcelas: parcelada ? Number(qtdParcelas) : null
         };
 
         const response = await getNfsePreview(payload);
@@ -114,7 +125,17 @@ export default function EmissaoPorFatura() {
         setLoadingGerar(false);
       }
     },
-    [empresa, fatura, parcelada, observacao, codigoServico, podeGerar, pushLog, showToast]
+    [
+      empresa,
+      fatura,
+      parcelada,
+      qtdParcelas,
+      observacao,
+      codigoServico,
+      podeGerar,
+      pushLog,
+      showToast
+    ]
   );
 
   const handleEmitir = useCallback(async () => {
@@ -182,7 +203,7 @@ export default function EmissaoPorFatura() {
 
   return (
     <div className="fc-page">
-      {/* Toast */}
+      
       {toast && (
         <div
           className={`fc-toast-wrap ${toastVisible ? "is-in" : "is-out"}`}
@@ -236,11 +257,63 @@ export default function EmissaoPorFatura() {
                     type="checkbox"
                     className="fc-checkbox"
                     checked={parcelada}
-                    onChange={(e) => setParcelada(e.target.checked)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setParcelada(checked);
+
+                      if (checked) {
+                        setQtdParcelas((prev) => Math.max(2, Number(prev || 2)));
+                      } else {
+                        setQtdParcelas(2);
+                      }
+                    }}
                   />
                   <span className="fc-flag-text">Fatura Parcelada</span>
                 </label>
               </div>
+
+              {parcelada && (
+                <div
+                  className="fc-parcelas-card"
+                  role="group"
+                  aria-label="Configuração de parcelas"
+                >
+                  <div className="fc-parcelas-card__title">Parcelamento</div>
+
+                  <div className="fc-parcelas-card__content">
+                    <label
+                      className="fc-parcelas-card__label"
+                      htmlFor="qtdParcelas"
+                    >
+                      Quantidade de parcelas
+                    </label>
+
+                    <input
+                      id="qtdParcelas"
+                      type="number"
+                      min={2}
+                      max={120}
+                      className="fc-input fc-input--parcelas"
+                      value={qtdParcelas}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        setQtdParcelas(Number.isFinite(n) ? n : 2);
+                      }}
+                      onBlur={() => {
+                        setQtdParcelas((n) =>
+                          Math.max(2, Math.min(120, Number(n || 2)))
+                        );
+                      }}
+                    />
+
+                    <div className="fc-parcelas-card__hint">
+                      {Number(qtdParcelas) >= 2
+                        ? ``
+                        : "mín. 2 parcelas"}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="fc-row fc-row--inputs">
                 <input
@@ -286,7 +359,10 @@ export default function EmissaoPorFatura() {
 
             {loadingEmitir && (
               <div className="fc-progress">
-                <div className="fc-progress-bar" style={{ width: `${progresso}%` }} />
+                <div
+                  className="fc-progress-bar"
+                  style={{ width: `${progresso}%` }}
+                />
               </div>
             )}
           </section>
@@ -302,10 +378,14 @@ export default function EmissaoPorFatura() {
                     <p className="fc-value">
                       {preview
                         .reduce(
-                          (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
+                          (acc, item) =>
+                            acc + (item?.servico?.[0]?.valor?.servico || 0),
                           0
                         )
-                        .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        .toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL"
+                        })}
                     </p>
                   </div>
 
@@ -336,12 +416,16 @@ export default function EmissaoPorFatura() {
                     <div className="fc-grid-span" />
 
                     <span className="fc-label">Discriminação do Serviço:</span>
-                    <p className="fc-discriminacao">{preview[0]?.servico[0]?.discriminacao}</p>
+                    <p className="fc-discriminacao">
+                      {preview[0]?.servico[0]?.discriminacao}
+                    </p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="fc-placeholder">Aguardando importação de dados da fatura...</div>
+              <div className="fc-placeholder">
+                Aguardando importação de dados da fatura...
+              </div>
             )}
           </section>
         </div>
