@@ -2,7 +2,7 @@ import api from "./api"
 
 export const getTodasFaturas = async () => {
     try {
-        const response = await axios.get(`consultas/fatura/todas`);
+        const response = await api.get(`consultas/fatura/todas`);
         // console.log("Fatura response:", response);
         return response.data;
     }
@@ -13,7 +13,7 @@ export const getTodasFaturas = async () => {
 
 export const getFaturaPorNumero = async (numeroFatura) => {
     try {
-        const response = await axios.get(`consultas/fatura-por-postos-vida/${numeroFatura}`);
+        const response = await api.get(`consultas/fatura-por-postos-vida/${numeroFatura}`);
         return response.data;
     }
     catch (error) {

@@ -3,7 +3,7 @@ import api from "./api"
 // Consultar nota por protocolo
 export const consultarNotaPorProtocolo = async (protocolo) => {
     try {
-        const response = await axios.get(
+        const response = await api.get(
             `${API_BASE_URL}/api/nfse/consultar-nota-protocolo/${protocolo}`
         );
         return response.data;
@@ -16,7 +16,7 @@ export const consultarNotaPorProtocolo = async (protocolo) => {
 // Consultar nota por ID
 export const consultarNotaPorId = async (id) => {
     try {
-        const response = await axios.get(
+        const response = await api.get(
             `${API_BASE_URL}/api/nfse/consultar-nota-id/${id}`
         );
         return response.data;
