@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import {
   getHistorico,
   cancelarNota,
@@ -12,6 +12,8 @@ import {
   FiXCircle,
 } from "react-icons/fi";
 import "../styles/consultas.css";
+import { getFaturaPorNumero } from "../services/fatura";
+import { useSnackbar } from "notistack";
 
 const norm = (s) =>
   String(s || "")
@@ -172,7 +174,11 @@ function Linha({ item, expanded, onToggle, onOpenCancelar }) {
 
 export default function Consultas() {
   const [dados, setDados] = useState([]);
+  const [faturaData, setFaturaData] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+
+  const [notaData, setNotaData] = useState(null); // Novo estado para dados da nota
+  const [tipoBusca, setTipoBusca] = useState("fatura"); // 'fatura' ou 'nota'
 
   const [textoDigitado, setTextoDigitado] = useState("");
   const [texto, setTexto] = useState("");
@@ -180,6 +186,75 @@ export default function Consultas() {
   const [sistema, setSistema] = useState("todos");
   const [expanded, setExpanded] = useState(() => new Set());
   const lastMockedRef = useRef("");
+
+  const { enqueueSnackbar } = useSnackbar();
+
+  // console.log("Texto digitado:", textoDigitado);
+  // console.log("Fatura:", faturaData);
+
+  useEffect(() => {
+      const buscarDados = async () => {
+        const termo = textoDigitado.trim();
+        
+        if (termo.length >= 3) {
+          setLoading(true);
+          
+          try {
+            if (tipoBusca === "fatura") {
+              const numero = parseInt(termo);
+              if (!isNaN(numero)) {
+                const response = await getFaturaPorNumero(numero);
+                console.log("Resposta da fatura:", response);
+                
+                if (response && response.status === "success") {
+                  setFaturaData(response.data || []);
+                  setNotaData(null);
+                  if (response.data && response.data.length > 0) {
+                    enqueueSnackbar(`Fatura ${numero} encontrada com ${response.data.length} registros`, { variant: 'success' });
+                  } else {
+                    enqueueSnackbar(`Fatura ${numero} não encontrada`, { variant: 'warning' });
+                  }
+                }
+              }
+            } else if (tipoBusca === "nota") {
+              // Busca por número da nota (protocolo ou ID)
+              const resultado = await buscarPorNumeroNota(termo);
+              
+              if (resultado.tipo === "nao_encontrado") {
+                setNotaData(null);
+                enqueueSnackbar(`Nota ${termo} não encontrada`, { variant: 'warning' });
+              } else {
+                setNotaData(resultado.dados);
+                setFaturaData([]);
+                enqueueSnackbar(`Nota encontrada (${resultado.tipo})`, { variant: 'success' });
+              }
+            }
+          } catch (error) {
+            console.error("Erro ao buscar:", error);
+            enqueueSnackbar('Erro ao buscar dados', { variant: 'error' });
+            setFaturaData([]);
+            setNotaData(null);
+          } finally {
+            setLoading(false);
+          }
+        } else {
+          setFaturaData([]);
+          setNotaData(null);
+        }
+      };
+      
+      // Debounce
+      const timeoutId = setTimeout(() => {
+        if (textoDigitado.trim()) {
+          buscarDados();
+        } else {
+          setFaturaData([]);
+          setNotaData(null);
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }, [textoDigitado, tipoBusca, enqueueSnackbar]);
 
   const [modal, setModal] = useState({
     open: false,

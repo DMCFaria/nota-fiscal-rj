@@ -1,5 +1,5 @@
 import "../styles/emissao.css";
-import { fixBrokenLatin } from "../utils/unicode_utils";
+import { fixBrokenLatin } from "../utils/normalizacao_textual";
 
 export default function EmpresaSelect({ value, onChange, empresas = [] }) {
 

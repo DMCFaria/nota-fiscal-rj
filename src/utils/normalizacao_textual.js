@@ -1,4 +1,4 @@
-// src/utils/unicode_utils.js
+// src/utils/normalizacao_textual.js
 
 const REPLACEMENTS = [
   [/��O/g, "ÇÃO"],

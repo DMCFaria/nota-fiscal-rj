@@ -1,11 +1,12 @@
 // src/services/api.js
 import axios from "axios";
 
+// dev - DJANGO EM DESENVOLVIMENTO: http://127.0.0.1:8000/
+// o que estava - DJANGO EM PRODUÇÃO? : https://fedcorp-nfs-e-django-ebh2e.ondigitalocean.app/
+
 const api = axios.create({
-  baseURL: "https://fedcorp-nfs-e-django-ebh2e.ondigitalocean.app/",
+  baseURL: "http://127.0.0.1:8000/",
 });
-
-
 
 // No seu arquivo api.js ou authService.js
 api.interceptors.request.use((config) => {

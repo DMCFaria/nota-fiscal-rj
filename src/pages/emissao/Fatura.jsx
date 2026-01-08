@@ -9,13 +9,12 @@ import {
 import "../../styles/emissao.css";
 import { useSnackbar } from 'notistack';
 import { getEmpresas } from "../../services/empresas";
+import { fixBrokenLatin } from "../../utils/normalizacao_textual";
 
 export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
   const [fatura, setFatura] = useState("");
   const [parcelada, setParcelada] = useState(false);
-  const [qtdParcelas, setQtdParcelas] = useState(2);
-
   const [observacao, setObservacao] = useState("");
   const [codigoServico, setCodigoServico] = useState("170901");
 
@@ -23,48 +22,17 @@ export default function EmissaoPorFatura() {
   const [logs, setLogs] = useState([]);
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
+
+  const [empresaData, setEmpresaData] = useState([]);
   const [progresso, setProgresso] = useState(0);
 
-  const [toast, setToast] = useState(null);
-  const [toastVisible, setToastVisible] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
 
-  const showToast = useCallback((type, msg, duration = 3500) => {
-    setToast({ type, msg });
-    setToastVisible(true);
+  console.log("Preview:", preview);
 
-    window.clearTimeout(showToast._t1);
-    window.clearTimeout(showToast._t2);
+  // console.log("Empresa selecionada:", empresa);
 
-    showToast._t1 = window.setTimeout(
-      () => setToastVisible(false),
-      Math.max(800, duration - 300)
-    );
-    showToast._t2 = window.setTimeout(() => setToast(null), duration);
-  }, []);
-  
-  showToast._t1 = showToast._t1 || null;
-  showToast._t2 = showToast._t2 || null;
-
-  useEffect(() => {
-    return () => {
-      window.clearTimeout(showToast._t1);
-      window.clearTimeout(showToast._t2);
-    };
-  }, [showToast]);
-
-  const isCondomed = useMemo(() => {
-    const nome = typeof empresa === "string" ? empresa : empresa?.nome;
-    return nome?.toLowerCase().includes("condomed");
-  }, [empresa]);
-
-  const podeGerar = useMemo(
-    () =>
-      !!empresa &&
-      !!fatura.trim() &&
-      !!observacao.trim() &&
-      (!parcelada || Number(qtdParcelas) >= 2),
-    [empresa, fatura, observacao, parcelada, qtdParcelas]
-  );
+  // console.log("codigoServico", codigoServico);
 
   const podeGerar = useMemo(() => !!empresa && !!fatura.trim(), [empresa, fatura]);
   
@@ -83,11 +51,7 @@ export default function EmissaoPorFatura() {
     async (e) => {
       e?.preventDefault();
       if (!podeGerar) {
-        if (parcelada && Number(qtdParcelas) < 2) {
-          showToast("err", "Informe uma quantidade válida de parcelas (mínimo 2).");
-          return;
-        }
-        showToast("err", "Preencha empresa, fatura e observação para gerar a prévia.");
+        enqueueSnackbar('Preencha empresa, fatura e observação para gerar a prévia', { variant: 'error' });
         return;
       }
 
@@ -99,10 +63,10 @@ export default function EmissaoPorFatura() {
       enqueueSnackbar('Consultando dados da fatura...', { variant: 'info' });
 
       // DEBUG
-      console.log("=== DEBUG EMPRESA ===");
-      console.log("Empresa selecionada:", empresa);
-      console.log("CNPJ:", empresa?.CNPJ);
-      console.log("CEDENTE:", empresa?.CEDENTE);
+      // console.log("=== DEBUG EMPRESA ===");
+      // console.log("Empresa selecionada:", empresa);
+      // console.log("CNPJ:", empresa?.CNPJ);
+      // console.log("CEDENTE:", empresa?.CEDENTE);
       
       if (!empresa || !empresa.CNPJ || !empresa.CEDENTE) {
         enqueueSnackbar('Dados da empresa incompletos. Selecione novamente.', { variant: 'error' });
@@ -117,11 +81,11 @@ export default function EmissaoPorFatura() {
           prestador_cnpj: empresa.CNPJ,
           razaoSocial: empresa.CEDENTE,
           observacao: observacao,
-          parcelada,
-          qtd_parcelas: parcelada ? Number(qtdParcelas) : null
+          parcela: parcelada,
+          codigo: codigoServico
         };
 
-        console.log("Payload enviado para API:", payload);
+        // console.log("Payload enviado para API:", payload);
         const response = await getNfsePreview(payload);
 
         if (response.sucesso) {
@@ -141,17 +105,7 @@ export default function EmissaoPorFatura() {
         setLoadingGerar(false);
       }
     },
-    [
-      empresa,
-      fatura,
-      parcelada,
-      qtdParcelas,
-      observacao,
-      codigoServico,
-      podeGerar,
-      pushLog,
-      showToast
-    ]
+    [empresa, fatura, parcelada, observacao, codigoServico, podeGerar, pushLog, enqueueSnackbar]
   );
 
   const handleEmitir = useCallback(async () => {
@@ -172,7 +126,7 @@ export default function EmissaoPorFatura() {
         console.log(
           `Lote aceite. Protocolo Local: ${res.protocolo_lote}. A aguardar prefeitura...`
         );
-
+        enqueueSnackbar("Sucesso!", { variant: 'success' });
         const faturaParts = res.protocolo_lote.split("_");
         enqueueSnackbar("Lote aceito. Aguardando processamento...", { variant: 'info' });
 
@@ -219,7 +173,7 @@ export default function EmissaoPorFatura() {
     carregarEmpresas();
   }, []);
 
-  console.log("empresaData:", empresaData);
+  // console.log("empresaData:", empresaData);
 
   const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
   
@@ -232,31 +186,6 @@ export default function EmissaoPorFatura() {
 
   return (
     <div className="fc-page">
-      
-      {toast && (
-        <div
-          className={`fc-toast-wrap ${toastVisible ? "is-in" : "is-out"}`}
-          role="status"
-          aria-live="polite"
-        >
-          <div className={`fc-toast fc-toast--${toast.type}`}>
-            <div className="fc-toast__msg">{toast.msg}</div>
-            <button
-              type="button"
-              className="fc-toast__close"
-              onClick={() => {
-                setToastVisible(false);
-                window.setTimeout(() => setToast(null), 250);
-              }}
-              aria-label="Fechar"
-              title="Fechar"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="fc-card">
         <header className="fc-header">
           <h2 className="fc-title">Emissão · Por Fatura</h2>
@@ -280,63 +209,11 @@ export default function EmissaoPorFatura() {
                     type="checkbox"
                     className="fc-checkbox"
                     checked={parcelada}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setParcelada(checked);
-
-                      if (checked) {
-                        setQtdParcelas((prev) => Math.max(2, Number(prev || 2)));
-                      } else {
-                        setQtdParcelas(2);
-                      }
-                    }}
+                    onChange={(e) => setParcelada(e.target.checked)}
                   />
                   <span className="fc-flag-text">Fatura Parcelada</span>
                 </label>
               </div>
-
-              {parcelada && (
-                <div
-                  className="fc-parcelas-card"
-                  role="group"
-                  aria-label="Configuração de parcelas"
-                >
-                  <div className="fc-parcelas-card__title">Parcelamento</div>
-
-                  <div className="fc-parcelas-card__content">
-                    <label
-                      className="fc-parcelas-card__label"
-                      htmlFor="qtdParcelas"
-                    >
-                      Quantidade de parcelas
-                    </label>
-
-                    <input
-                      id="qtdParcelas"
-                      type="number"
-                      min={2}
-                      max={120}
-                      className="fc-input fc-input--parcelas"
-                      value={qtdParcelas}
-                      onChange={(e) => {
-                        const n = Number(e.target.value);
-                        setQtdParcelas(Number.isFinite(n) ? n : 2);
-                      }}
-                      onBlur={() => {
-                        setQtdParcelas((n) =>
-                          Math.max(2, Math.min(120, Number(n || 2)))
-                        );
-                      }}
-                    />
-
-                    <div className="fc-parcelas-card__hint">
-                      {Number(qtdParcelas) >= 2
-                        ? ``
-                        : "mín. 2 parcelas"}
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <div className="fc-row fc-row--inputs">
                 <input
@@ -382,10 +259,7 @@ export default function EmissaoPorFatura() {
 
             {loadingEmitir && (
               <div className="fc-progress">
-                <div
-                  className="fc-progress-bar"
-                  style={{ width: `${progresso}%` }}
-                />
+                <div className="fc-progress-bar" style={{ width: `${progresso}%` }} />
               </div>
             )}
           </section>
@@ -401,14 +275,10 @@ export default function EmissaoPorFatura() {
                     <p className="fc-value">
                       {preview
                         .reduce(
-                          (acc, item) =>
-                            acc + (item?.servico?.[0]?.valor?.servico || 0),
+                          (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
                           0
                         )
-                        .toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL"
-                        })}
+                        .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </p>
                   </div>
 
@@ -428,7 +298,7 @@ export default function EmissaoPorFatura() {
                     <div className="fc-metric">
                       <span className="fc-label">Emissor:</span>
                       <p className="fc-value">
-                        {preview[0]?.prestador?.razaoSocial
+                        {fixBrokenLatin(preview[0]?.prestador?.razaoSocial)
                           .split(" ")
                           .slice(0, 2)
                           .join(" ")}{" "}
@@ -439,16 +309,12 @@ export default function EmissaoPorFatura() {
                     <div className="fc-grid-span" />
 
                     <span className="fc-label">Discriminação do Serviço:</span>
-                    <p className="fc-discriminacao">
-                      {preview[0]?.servico[0]?.discriminacao}
-                    </p>
+                    <p className="fc-discriminacao">{fixBrokenLatin(preview[0]?.servico[0]?.discriminacao)}</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="fc-placeholder">
-                Aguardando importação de dados da fatura...
-              </div>
+              <div className="fc-placeholder">Aguardando importação de dados da fatura...</div>
             )}
           </section>
         </div>
