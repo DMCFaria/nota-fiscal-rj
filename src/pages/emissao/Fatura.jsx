@@ -28,7 +28,6 @@ export default function EmissaoPorFatura() {
 
   const { enqueueSnackbar } = useSnackbar();
 
-  console.log("Preview:", preview);
 
   // console.log("Empresa selecionada:", empresa);
 
@@ -241,13 +240,14 @@ export default function EmissaoPorFatura() {
                 placeholder="Observação da Nota (ex: Programa de Gestão de Segurança...)"
                 rows={2}
                 value={observacao}
+                required
                 onChange={(e) => setObservacao(e.target.value)}
               />
 
               <button
                 className={gerarBtnClass}
                 type="submit"
-                disabled={!podeGerar || loadingGerar || loadingEmitir}
+                disabled={!podeGerar || !observacao || loadingGerar || loadingEmitir}
               >
                 {loadingGerar ? "GERANDO PRÉVIA..." : "GERAR"}
               </button>

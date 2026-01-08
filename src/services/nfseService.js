@@ -2,19 +2,19 @@ import api from "./api";
 
 // 1. Preview: Busca dados no Firebird/Ngrok via Django
 export const getNfsePreview = async (payload) => {
-  const response = await api.post("api/nfse/preview/", payload);
+  const response = await api.post("nfse/preview/", payload);
   return response.data;
 };
 
 // 2. Iniciar: Envia o lote para emissão
 export const iniciarEmissao = async (notas) => {
-  const response = await api.post("api/nfse/emissao/", { notas });
+  const response = await api.post("nfse/emissao/", { notas });
   return response.data;
 };
 
 // 3. Status: Consulta o progresso do lote
 export const consultarStatus = async (protocolo) => {
-  const response = await api.get(`api/nfse/emissao/?protocolo=${protocolo}`, {
+  const response = await api.get(`nfse/emissao/?protocolo=${protocolo}`, {
     responseType: "blob",
   });
 

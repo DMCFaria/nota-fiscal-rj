@@ -1,9 +1,8 @@
-
-import axios from "axios";
+import api from "./api"
 
 export const getTodasFaturas = async () => {
     try {
-        const response = await axios.get(`http://127.0.0.1:8000/api/consultas/fatura/todas`);
+        const response = await axios.get(`consultas/fatura/todas`);
         // console.log("Fatura response:", response);
         return response.data;
     }
@@ -14,8 +13,7 @@ export const getTodasFaturas = async () => {
 
 export const getFaturaPorNumero = async (numeroFatura) => {
     try {
-        const response = await axios.get(`http://127.0.0.1:8000/api/consultas/fatura-por-postos-vida/${numeroFatura}`);
-        // console.log("Fatura response:", response);
+        const response = await axios.get(`consultas/fatura-por-postos-vida/${numeroFatura}`);
         return response.data;
     }
     catch (error) {
