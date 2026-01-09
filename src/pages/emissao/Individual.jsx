@@ -35,7 +35,7 @@ export default function EmissaoIndividual() {
   const [toastState, setToastState] = useState("idle"); // idle | in | out
   const toastTimerRef = useRef(null);
 
-  console.log("Empresa selecionada:", empresa);
+  // console.log("Empresa selecionada:", empresa);
 
   useEffect(() => {
     const carregarEmpresas = async () => {

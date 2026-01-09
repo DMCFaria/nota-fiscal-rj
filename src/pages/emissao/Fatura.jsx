@@ -6,6 +6,7 @@ import {
   iniciarEmissao,
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
+import "../../styles/parcelas.css";
 import { useSnackbar } from 'notistack';
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
@@ -13,7 +14,10 @@ import { fixBrokenLatin } from "../../utils/normalizacao_textual";
 export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
   const [fatura, setFatura] = useState("");
+  
   const [parcelada, setParcelada] = useState(false);
+  const [parcelas, setParcelas] = useState(2);
+
   const [observacao, setObservacao] = useState("");
   const [codigoServico, setCodigoServico] = useState("170901");
 
@@ -24,13 +28,9 @@ export default function EmissaoPorFatura() {
 
   const [empresaData, setEmpresaData] = useState([]);
   const [progresso, setProgresso] = useState(0);
+  
 
   const { enqueueSnackbar } = useSnackbar();
-
-
-  // console.log("Empresa selecionada:", empresa);
-
-  // console.log("codigoServico", codigoServico);
 
   const podeGerar = useMemo(() => !!empresa && !!fatura.trim(), [empresa, fatura]);
   
@@ -79,7 +79,8 @@ export default function EmissaoPorFatura() {
           prestador_cnpj: empresa.CNPJ,
           razaoSocial: empresa.CEDENTE,
           observacao: observacao,
-          parcela: parcelada,
+          parcelada: parcelada,
+          parcelas: parcelas,
           codigo: codigoServico
         };
 
@@ -149,8 +150,6 @@ export default function EmissaoPorFatura() {
     carregarEmpresas();
   }, []);
 
-  // console.log("empresaData:", empresaData);
-
   const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
   
   const gerarBtnClass = podeGerar
@@ -190,6 +189,58 @@ export default function EmissaoPorFatura() {
                   <span className="fc-flag-text">Fatura Parcelada</span>
                 </label>
               </div>
+
+              {parcelada && (
+                <div className="fc-card fc-card--soft fc-card--animated">
+                  <div className="fc-card-header">
+                    <h4 className="fc-card-title">Parcelamento</h4>
+                    <button 
+                      type="button" 
+                      className="fc-btn-close"
+                      onClick={() => setParcelada(false)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  <div className="fc-form-row">
+                    <label className="fc-label">Número de parcelas</label>
+                    <input
+                      type="range"
+                      min="2"
+                      max="12"
+                      value={parcelas}
+                      onChange={(e) => setParcelas(Number(e.target.value))}
+                      className="fc-slider"
+                    />
+                    <div className="fc-slider-info">
+                      <span>{parcelas}x</span>
+                      <span className="fc-text-muted">(2-12 meses)</span>
+                    </div>
+                  </div>
+
+                  {preview && (
+                    <div className="fc-metrics-grid">
+                      <div className="fc-metric">
+                        <span className="fc-label">Valor total:</span>
+                        <span className="fc-value">
+                          {preview
+                            .reduce((acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0), 0)
+                            .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </span>
+                      </div>
+                      <div className="fc-metric">
+                        <span className="fc-label">Valor por parcela:</span>
+                        <span className="fc-value fc-value--highlight">
+                          {(preview
+                            .reduce((acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0), 0) / parcelas)
+                            .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="fc-row fc-row--inputs">
                 <input
@@ -294,6 +345,7 @@ export default function EmissaoPorFatura() {
               <div className="fc-placeholder">Aguardando importação de dados da fatura...</div>
             )}
           </section>
+       
         </div>
 
         <footer className="fc-footer">

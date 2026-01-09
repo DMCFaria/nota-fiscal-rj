@@ -1,9 +1,11 @@
 import { useState, useCallback } from "react";
 import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle } from "react-icons/fi";
 import { useSnackbar } from "notistack";
-import { getFaturaPorNumero, buscarPorNumeroNota, cancelarNota } from "../services/fatura";
+import { buscarPorNumeroNota, cancelarNota } from "../services/fatura";
 import "../styles/consultas.css";
 import { getNotaPorFatura, downloadPdfNota } from "../services/notas";
+import "../styles/notaCard.css";
+import NotaFaturaCard from "../components/NotaFaturaCard";
 
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
@@ -280,6 +282,8 @@ export default function Consultas() {
 
   const [baixandoAll, setBaixandoAll] = useState({});
 
+  const [notaDetalhe, setNotaDetalhe] = useState(null);
+
   const isModoFatura = tipoBusca === "fatura";
 
   const realizarBusca = useCallback(async () => {
@@ -287,18 +291,27 @@ export default function Consultas() {
     if (termo.length < 3) return;
 
     setLoading(true);
+    setNotaDetalhe(null);
+    
     try {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
-        console.log(res)
-        const norm = normalizeFaturasResponse(res);
-
-        setFaturas(norm);
+        console.log("NOTA POR FATURA: ", res);
+        
+        if (res.status === "success" && res.nfse) {
+          // Exibir detalhe da nota
+          setNotaDetalhe(res.nfse);
+          setFaturas([]);
+        } else {
+          // Manter o comportamento antigo se não for uma nota específica
+          const norm = normalizeFaturasResponse(res);
+          setFaturas(norm);
+        }
+        
         setDados([]);
         setExpandedFat(new Set());
       } else {
         const res = await buscarPorNumeroNota(termo);
-
         setDados(res.dados || []);
         setFaturas([]);
         setExpanded(new Set());
@@ -404,10 +417,17 @@ export default function Consultas() {
           <button className="btn" onClick={realizarBusca} disabled={loading || !textoDigitado.trim()}>
             {loading ? "Buscando..." : "Pesquisar"}
           </button>
+        
         </div>
       </div>
 
-      {hasSearched && (
+      {hasSearched && notaDetalhe && (
+        <div className="card">
+          <NotaFaturaCard nota={notaDetalhe} />
+        </div>
+      )}
+
+      {hasSearched && !notaDetalhe && (
         <div className="card">
           {isModoFatura ? (
             faturas.length === 0 ? (
