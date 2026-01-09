@@ -122,36 +122,14 @@ export default function EmissaoPorFatura() {
       const res = await iniciarEmissao(preview);
 
       if (res.status === "sucesso") {
-        console.log(
-          `Lote aceite. Protocolo Local: ${res.protocolo_lote}. A aguardar prefeitura...`
-        );
-        enqueueSnackbar("Sucesso!", { variant: 'success' });
-        const faturaParts = res.protocolo_lote.split("_");
-        enqueueSnackbar("Lote aceito. Aguardando processamento...", { variant: 'info' });
-
-        startStatusPolling(
-          faturaParts[1],
-          (prog) => {
-            setProgresso(prog.progresso);
-            if (prog.message) pushLog(`Status: ${prog.message}`);
-          },
-          (pdfUrl) => {
-            setLoadingEmitir(false);
-            enqueueSnackbar("Nota autorizada! Abrindo PDF...", { variant: 'success' });
-            pushLog("Sucesso! PDF gerado.");
-            if (pdfUrl) window.open(pdfUrl, "_blank");
-          },
-          (erroMsg) => {
-            setLoadingEmitir(false);
-            enqueueSnackbar('Erro: ' + erroMsg || "Rejeição no processamento.", { variant: 'error' });
-            pushLog(`REJEIÇÃO: ${erroMsg}`);
-          }
-        );
-      } else {
+       
+        pushLog(`Lote enviado com sucesso. Aguarde a atualização do status das Notas no setor de consultas...`);
+        enqueueSnackbar("Lote enviado. Acompanhe o status das notas posteriormente.", { variant: 'success' });
         setLoadingEmitir(false);
-        const msg = res?.erro || "Falha ao iniciar emissão.";
-        enqueueSnackbar('Erro: ' + msg, { variant: 'error' });
-        pushLog(`ERRO: ${msg}`);
+      } else {
+        pushLog(`ERRO: Falha ao enviar lote para emissão. ${res?.erro || ""}`);
+        enqueueSnackbar("Erro ao enviar lote: " + (res?.erro || "Erro desconhecido."), { variant: 'error' });
+        setLoadingEmitir(false);
       }
     } catch (err) {
       setLoadingEmitir(false);
