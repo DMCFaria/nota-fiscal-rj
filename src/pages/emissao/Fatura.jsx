@@ -150,8 +150,6 @@ export default function EmissaoPorFatura() {
     carregarEmpresas();
   }, []);
 
-  // console.log("empresaData:", empresaData);
-
   const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
   
   const gerarBtnClass = podeGerar
