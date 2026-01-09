@@ -72,9 +72,9 @@ function Sidebar() {
           <FiClock className="icon" /> Histórico
         </Link> */}
 
-        <Link to="/configuracoes" className={isActive("/configuracoes")}>
+        {/* <Link to="/configuracoes" className={isActive("/configuracoes")}>
           <FiSettings className="icon" /> Configurações
-        </Link>
+        </Link> */}
 
         <div className="login">
          

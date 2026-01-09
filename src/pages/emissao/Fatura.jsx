@@ -13,14 +13,15 @@ import { fixBrokenLatin } from "../../utils/normalizacao_textual";
 export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
   const [fatura, setFatura] = useState("");
-  
-  const [parcelada, setParcelada] = useState(false);
-  const [parcela, setParcela] = useState(1);
+
+  // const [parcela, setParcela] = useState(1)
+  // const [parcelada, setParcelada] = useState(false);
 
   const [observacao, setObservacao] = useState("");
   const [codigoServico, setCodigoServico] = useState("170901");
 
   const [preview, setPreview] = useState(null);
+
   const [logs, setLogs] = useState([]);
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
@@ -71,6 +72,7 @@ export default function EmissaoPorFatura() {
         return;
       }
 
+      // começa como parcela 1 para deixar passar.
       try {
         const payload = {
           protocolo_id: "REQ_" + Date.now(),
@@ -78,8 +80,7 @@ export default function EmissaoPorFatura() {
           prestador_cnpj: empresa.CNPJ,
           razaoSocial: empresa.CEDENTE,
           observacao: observacao,
-          parcelada: parcelada,
-          parcela: parcela,
+          parcela: 1,
           codigo: codigoServico
         };
 
@@ -103,7 +104,7 @@ export default function EmissaoPorFatura() {
         setLoadingGerar(false);
       }
     },
-    [empresa, fatura, parcelada, observacao, codigoServico, podeGerar, pushLog, enqueueSnackbar]
+    [empresa, fatura, observacao, codigoServico, podeGerar, pushLog, enqueueSnackbar]
   );
 
   const handleEmitir = useCallback(async () => {
@@ -179,7 +180,8 @@ export default function EmissaoPorFatura() {
             <h3 className="fc-form-title">Dados de Importação</h3>
 
             <div className="fc-form-content">
-              <div className="fc-row fc-row--flag">
+              
+              {/* <div className="fc-row fc-row--flag">
                 <label className="fc-flag">
                   <input
                     type="checkbox"
@@ -189,7 +191,7 @@ export default function EmissaoPorFatura() {
                   />
                   <span className="fc-flag-text">Fatura Parcelada</span>
                 </label>
-              </div>
+              </div> */}
 
               <div className="fc-row fc-row--inputs">
                 <input
@@ -228,6 +230,7 @@ export default function EmissaoPorFatura() {
               >
                 {loadingGerar ? "GERANDO PRÉVIA..." : "GERAR"}
               </button>
+
             </div>
           </form>
 
@@ -306,6 +309,7 @@ export default function EmissaoPorFatura() {
             {loadingEmitir ? `A PROCESSAR (${progresso}%)` : "EMITIR NOTA FISCAL"}
           </button>
         </footer>
+
       </div>
     
   );

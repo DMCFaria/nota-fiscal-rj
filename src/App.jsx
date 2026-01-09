@@ -26,7 +26,7 @@ function AppLayout() {
           <Route path="/emissao/individual" element={<Individual />} />
           <Route path="/consultas" element={<Consultas />} />
           <Route path="/historico" element={<Historico />} />
-          <Route path="/configuracoes" element={<Configuracoes />} />
+          {/* <Route path="/configuracoes" element={<Configuracoes />} /> */}
           <Route path="*" element={<div>Página não encontrada.</div>} />
         </Routes>
       </main>
