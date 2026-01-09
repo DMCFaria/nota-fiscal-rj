@@ -6,7 +6,6 @@ import {
   iniciarEmissao,
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
-import "../../styles/parcelas.css";
 import { useSnackbar } from 'notistack';
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
@@ -16,7 +15,6 @@ export default function EmissaoPorFatura() {
   const [fatura, setFatura] = useState("");
   
   const [parcelada, setParcelada] = useState(false);
-  const [parcelas, setParcelas] = useState(2);
 
   const [observacao, setObservacao] = useState("");
   const [codigoServico, setCodigoServico] = useState("170901");
@@ -79,8 +77,7 @@ export default function EmissaoPorFatura() {
           prestador_cnpj: empresa.CNPJ,
           razaoSocial: empresa.CEDENTE,
           observacao: observacao,
-          parcelada: parcelada,
-          parcelas: parcelas,
+          parcela: parcelada,
           codigo: codigoServico
         };
 
@@ -93,12 +90,12 @@ export default function EmissaoPorFatura() {
           enqueueSnackbar('Dados carregados. Verifique antes de emitir.', { variant: 'success' });
         } else {
           const msg = response?.erro || "Falha ao obter prévia da nota.";
-          enqueueSnackbar('Erro: ' + msg, { variant: 'error' });
+          enqueueSnackbar('Falha ao gerar dados da nota: ' + msg, { variant: 'error' });
           pushLog(`ERRO: ${msg}`);
         }
       } catch (err) {
         const msg = err?.error || "Erro ao ligar ao serviço de base de dados.";
-        enqueueSnackbar('Erro: ' + msg, { variant: 'error' });
+        enqueueSnackbar('Falha ao gerar dados da nota: ' + msg, { variant: 'error' });
         pushLog(`ERRO: ${msg}`);
       } finally {
         setLoadingGerar(false);
@@ -150,6 +147,8 @@ export default function EmissaoPorFatura() {
     carregarEmpresas();
   }, []);
 
+  // console.log("empresaData:", empresaData);
+
   const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
   
   const gerarBtnClass = podeGerar
@@ -189,58 +188,6 @@ export default function EmissaoPorFatura() {
                   <span className="fc-flag-text">Fatura Parcelada</span>
                 </label>
               </div>
-
-              {parcelada && (
-                <div className="fc-card fc-card--soft fc-card--animated">
-                  <div className="fc-card-header">
-                    <h4 className="fc-card-title">Parcelamento</h4>
-                    <button 
-                      type="button" 
-                      className="fc-btn-close"
-                      onClick={() => setParcelada(false)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  
-                  <div className="fc-form-row">
-                    <label className="fc-label">Número de parcelas</label>
-                    <input
-                      type="range"
-                      min="2"
-                      max="12"
-                      value={parcelas}
-                      onChange={(e) => setParcelas(Number(e.target.value))}
-                      className="fc-slider"
-                    />
-                    <div className="fc-slider-info">
-                      <span>{parcelas}x</span>
-                      <span className="fc-text-muted">(2-12 meses)</span>
-                    </div>
-                  </div>
-
-                  {preview && (
-                    <div className="fc-metrics-grid">
-                      <div className="fc-metric">
-                        <span className="fc-label">Valor total:</span>
-                        <span className="fc-value">
-                          {preview
-                            .reduce((acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0), 0)
-                            .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                        </span>
-                      </div>
-                      <div className="fc-metric">
-                        <span className="fc-label">Valor por parcela:</span>
-                        <span className="fc-value fc-value--highlight">
-                          {(preview
-                            .reduce((acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0), 0) / parcelas)
-                            .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               <div className="fc-row fc-row--inputs">
                 <input

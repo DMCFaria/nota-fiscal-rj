@@ -37,6 +37,16 @@ export default function EmissaoIndividual() {
 
   // console.log("Empresa selecionada:", empresa);
 
+
+  let dados = {
+    "tomador": tomador,
+    "empresa": empresa,
+    "servico": servico,
+    "valores": valores,
+  }
+
+  console.log("dados", dados)
+
   useEffect(() => {
     const carregarEmpresas = async () => {
       try {
