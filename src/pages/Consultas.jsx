@@ -6,6 +6,8 @@ import "../styles/consultas.css";
 import { getNotaPorFatura, downloadPdfNota } from "../services/notas";
 import "../styles/notaCard.css";
 import NotaFaturaCard from "../components/NotaFaturaCard";
+import "../styles/status-badge.css";
+import { fixBrokenLatin } from "../utils/normalizacao_textual";
 
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
@@ -110,10 +112,15 @@ function normalizeFaturasResponse(payload) {
 
 function LinhaFatura({ fatura, isOpen, onToggle, onBaixarTodas, onBaixarUma, baixandoAll }) {
   const qtd = fatura.notas?.length ?? 0;
+  
+  // Pega a data da primeira nota como referência para a fatura
+  const primeiraNota = fatura.notas?.[0];
+  const dataFatura = primeiraNota?.datas?.criacao || null;
 
   return (
     <>
       <tr className={`accordion-row ${isOpen ? "open" : ""}`}>
+        
         <td className="mono">
           <button type="button" className="accordion-toggle" onClick={onToggle}>
             <span className="chev">{isOpen ? <FiChevronDown /> : <FiChevronRight />}</span>
@@ -124,12 +131,16 @@ function LinhaFatura({ fatura, isOpen, onToggle, onBaixarTodas, onBaixarUma, bai
           </span>
         </td>
 
-        <td>{fatura.quando ? new Date(fatura.quando).toLocaleString("pt-BR") : "—"}</td>
+        <td>
+          {dataFatura ? new Date(dataFatura).toLocaleString("pt-BR") : "—"}
+        </td>
 
         <td className="resultados-compactos">
           {fatura.notas?.slice(0, 3).map((n, i) => (
             <span key={n.id ?? n.protocolo ?? i} className="sist-chip">
-              <strong>Nota</strong> — <span className="mono">{n.numero ?? n.id ?? n.protocolo ?? "—"}</span>
+              <strong>Nota</strong> — <span className="mono">
+                {n.numero_nfse || n.numero || n.id || "—"}
+              </span>
             </span>
           ))}
           {qtd > 3 && <span className="sist-chip">+{qtd - 3}…</span>}
@@ -155,28 +166,51 @@ function LinhaFatura({ fatura, isOpen, onToggle, onBaixarTodas, onBaixarUma, bai
               <div className="notas-box">
                 <div className="notas-head">
                   <strong>Notas da fatura {fatura.numero}</strong>
-                  <span className="notas-hint">Clique para baixar uma ou use “Baixar todas”.</span>
+                  <span className="notas-hint">Clique para baixar uma ou use "Baixar todas".</span>
                 </div>
 
                 <table className="tabela notas-tabela">
                   <thead>
                     <tr>
-                      <th style={{ width: 180 }}>Nº / ID</th>
-                      <th>Emissão</th>
-                      <th style={{ width: 160, textAlign: "right" }}>Ações</th>
+                      <th style={{ width: 180 }}>Nº da Nota</th>
+                      <th>Tomador</th>
+                      <th>Valor</th>
+                      <th>Status</th>
+                      <th style={{ width: 140, textAlign: "right" }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {toArray(fatura.notas).map((n, idx) => (
-                      <tr key={n.id ?? n.protocolo ?? idx}>
-                        <td className="mono">{n.numero ?? n.id ?? n.protocolo ?? "—"}</td>
-                        <td>
-                          {n.quando || n.data || n.created_at
-                            ? new Date(n.quando ?? n.data ?? n.created_at).toLocaleString("pt-BR")
-                            : "—"}
+                      <tr key={n.id ?? idx}>
+                        <td className="mono">
+                          {n.numero_nfse || n.numero || n.id || "—"}
                         </td>
+                        
+                        <td>
+                          {fixBrokenLatin(n.tomador?.razao_social) || "—"}
+                        </td>
+                        
+                        <td>
+                          {n.valor_servico 
+                            ? `R$ ${parseFloat(n.valor_servico).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                            : "—"
+                          }
+                        </td>
+                        
+                        <td>
+                          <span className={`status-badge status-${n.status?.toLowerCase() || 'unknown'}`}>
+                            {n.status || "—"}
+                          </span>
+                        </td>
+                        
                         <td className="acoes-col">
-                          <button type="button" className="btn btn-xs secondary" onClick={() => onBaixarUma(n)}>
+                          <button 
+                            type="button" 
+                            className="btn btn-xs secondary" 
+                            onClick={() => onBaixarUma(n)}
+                            disabled={!n.pdf_url_final}
+                            title={n.pdf_url_final ? "Baixar PDF" : "PDF não disponível"}
+                          >
                             Baixar
                           </button>
                         </td>
@@ -185,7 +219,7 @@ function LinhaFatura({ fatura, isOpen, onToggle, onBaixarTodas, onBaixarUma, bai
 
                     {!qtd && (
                       <tr>
-                        <td colSpan={3} style={{ padding: 14, color: "var(--text-soft,#525a6a)" }}>
+                        <td colSpan={5} style={{ padding: 14, color: "var(--text-soft,#525a6a)" }}>
                           Nenhuma nota vinculada nessa fatura.
                         </td>
                       </tr>
@@ -205,17 +239,26 @@ function Linha({ item, expanded, onToggle, onOpenCancelar }) {
   const isOpen = expanded.has(item.id);
   const hasElegivel = item.sistemas?.some((s) => s.status === "sucesso" && s.protocolo && !s.cancelada);
 
+  // Pega a data mais apropriada
+  const dataItem = item.criacao || 
+                  item.quando || 
+                  item.data || 
+                  (item.sistemas?.[0]?.quando) || 
+                  null;
+
   return (
     <>
       <tr className={`accordion-row ${isOpen ? "open" : ""}`}>
         <td className="mono">
           <button type="button" className="accordion-toggle" onClick={() => onToggle(item.id)}>
             <span className="chev">{isOpen ? <FiChevronDown /> : <FiChevronRight />}</span>
-            {item.faturamento ?? item.fatura ?? "—"}
+            {item.faturamento ?? item.fatura ?? item.numero ?? "—"}
           </button>
         </td>
 
-        <td>{item.quando ? new Date(item.quando).toLocaleString("pt-BR") : "—"}</td>
+        <td>
+          {dataItem ? new Date(dataItem).toLocaleString("pt-BR") : "—"}
+        </td>
 
         <td className="resultados-compactos">
           {toArray(item.sistemas).map((s) => (
@@ -241,21 +284,47 @@ function Linha({ item, expanded, onToggle, onOpenCancelar }) {
         <tr className="accordion-expansion">
           <td colSpan={4}>
             <div className="expansion-wrapper">
-              {toArray(item.sistemas).map((s) => (
-                <div key={s.nome} className="sist-bloco">
-                  <div className="sist-header">
-                    <div className="sist-title">
-                      <strong>{s.nome}</strong>
-                      <Badge status={s.status} cancelada={s.cancelada} substituida={s.substituida} />
+              {toArray(item.sistemas).map((s) => {
+                // Formata data do sistema se existir
+                const dataSistema = s.quando || s.data || s.created_at;
+                const dataFormatada = dataSistema 
+                  ? new Date(dataSistema).toLocaleString("pt-BR")
+                  : "—";
+                
+                return (
+                  <div key={s.nome} className="sist-bloco">
+                    <div className="sist-header">
+                      <div className="sist-title">
+                        <strong>{s.nome}</strong>
+                        <Badge status={s.status} cancelada={s.cancelada} substituida={s.substituida} />
+                      </div>
+                      <div className="sist-proto">
+                        Protocolo: <span className="mono">{s.protocolo ?? "—"}</span>
+                        {dataFormatada !== "—" && (
+                          <span className="sist-data"> • {dataFormatada}</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="sist-proto">
-                      Protocolo: <span className="mono">{s.protocolo ?? "—"}</span>
-                    </div>
-                  </div>
 
-                  {s.motivo && <div className="sist-erro-msg">Motivo: {s.motivo}</div>}
-                </div>
-              ))}
+                    {s.motivo && <div className="sist-erro-msg">Motivo: {s.motivo}</div>}
+                    
+                    {/* Adicionar mais informações se disponíveis */}
+                    {(s.numero || s.numero_nfse) && (
+                      <div className="sist-info">
+                        Número: <span className="mono">{s.numero || s.numero_nfse}</span>
+                      </div>
+                    )}
+                    
+                    {s.valor_servico && (
+                      <div className="sist-info">
+                        Valor: <span className="mono">
+                          R$ {parseFloat(s.valor_servico).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </td>
         </tr>
@@ -296,7 +365,6 @@ export default function Consultas() {
     try {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
-        console.log("NOTA POR FATURA: ", res);
         
         if (res.status === "success" && res.nfse) {
           // Exibir detalhe da nota
@@ -393,6 +461,8 @@ export default function Consultas() {
     }
   };
 
+  console.log("faturas", faturas)
+
   return (
     <div className="consultas">
       <h1 className="tittle-cons">Consultas</h1>
@@ -435,6 +505,7 @@ export default function Consultas() {
                 <p>Nenhuma fatura encontrada.</p>
               </div>
             ) : (
+              // SE FOR SÓ UMA
               <table className="tabela tabela-accordion">
                 <thead>
                   <tr>
@@ -464,6 +535,7 @@ export default function Consultas() {
               <p>Nenhum registro encontrado.</p>
             </div>
           ) : (
+            // SE FOR MAIS DE UMA
             <table className="tabela tabela-accordion">
               <thead>
                 <tr>

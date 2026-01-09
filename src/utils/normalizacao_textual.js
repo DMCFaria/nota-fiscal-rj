@@ -17,6 +17,7 @@ const REPLACEMENTS = [
   [/�i/g, "í"],
   [/�o/g, "ó"],
   [/�u/g, "ú"],
+  [/�u/g, "ç"],
   [/�/g, ""], // fallback final
 ];
 

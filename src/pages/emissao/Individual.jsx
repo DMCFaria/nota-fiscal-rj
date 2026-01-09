@@ -169,52 +169,87 @@ export default function EmissaoIndividual() {
 
   const handleEmitir = useCallback(async () => {
     if (!podeEmitir) {
-      showToast("err", "Preencha os campos obrigatórios e informe um valor maior que zero.");
+      enqueueSnackbar("Preencha os campos obrigatórios e informe um valor maior que zero.", { variant: 'error' });
       return;
     }
 
     setLoading(true);
     pushLog("Iniciando emissão individual…");
-    showToast("info", "Emitindo nota…");
+    enqueueSnackbar("Emitindo nota…", { variant: 'info' });
 
     try {
       const valorNotaNum = parseBRL(valores.valorNota);
-
-      const preview = {
-        empresa,
-        tomador,
-        servico,
-        valores: {
-          ...valores,
-          // opcional: manter string e também numérico, mas deixo só como veio
+      
+      // Formatar os dados no mesmo padrão da emissão por fatura
+      const nota = {
+        idIntegracao: `IND_${tomador.documento}_${Date.now()}`,
+        prestador: {
+          cpfCnpj: empresa.CNPJ,
+          razaoSocial: empresa.CEDENTE,
+          inscricaoMunicipal: empresa.INSCRICAO_MUNICIPAL || ""
         },
-        itens: [{ cliente: tomador.nome, valor: valorNotaNum }],
-        valorTotal: valorNotaNum
+        tomador: {
+          cpfCnpj: tomador.documento,
+          razaoSocial: tomador.nome,
+          email: tomador.email,
+          endereco: {
+            logradouro: tomador.logradouro || "",
+            numero: tomador.numero || "",
+            complemento: "",
+            bairro: tomador.bairro || "",
+            cep: tomador.cep || "",
+            descricaoCidade: tomador.cidade || "",
+            estado: tomador.uf || "",
+            codigoCidade: "" 
+          }
+        },
+        servico: [
+          {
+            codigo: "170901", // Código padrão ou pegar da empresa
+            discriminacao: servico,
+            valor: {
+              servico: valorNotaNum,
+              deducoes: parseBRL(valores.deducoes) || 0,
+              descontos: parseBRL(valores.descontos) || 0
+            },
+            issRetido: valores.issRetido === "sim"
+          }
+        ]
       };
 
-      const { ok, protocolo, pdfBlob, erro } = await emitirNota({
-        empresa,
-        tipo: "INDIVIDUAL",
-        numero: tomador.documento,
-        preview
-      });
+      // Enviar para a mesma API da emissão por fatura
+      const res = await iniciarEmissao([nota]);
 
-      if (!ok) {
-        showToast("err", erro || "Falha na emissão.");
-        pushLog("Erro ao emitir nota individual.");
-        return;
+      if (res.status === "sucesso") {
+        pushLog(`Nota individual enviada com sucesso. Protocolo: ${res.protocolo}`);
+        enqueueSnackbar("Nota enviada para processamento. Acompanhe o status nas consultas.", { variant: 'success' });
+        
+        // Opcional: baixar PDF se a API retornar
+        // if (res.pdf_url_final) {
+        //   window.open(res.pdf_url_final, '_blank');
+        // }
+      } else {
+        const msg = res?.error || "Falha ao enviar nota para processamento.";
+        enqueueSnackbar("Erro: " + msg, { variant: 'error' });
+        pushLog(`ERRO: ${msg}`);
       }
-
-      showToast("ok", `Nota emitida com sucesso. Protocolo ${protocolo}.`);
-      pushLog(`Emitida nota do tomador ${tomador.nome} — protocolo ${protocolo}.`);
-      baixarPdf(`NF_${empresa}_${tomador.nome}_${protocolo}.pdf`, pdfBlob);
-    } catch {
-      showToast("err", "Falha inesperada na emissão.");
-      pushLog("Erro inesperado na emissão.");
+    } catch (err) {
+      const msg = err?.message || "Erro ao conectar com o serviço de emissão.";
+      enqueueSnackbar("Erro: " + msg, { variant: 'error' });
+      pushLog(`ERRO: ${msg}`);
     } finally {
       setLoading(false);
     }
-  }, [empresa, tomador, servico, valores, podeEmitir, pushLog, showToast, parseBRL]);
+  }, [
+    empresa, 
+    tomador, 
+    servico, 
+    valores, 
+    podeEmitir, 
+    pushLog, 
+    parseBRL,
+    enqueueSnackbar
+  ]);
 
   return (
     <div className="ind-page">
