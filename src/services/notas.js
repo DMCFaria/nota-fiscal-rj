@@ -11,6 +11,17 @@ export const getNotaPorIdOuProtocolo = async (idNota) => {
     }   
 }
 
+export const getNotaPorFatura = async (fatura) => {
+    try {
+        const response = await api.get(`/consultas/nfse/nfse/consulta-nota-por-id-fatura/${fatura}/`);
+        return response.data;
+    }
+    catch (error) {
+        console.error("Erro ao buscar nota:", error);
+    }   
+}
+
+
 // Função para buscar o histórico real do Django
 export const getHistorico = async () => {
   const { data } = await api.get("/consultar-faturas/");
