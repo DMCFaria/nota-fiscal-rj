@@ -15,6 +15,7 @@ export default function EmissaoPorFatura() {
   const [fatura, setFatura] = useState("");
   
   const [parcelada, setParcelada] = useState(false);
+  const [parcela, setParcela] = useState(1);
 
   const [observacao, setObservacao] = useState("");
   const [codigoServico, setCodigoServico] = useState("170901");
@@ -77,7 +78,8 @@ export default function EmissaoPorFatura() {
           prestador_cnpj: empresa.CNPJ,
           razaoSocial: empresa.CEDENTE,
           observacao: observacao,
-          parcela: parcelada,
+          parcelada: parcelada,
+          parcela: parcela,
           codigo: codigoServico
         };
 

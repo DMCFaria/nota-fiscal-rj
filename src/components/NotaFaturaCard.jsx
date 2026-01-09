@@ -111,7 +111,7 @@ export default function NotaFaturaCard({ nota }) {
 
         <div className="nota-card-meta">
           <span className="meta-label">Parcelas:</span>
-          <span className="meta-value">{nota.parcelas || 1}x</span>
+          <span className="meta-value">{nota.parcela || 1}x</span>
         </div>
       </div>
 

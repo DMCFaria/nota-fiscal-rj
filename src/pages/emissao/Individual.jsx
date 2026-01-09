@@ -31,12 +31,9 @@ export default function EmissaoIndividual() {
   const [loading, setLoading] = useState(false);
 
   // Toast
-  const [toast, setToast] = useState(null); // { type: "ok" | "err" | "info", msg: string }
-  const [toastState, setToastState] = useState("idle"); // idle | in | out
+  const [toast, setToast] = useState(null);
+  const [toastState, setToastState] = useState("idle");
   const toastTimerRef = useRef(null);
-
-  // console.log("Empresa selecionada:", empresa);
-
 
   let dados = {
     "tomador": tomador,
@@ -216,6 +213,8 @@ export default function EmissaoIndividual() {
           }
         ]
       };
+
+      console.log("Dados a serem enviados para o servidor: ", nota)
 
       // Enviar para a mesma API da emissão por fatura
       const res = await iniciarEmissao([nota]);
