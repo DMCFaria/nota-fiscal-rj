@@ -8,11 +8,11 @@ import Sidebar from "./components/Sidebar";
 import Fatura from "./pages/emissao/Fatura";
 import Rps from "./pages/emissao/Rps";
 import Individual from "./pages/emissao/Individual";
-import Consultas from "./pages/Consultas";
 import Historico from "./pages/Historico";
 import Configuracoes from "./pages/Configuracoes";
 
 import "./styles/global.css";
+import Consultas from "./pages/Consultas";
 
 function AppLayout() {
   return (
