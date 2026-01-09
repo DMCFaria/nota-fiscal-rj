@@ -3,6 +3,7 @@ import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle } from "react-icons/
 import { useSnackbar } from "notistack";
 import { getFaturaPorNumero, buscarPorNumeroNota, cancelarNota } from "../services/fatura";
 import "../styles/consultas.css";
+import { downloadPdfNota, getNotaPorIdOuProtocolo } from "../services/notas";
 
 const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 
@@ -106,7 +107,7 @@ export default function Consultas() {
     try {
       let res;
       if (tipoBusca === "fatura") {
-        res = await getFaturaPorNumero(termo);
+        res = await getNotaPorIdOuProtocolo(termo);
         setDados(res.data);
       } else {
         res = await buscarPorNumeroNota(termo);

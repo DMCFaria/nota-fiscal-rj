@@ -4,7 +4,6 @@ import LogEmissao from "../../components/LogEmissao";
 import {
   getNfsePreview,
   iniciarEmissao,
-  startStatusPolling
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from 'notistack';

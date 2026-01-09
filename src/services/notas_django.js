@@ -1,9 +1,9 @@
-import api from "./api";
 
+import api from "./api";
 
 export const getNotaPorIdOuProtocolo = async (idNota) => {
     try {
-        const response = await api.get(`/consultas/nfse/${idNota}/`);
+        const response = await api.get(`/api/consultas/nfse/${idNota}/`);
         return response.data;
     }
     catch (error) {
@@ -11,34 +11,10 @@ export const getNotaPorIdOuProtocolo = async (idNota) => {
     }   
 }
 
-// Função para buscar o histórico real do Django
-export const getHistorico = async () => {
-  const { data } = await api.get("/consultar-faturas/");
-  return data.results || data;
-};
-
-// Se o seu componente chama isso para limpar cache/mock, 
-// definimos como uma função vazia para não quebrar o código.
-export const clearHistorico = () => {
-  console.log("Limpando histórico local...");
-  return true;
-};
-
-// Outras funções que você pode estar usando
-export const transmitirNota = async (payload) => {
-  const { data } = await api.post("/consultar-faturas/", payload);
-  return data;
-};
-
-export const cancelarNota = async ({ id, sistema }) => {
-  const { data } = await api.post(`/consultar-faturas/${id}/cancelar/`, { sistema });
-  return data;
-};
-
 export const downloadPdfNota = async (idNota) => {
   try {
     // Chama o endpoint que você já tem configurado com o token
-    const response = await fetch(`/consultas/nfse/${idNota}/pdf/`, {
+    const response = await fetch(`/api/consultas/nfse/${idNota}/pdf/`, {
       method: 'GET',
       headers: {
         'Accept': 'application/pdf',
