@@ -1,5 +1,5 @@
 import api from "./api";
-
+import n8n from "./n8n";
 
 export const getNotaPorIdOuProtocolo = async (idNota) => {
     try {
@@ -40,39 +40,52 @@ export const transmitirNota = async (payload) => {
   return data;
 };
 
-export const cancelarNota = async ({ id, sistema }) => {
-  const { data } = await api.post(`/consultar-faturas/${id}/cancelar/`, { sistema });
-  return data;
-};
 
-export const downloadPdfNota = async (idNota) => {
+
+export const downloadPdfNota = async (payload) => {
   try {
-    // Chama o endpoint que você já tem configurado com o token
-    const response = await fetch(`/consultas/nfse/${idNota}/pdf/`, {
-      method: 'GET',
+    const response = await n8n.post("webhook/baixar-pdf-nfse/", payload, {
+      responseType: 'arraybuffer', // Crucial para não corromper os bytes
       headers: {
-        'Accept': 'application/pdf',
-      },
+        'Accept': 'application/pdf'
+      }
     });
 
-    if (!response.ok) {
-      throw new Error(`Erro ao baixar PDF: ${response.status}`);
+    // Verificação de segurança: se for JSON (erro), o byteLength será pequeno
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    
+    // Teste rápido: se o PDF está vindo em branco, tente verificar o tamanho no console
+    console.log("Tamanho do Blob gerado:", blob.size);
+
+    if (blob.size < 1000) {
+      throw new Error("Arquivo PDF parece estar vazio ou inválido.");
     }
 
-    // Cria o blob e baixa o arquivo
-    const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `nota-${idNota}.pdf`;
+    
+    const fileName = payload.tipo === 'fatura' 
+      ? `FATURA_${payload.fatura}.pdf` 
+      : `NFSE_${payload.idIntegracao}.pdf`;
+
+    link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    
+    // Limpeza com delay para garantir o clique
+    setTimeout(() => {
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    }, 200);
 
-    return true;
   } catch (error) {
-    console.error("Erro ao baixar PDF:", error);
+    console.error("Erro no download:", error);
     throw error;
   }
+};
+
+export const cancelarNota = async (notasArray) => {
+  
+  return await n8n.post("webhook/cancelar-nf", { notas: notasArray });
 };
