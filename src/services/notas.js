@@ -1,4 +1,3 @@
-import axios from "axios";
 import api from "./api";
 import n8n from "./n8n";
 
@@ -34,7 +33,7 @@ export const getNotaPorID = async (id_tecnospeed) => {
 
 export const getHistoricoFatura = async (faturaNumero) => {
   try {
-    const response = await api.get(`/consultas/historico/por-fatura/?fatura=${faturaNumero}`);
+    const response = await api.get(`/consultas/historico/consulta-por-fatura/${faturaNumero}`);
     return response.data;
   } catch (error) {
     console.error('Erro ao buscar histórico da fatura:', error);
@@ -44,7 +43,7 @@ export const getHistoricoFatura = async (faturaNumero) => {
 
 export const getHistoricoNota = async (notaId) => {
   try {
-    const response = await api.get(`/consultas/historico/por-nota/?nota_id=${notaId}`);
+    const response = await api.get(`/consultas/historico/consulta-por-id/${notaId}`);
     return response.data;
   } catch (error) {
     console.error('Erro ao buscar histórico da nota:', error);

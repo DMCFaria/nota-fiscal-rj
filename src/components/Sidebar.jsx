@@ -54,9 +54,9 @@ function Sidebar() {
               <Link to="/emissao/fatura" className={isActive("/emissao/fatura")}>
                 Fatura
               </Link>
-              {/* <Link to="/emissao/rps" className={isActive("/emissao/rps")}>
+              <Link to="/emissao/rps" className={isActive("/emissao/rps")}>
                 RPS
-              </Link> */}
+              </Link>
               <Link to="/emissao/individual" className={isActive("/emissao/individual")}>
                 Individual
               </Link>
