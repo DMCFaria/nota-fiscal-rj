@@ -200,10 +200,12 @@ function LinhaFatura({
                     </tr>
                   </thead>
 
+                  
+
                   <tbody>
                     {notas.map((n, idx) => (
                       <tr key={n.id ?? idx}>
-                        <td className="mono">{n.numero_nfse || n.numero || "—"}</td>
+                        <td className="mono">{n.id || n.numero || "—"}</td>
 
                         <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
 

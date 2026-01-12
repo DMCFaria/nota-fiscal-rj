@@ -17,7 +17,7 @@ const mapearDadosDjango = (item) => ({
 });
 
 export const getFaturaPorNumero = async (numeroFatura) => {
-  const { data } = await api.get(`/consultar-faturas/?fatura=${numeroFatura}`);
+  const { data } = await api.get(`/api//consultar-faturas/?fatura=${numeroFatura}`);
   const lista = data.results || data;
   return {
     status: "success",
@@ -26,7 +26,7 @@ export const getFaturaPorNumero = async (numeroFatura) => {
 };
 
 export const buscarPorNumeroNota = async (termo) => {
-  const { data } = await api.get(`/consultar-faturas/?search=${termo}`);
+  const { data } = await api.get(`/api//consultar-faturas/?search=${termo}`);
   const lista = data.results || data;
   if (lista.length === 0) return { tipo: "nao_encontrado" };
   return {
@@ -36,6 +36,6 @@ export const buscarPorNumeroNota = async (termo) => {
 };
 
 export const cancelarNota = async ({ id, sistema }) => {
-  const { data } = await api.post(`/consultar-faturas/${id}/cancelar/`, { sistema });
+  const { data } = await api.post(`/api//consultar-faturas/${id}/cancelar/`, { sistema });
   return { item: mapearDadosDjango(data) };
 };

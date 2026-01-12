@@ -2,7 +2,7 @@ import api from "./api"
 
 export const getEmpresas = async () => {
     try {
-        const response = await api.get("consultas/empresas/todas");
+        const response = await api.get("/api/consultas/empresas/todas");
         // console.log("Empresas response:", response);
         return response.data;
     }
@@ -13,7 +13,7 @@ export const getEmpresas = async () => {
 
 export const getEmpresasPorCNPJ = async (cnpj) => {
     try {
-        const response = await api.get(`consultas/empresas/${cnpj}`);
+        const response = await api.get(`/api/consultas/empresas/${cnpj}`);
         // console.log("Empresas response:", response);
         return response.data;
     }

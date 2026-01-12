@@ -217,9 +217,11 @@ export default function Historico() {
       if (tipo === "fatura") {
         let numero_fatura = termo
         dados = await getHistoricoFatura(numero_fatura);
+        console.log("HISTORICO POR FATURA: ", dados)
       } else {
         let notaId = termo
         dados = await getHistoricoNota(notaId);
+        console.log("HISTORICO POR NOTA: ", dados)
       }
       
       if (dados.sucesso) {

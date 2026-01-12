@@ -2,8 +2,8 @@ import axios from "axios";
 
 
 const api = axios.create({
-  baseURL: "https://fedcorp-nfs-e-django-ebh2e.ondigitalocean.app/api/"
-//   baseURL: "http://127.0.0.1:8000/api/"
+  baseURL: "https://fedcorp-nfs-e-django-ebh2e.ondigitalocean.app/"
+//   baseURL: "http://127.0.0.1:8000/"
 });
 
 // No seu arquivo api.js ou authService.js
