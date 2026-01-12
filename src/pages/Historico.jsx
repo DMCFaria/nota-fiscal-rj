@@ -1,101 +1,205 @@
 // Historico.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { getHistoricoFatura, getHistoricoNota } from "../services/notas";
-import { FiClock, FiFilter, FiSearch, FiFileText, FiUser } from "react-icons/fi";
+import { 
+  FiClock, 
+  FiFilter, 
+  FiSearch, 
+  FiFileText, 
+  FiUser, 
+  FiAlertCircle,
+  FiCheckCircle,
+  FiInfo,
+  FiEye,
+  FiEyeOff,
+  FiDownload,
+  FiSend
+} from "react-icons/fi";
 import "../styles/historico.css";
 
+// Componente de badge melhorado
 function BadgeTipo({ tipo }) {
-  const tipos = {
-    "INFO": { label: "Info", classe: "badge-info" },
-    "SUCESSO": { label: "Sucesso", classe: "badge-success" },
-    "ERRO": { label: "Erro", classe: "badge-error" },
-    "ALERTA": { label: "Alerta", classe: "badge-warning" }
-  };
+  const config = {
+    "INFO": { label: "Info", classe: "badge-info", icon: <FiInfo /> },
+    "SUCESSO": { label: "Sucesso", classe: "badge-success", icon: <FiCheckCircle /> },
+    "ERRO": { label: "Erro", classe: "badge-error", icon: <FiAlertCircle /> },
+    "ALERTA": { label: "Alerta", classe: "badge-warning", icon: <FiAlertCircle /> }
+  }[tipo] || { label: tipo, classe: "badge-default", icon: null };
   
-  const config = tipos[tipo] || { label: tipo, classe: "badge-default" };
-  
-  return <span className={`badge ${config.classe}`}>{config.label}</span>;
+  return (
+    <span className={`badge ${config.classe}`}>
+      {config.icon} {config.label}
+    </span>
+  );
 }
 
 function BadgeOrigem({ origem }) {
-  const origens = {
-    "EMISSAO": { label: "Emissão", classe: "badge-emissao" },
-    "PRE_EMISSAO": { label: "Pré-Emissão", classe: "badge-pre-emissao" },
-    "CONSULTA": { label: "Consulta", classe: "badge-consulta" },
-    "DOWNLOAD": { label: "Download", classe: "badge-download" },
-    "CANCELAMENTO": { label: "Cancelamento", classe: "badge-cancelamento" }
-  };
+  const config = {
+    "EMISSAO": { label: "Emissão", classe: "badge-emissao", icon: <FiSend /> },
+    "PRE_EMISSAO": { label: "Pré-Emissão", classe: "badge-pre-emissao", icon: <FiFileText /> },
+    "CONSULTA": { label: "Consulta", classe: "badge-consulta", icon: <FiSearch /> },
+    "DOWNLOAD": { label: "Download", classe: "badge-download", icon: <FiDownload /> },
+    "CANCELAMENTO": { label: "Cancelamento", classe: "badge-cancelamento", icon: <FiAlertCircle /> },
+    "CONSULTA_NOTA": { label: "Consulta NFSe", classe: "badge-consulta", icon: <FiSearch /> }
+  }[origem] || { label: origem, classe: "badge-default", icon: null };
   
-  const config = origens[origem] || { label: origem, classe: "badge-default" };
+  return (
+    <span className={`badge ${config.classe}`}>
+      {config.icon} {config.label}
+    </span>
+  );
+}
+
+// Componente para exibir detalhes formatados
+function DetalhesFormatados({ detalhes }) {
+  if (!detalhes || Object.keys(detalhes).length === 0) {
+    return <div className="sem-detalhes">Sem detalhes adicionais</div>;
+  }
   
-  return <span className={`badge ${config.classe}`}>{config.label}</span>;
+  // Se for o detalhe grande do preview, mostra de forma especial
+  if (detalhes.distribuicao_estado) {
+    const { fatura, total_itens, distribuicao_estado } = detalhes;
+    return (
+      <div className="detalhes-preview">
+        <h4>Pré-visualização de Emissão</h4>
+        <div className="preview-summary">
+          <p><strong>Fatura:</strong> {fatura}</p>
+          <p><strong>Total de Itens:</strong> {total_itens}</p>
+        </div>
+        {distribuicao_estado && (
+          <div className="distribuicao-estados">
+            <h5>Distribuição por Estado:</h5>
+            {Object.entries(distribuicao_estado).map(([estado, dados]) => (
+              dados.total > 0 && (
+                <div key={estado} className="estado-item">
+                  <span className="estado-sigla">{estado}</span>
+                  <span className="estado-qtd">{dados.total} item(s)</span>
+                </div>
+              )
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Para outros tipos de detalhes
+  return (
+    <div className="detalhes-simples">
+      {Object.entries(detalhes).map(([chave, valor]) => {
+        // Formata valores especiais
+        let valorFormatado = valor;
+        if (chave === 'fatura' && typeof valor === 'string') {
+          valorFormatado = <span className="mono">{valor}</span>;
+        } else if (chave === 'ip') {
+          valorFormatado = <code>{valor}</code>;
+        } else if (chave === 'total_notas' || chave === 'total_itens') {
+          valorFormatado = <strong>{valor}</strong>;
+        }
+        
+        return (
+          <div key={chave} className="detalhe-item">
+            <span className="detalhe-chave">{chave}:</span>
+            <span className="detalhe-valor">{valorFormatado}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function LinhaHistorico({ item }) {
   const [detalhesExpandidos, setDetalhesExpandidos] = useState(false);
   
-  // Verifica se há detalhes para expandir
-  const hasDetalhes = item.detalhes && 
-    (Object.keys(item.detalhes).length > 1 || 
-     (Object.keys(item.detalhes).length === 1 && 
-      Object.keys(item.detalhes)[0] !== "texto"));
+  // Detecta se há detalhes para expandir
+  const hasDetalhes = item.detalhes && Object.keys(item.detalhes).length > 0;
+  
+  // Extrai a fatura dos detalhes se disponível
+  const fatura = item.detalhes?.fatura || "";
   
   return (
-    <tr className="tabela-linha">
-      <td className="tabela-cell">
-        <div className="cell-content">
-          <span className="mono">{item.fatura || item.nota_id || "—"}</span>
-        </div>
-      </td>
-      <td className="tabela-cell">
-        <div className="cell-content">
-          <FiClock className="icon-inline" />
-          <span>{item.data}</span>
-        </div>
-      </td>
-      <td className="tabela-cell">
-        <BadgeTipo tipo={item.tipo} />
-      </td>
-      <td className="tabela-cell">
-        <BadgeOrigem origem={item.origem} />
-      </td>
-      <td className="tabela-cell">
-        <div className="cell-content">
-          <FiUser className="icon-inline" />
-          <span>{item.usuario}</span>
-        </div>
-      </td>
-      <td className="tabela-cell">
-        <div className="mensagem-cell">
-          <span className="mensagem-texto">{item.mensagem}</span>
+    <>
+      <tr className="tabela-linha">
+        <td className="tabela-cell">
+          <div className="cell-content">
+            {fatura ? (
+              <a 
+                href={`/consultas?fatura=${fatura}`}
+                className="link-fatura mono"
+                title={`Ver detalhes da fatura ${fatura}`}
+              >
+                {fatura}
+              </a>
+            ) : (
+              <span className="mono">{item.fatura || item.nota_id || "—"}</span>
+            )}
+          </div>
+        </td>
+        <td className="tabela-cell">
+          <div className="cell-content">
+            <FiClock className="icon-inline" />
+            <span className="data-formatada">{item.data}</span>
+          </div>
+        </td>
+        <td className="tabela-cell">
+          <BadgeTipo tipo={item.tipo} />
+        </td>
+        <td className="tabela-cell">
+          <BadgeOrigem origem={item.origem} />
+        </td>
+        <td className="tabela-cell">
+          <div className="cell-content">
+            <FiUser className="icon-inline" />
+            <span className="usuario-nome">{item.usuario}</span>
+          </div>
+        </td>
+        <td className="tabela-cell mensagem-cell">
+          <div className="mensagem-texto" title={item.mensagem}>
+            {item.mensagem}
+          </div>
+        </td>
+        <td className="tabela-cell">
           {hasDetalhes && (
             <button 
               className="btn-detalhes"
               onClick={() => setDetalhesExpandidos(!detalhesExpandidos)}
+              title={detalhesExpandidos ? "Ocultar detalhes" : "Ver detalhes"}
             >
-              <FiFileText /> {detalhesExpandidos ? "Ocultar" : "Detalhes"}
+              {detalhesExpandidos ? <FiEyeOff /> : <FiEye />}
             </button>
           )}
-        </div>
-        {detalhesExpandidos && hasDetalhes && (
-          <div className="detalhes-expandidos">
-            <pre>{JSON.stringify(item.detalhes, null, 2)}</pre>
-          </div>
-        )}
-      </td>
-    </tr>
+        </td>
+      </tr>
+      {detalhesExpandidos && hasDetalhes && (
+        <tr className="detalhes-row">
+          <td colSpan="7">
+            <div className="detalhes-expandidos">
+              <div className="detalhes-header">
+                <h4>Detalhes do Evento</h4>
+                <button 
+                  className="btn-fechar-detalhes"
+                  onClick={() => setDetalhesExpandidos(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <DetalhesFormatados detalhes={item.detalhes} />
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
 export default function Historico() {
   const [itens, setItens] = useState([]);
   const [filtro, setFiltro] = useState("");
-  const [loading, setLoading] = useState(false); // Inicia como false, não true
+  const [loading, setLoading] = useState(false);
   const [modoBusca, setModoBusca] = useState("fatura");
   const [termoBusca, setTermoBusca] = useState("");
-  const [estatisticas, setEstatisticas] = useState(null);
   const [erro, setErro] = useState(null);
-  const [jaBuscou, setJaBuscou] = useState(false); // Nova flag para controlar se já fez uma busca
+  const [jaBuscou, setJaBuscou] = useState(false);
 
   const buscarHistorico = async (tipo, termo) => {
     if (!termo.trim()) {
@@ -105,20 +209,21 @@ export default function Historico() {
     
     setLoading(true);
     setErro(null);
-    setJaBuscou(true); // Marca que já fez uma busca
+    setJaBuscou(true);
     
     try {
       let dados;
       
       if (tipo === "fatura") {
-        dados = await getHistoricoFatura(termo);
+        let numero_fatura = termo
+        dados = await getHistoricoFatura(numero_fatura);
       } else {
-        dados = await getHistoricoNota(termo);
+        let notaId = termo
+        dados = await getHistoricoNota(notaId);
       }
       
       if (dados.sucesso) {
         setItens(dados.logs || []);
-        setEstatisticas(dados.estatisticas || null);
       } else {
         setErro(dados.erro || "Erro ao buscar histórico");
         setItens([]);
@@ -136,23 +241,18 @@ export default function Historico() {
     const f = filtro.trim().toLowerCase();
     if (!f) return itens;
     
-    return itens.filter(item =>
-      (item.fatura || "").toLowerCase().includes(f) ||
-      (item.mensagem || "").toLowerCase().includes(f) ||
-      (item.usuario || "").toLowerCase().includes(f) ||
-      (item.origem || "").toLowerCase().includes(f) ||
-      (item.tipo || "").toLowerCase().includes(f) ||
-      (item.nota_id || "").toLowerCase().includes(f)
-    );
+    return itens.filter(item => {
+      const buscaMensagem = item.mensagem?.toLowerCase().includes(f);
+      const buscaUsuario = item.usuario?.toLowerCase().includes(f);
+      const buscaOrigem = item.origem?.toLowerCase().includes(f);
+      const buscaTipo = item.tipo?.toLowerCase().includes(f);
+      const buscaFatura = item.detalhes?.fatura?.toLowerCase().includes(f);
+      
+      return buscaMensagem || buscaUsuario || buscaOrigem || buscaTipo || buscaFatura;
+    });
   }, [filtro, itens]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    buscarHistorico(modoBusca, termoBusca);
-  };
-
-  // Estatísticas calculadas localmente
-  const estatisticasLocais = useMemo(() => {
+  const estatisticas = useMemo(() => {
     if (!itens.length) return null;
     
     const total = itens.length;
@@ -161,14 +261,39 @@ export default function Historico() {
     const alertas = itens.filter(i => i.tipo === "ALERTA").length;
     const infos = itens.filter(i => i.tipo === "INFO").length;
     
+    // Agrupa por origem
+    const porOrigem = {};
+    itens.forEach(item => {
+      if (!porOrigem[item.origem]) porOrigem[item.origem] = 0;
+      porOrigem[item.origem]++;
+    });
+    
     return {
       total,
       sucessos,
       erros,
       alertas,
       infos,
-      percentualSucesso: total > 0 ? Math.round((sucessos / total) * 100) : 0
+      porOrigem,
+      percentualSucesso: total > 0 ? Math.round((sucessos / total) * 100) : 0,
+      percentualErro: total > 0 ? Math.round((erros / total) * 100) : 0
     };
+  }, [itens]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    buscarHistorico(modoBusca, termoBusca);
+  };
+
+  // Extrai faturas únicas dos logs
+  const faturasUnicas = useMemo(() => {
+    const faturas = new Set();
+    itens.forEach(item => {
+      if (item.detalhes?.fatura) {
+        faturas.add(item.detalhes.fatura);
+      }
+    });
+    return Array.from(faturas);
   }, [itens]);
 
   return (
@@ -176,15 +301,18 @@ export default function Historico() {
       <div className="historico-header">
         <div className="header-content">
           <h1 className="titulo">Histórico de Transações</h1>
-          <p className="subtitulo">Consulte o histórico de emissões, consultas e ações do sistema</p>
+          <p className="subtitulo">Acompanhe todas as atividades do sistema por fatura ou nota</p>
         </div>
       </div>
 
+      {/* Painel de Busca */}
       <div className="card busca-card">
         <form onSubmit={handleSubmit} className="form-busca-historico">
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="modoBusca">Buscar por:</label>
+              <label htmlFor="modoBusca">
+                <FiSearch /> Buscar por:
+              </label>
               <select 
                 id="modoBusca"
                 value={modoBusca}
@@ -205,7 +333,7 @@ export default function Historico() {
                 <input
                   id="termoBusca"
                   type="text"
-                  placeholder={modoBusca === "fatura" ? "Ex: 162028" : "Ex: NFSE_162028_1"}
+                  placeholder={modoBusca === "fatura" ? "Ex: 162028" : "Ex: 695c0f7b3c4938a3ad10411a"}
                   value={termoBusca}
                   onChange={(e) => setTermoBusca(e.target.value)}
                   className="input-busca"
@@ -222,7 +350,9 @@ export default function Historico() {
                       <span className="spinner-mini"></span> Buscando...
                     </>
                   ) : (
-                    "Buscar"
+                    <>
+                      <FiSearch /> Buscar
+                    </>
                   )}
                 </button>
               </div>
@@ -231,36 +361,85 @@ export default function Historico() {
           
           {erro && (
             <div className="alert alert-error">
-              <strong>Erro:</strong> {erro}
+              <FiAlertCircle /> <strong>Erro:</strong> {erro}
             </div>
           )}
         </form>
       </div>
 
-      {estatisticasLocais && (
+      {/* Painel de Estatísticas */}
+      {estatisticas && (
         <div className="card estatisticas-card">
-          <h3>Estatísticas da Busca</h3>
+          <h3>
+            <FiInfo /> Estatísticas da Busca
+            {faturasUnicas.length > 0 && (
+              <span className="faturas-badge">
+                {faturasUnicas.length} {faturasUnicas.length === 1 ? 'fatura' : 'faturas'}
+              </span>
+            )}
+          </h3>
+          
           <div className="estatisticas-grid">
-            <div className="estatistica-item">
-              <div className="estatistica-valor">{estatisticasLocais.total}</div>
-              <div className="estatistica-label">Total de Logs</div>
+            <div className="estatistica-item estatistica-total">
+              <div className="estatistica-valor">{estatisticas.total}</div>
+              <div className="estatistica-label">Total de Eventos</div>
             </div>
-            <div className="estatistica-item">
-              <div className="estatistica-valor">{estatisticasLocais.sucessos}</div>
+            
+            <div className="estatistica-item estatistica-sucesso">
+              <div className="estatistica-valor">{estatisticas.sucessos}</div>
               <div className="estatistica-label">Sucessos</div>
+              <div className="estatistica-percentual">{estatisticas.percentualSucesso}%</div>
             </div>
-            <div className="estatistica-item">
-              <div className="estatistica-valor">{estatisticasLocais.erros}</div>
+            
+            <div className="estatistica-item estatistica-erro">
+              <div className="estatistica-valor">{estatisticas.erros}</div>
               <div className="estatistica-label">Erros</div>
+              <div className="estatistica-percentual">{estatisticas.percentualErro}%</div>
             </div>
-            <div className="estatistica-item">
-              <div className="estatistica-valor">{estatisticasLocais.percentualSucesso}%</div>
-              <div className="estatistica-label">Taxa de Sucesso</div>
+            
+            <div className="estatistica-item estatistica-info">
+              <div className="estatistica-valor">{estatisticas.infos}</div>
+              <div className="estatistica-label">Informações</div>
             </div>
           </div>
+          
+          {/* Distribuição por Origem */}
+          {estatisticas.porOrigem && Object.keys(estatisticas.porOrigem).length > 0 && (
+            <div className="distribuicao-origens">
+              <h4>Distribuição por Origem:</h4>
+              <div className="origens-list">
+                {Object.entries(estatisticas.porOrigem).map(([origem, quantidade]) => (
+                  <div key={origem} className="origem-item">
+                    <BadgeOrigem origem={origem} />
+                    <span className="origem-qtd">{quantidade}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Faturas Encontradas */}
+          {faturasUnicas.length > 0 && (
+            <div className="faturas-encontradas">
+              <h4>Faturas Relacionadas:</h4>
+              <div className="faturas-list">
+                {faturasUnicas.map(fatura => (
+                  <a 
+                    key={fatura}
+                    href={`/consultas?fatura=${fatura}`}
+                    className="fatura-link"
+                    title={`Ver consulta da fatura ${fatura}`}
+                  >
+                    {fatura}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* Barra de Ferramentas */}
       {itens.length > 0 && (
         <div className="toolbar">
           <div className="search-box">
@@ -268,46 +447,73 @@ export default function Historico() {
             <input
               className="search-input"
               type="text"
-              placeholder="Filtrar resultados..."
+              placeholder="Filtrar por mensagem, usuário ou origem..."
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
               aria-label="Filtrar histórico"
               disabled={loading}
             />
+            {filtro && (
+              <button 
+                className="btn-limpar-filtro"
+                onClick={() => setFiltro("")}
+                title="Limpar filtro"
+              >
+                ×
+              </button>
+            )}
           </div>
-          <div className="results-count">
-            {filtrados.length} {filtrados.length === 1 ? "registro" : "registros"}
-            {filtro && itens.length > filtrados.length && 
-              ` (filtrado de ${itens.length})`
-            }
+          
+          <div className="toolbar-stats">
+            <span className="results-count">
+              {filtrados.length} {filtrados.length === 1 ? 'registro' : 'registros'}
+              {filtro && itens.length > filtrados.length && ` (filtrado de ${itens.length})`}
+            </span>
+            
+            {filtro && filtrados.length < itens.length && (
+              <button 
+                className="btn btn-secondary btn-sm"
+                onClick={() => setFiltro("")}
+              >
+                <FiFilter /> Limpar Filtro
+              </button>
+            )}
           </div>
         </div>
       )}
 
+      {/* Tabela de Resultados */}
       <div className="card tabela-card">
-        {/* Estado: Carregando */}
         {loading ? (
           <div className="empty-state">
             <div className="spinner"></div>
             <p>Buscando histórico...</p>
-            <p className="empty-state-sub">Isso pode levar alguns instantes</p>
+            <p className="empty-state-sub">Consultando registros do sistema</p>
           </div>
-        ) : /* Estado: Nenhuma busca realizada ainda */
-        !jaBuscou ? (
+        ) : !jaBuscou ? (
           <div className="empty-state empty-state-initial">
             <FiSearch className="empty-icon" />
             <h3>Faça uma busca</h3>
             <p>
-              Digite um número de fatura ou ID de nota para consultar o histórico
+              Digite um número de fatura ou ID de nota para consultar o histórico de atividades
             </p>
-            <p className="empty-state-example">
-              Exemplos: <code>162028</code> ou <code>NFSE_162028_1</code>
-            </p>
+            <div className="empty-state-examples">
+              <div className="example-group">
+                <strong>Exemplos de Fatura:</strong>
+                <code>162028</code>
+                <code>162029</code>
+                <code>162030</code>
+              </div>
+              <div className="example-group">
+                <strong>Exemplos de ID:</strong>
+                <code>695c0f7b3c4938a3ad10411a</code>
+                <code>NFSE_162028_1</code>
+              </div>
+            </div>
           </div>
-        ) : /* Estado: Busca realizada mas sem resultados */
-        itens.length === 0 ? (
+        ) : itens.length === 0 ? (
           <div className="empty-state">
-            <FiClock className="empty-icon" />
+            <FiAlertCircle className="empty-icon" />
             <h3>Nenhum histórico encontrado</h3>
             <p>
               Nenhum registro encontrado para "<strong>{termoBusca}</strong>"
@@ -315,9 +521,17 @@ export default function Historico() {
             <p className="empty-state-suggestion">
               Verifique se o termo está correto ou tente buscar de outra forma
             </p>
+            <button 
+              className="btn btn-primary"
+              onClick={() => {
+                setTermoBusca("");
+                setJaBuscou(false);
+              }}
+            >
+              Nova Busca
+            </button>
           </div>
-        ) : /* Estado: Busca com resultados mas filtro não encontrou nada */
-        filtrados.length === 0 ? (
+        ) : filtrados.length === 0 ? (
           <div className="empty-state">
             <FiFilter className="empty-icon" />
             <h3>Nenhum resultado encontrado</h3>
@@ -328,34 +542,53 @@ export default function Historico() {
               className="btn btn-secondary"
               onClick={() => setFiltro("")}
             >
-              Limpar filtro
+              <FiFilter /> Limpar Filtro
             </button>
           </div>
-        ) : /* Estado: Resultados encontrados */
-        (
+        ) : (
           <div className="tabela-wrapper">
-            <table className="tabela">
-              <thead>
-                <tr>
-                  <th>Fatura/Nota</th>
-                  <th>Data/Hora</th>
-                  <th>Tipo</th>
-                  <th>Origem</th>
-                  <th>Usuário</th>
-                  <th>Mensagem</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtrados.map((item, index) => (
-                  <LinhaHistorico key={item.id || index} item={item} />
-                ))}
-              </tbody>
-            </table>
-            {filtrados.length === 0 && (
-              <div className="sem-resultados">
-                Nenhum registro corresponde ao filtro
+            <div className="tabela-scroll">
+              <table className="tabela">
+                <thead>
+                  <tr>
+                    <th>Fatura</th>
+                    <th>Data/Hora</th>
+                    <th>Tipo</th>
+                    <th>Origem</th>
+                    <th>Usuário</th>
+                    <th>Mensagem</th>
+                    <th style={{ width: '50px' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtrados.map((item, index) => (
+                    <LinhaHistorico key={`${item.id}-${index}`} item={item} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="tabela-footer">
+              <div className="pagination-info">
+                Mostrando {filtrados.length} de {itens.length} registros
               </div>
-            )}
+              <div className="export-options">
+                <button 
+                  className="btn btn-sm btn-outline"
+                  onClick={() => {
+                    const dataStr = JSON.stringify(itens, null, 2);
+                    const blob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `historico-${termoBusca}-${new Date().toISOString().slice(0,10)}.json`;
+                    a.click();
+                  }}
+                >
+                  <FiDownload /> Exportar JSON
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

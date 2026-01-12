@@ -361,50 +361,54 @@ export default function Consultas() {
     try {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
-        console.log("por fatura", res);
+        console.log("Resposta da API por fatura:", res);
         
-        // Para múltiplas notas (formato array)
-        if (res.tipo === "multiplas" && Array.isArray(res.notas)) {
-          setFaturas([{
-            id: String(res.fatura || termo),
-            numero: String(res.fatura || termo),
-            quando: res.notas[0]?.datas?.criacao || null,
-            notas: res.notas.map(nota => ({
-              ...nota,
-              id: nota.id || nota.id_tecnospeed,
-              id_integracao: nota.id_integracao,
-              fatura: nota.fatura,
-              numero_nfse: nota.numero_nfse,
-              status: nota.status,
-              situacao_prefeitura: nota.situacao_prefeitura,
-              pdf_url_final: nota.pdf_url_final,
-              valor_servico: nota.valor_servico,
-              prestador: nota.prestador,
-              tomador: nota.tomador,
-              datas: nota.datas
-            }))
-          }]);
-          setDados([]);
-        } 
-        // Para nota única
-        else if (res.status === "success" && res.nfse) {
-          setFaturas([{
-            id: String(res.nfse.fatura || termo),
-            numero: String(res.nfse.fatura || termo),
-            quando: res.nfse.datas?.criacao || null,
-            notas: [res.nfse]
-          }]);
+        // CORREÇÃO AQUI: Verifica se a resposta tem status "success"
+        if (res && res.status === "success") {
+          // Se for do tipo "multiplas" com array de notas
+          if (res.tipo === "multiplas" && Array.isArray(res.notas)) {
+            setFaturas([{
+              id: String(res.fatura || termo),
+              numero: String(res.fatura || termo),
+              quando: res.notas[0]?.datas?.criacao || null,
+              notas: res.notas.map(nota => ({
+                ...nota,
+                id: nota.id || nota.id_tecnospeed,
+                id_integracao: nota.id_integracao,
+                fatura: nota.fatura,
+                numero_nfse: nota.numero_nfse,
+                status: nota.status,
+                situacao_prefeitura: nota.situacao_prefeitura,
+                pdf_url_final: nota.pdf_url_final,
+                valor_servico: nota.valor_servico,
+                prestador: nota.prestador,
+                tomador: nota.tomador,
+                datas: nota.datas 
+              }))
+            }]);
+          } 
+          // Se for do tipo "unica" com um único nfse
+          else if (res.nfse) {
+            setFaturas([{
+              id: String(res.nfse.fatura || termo),
+              numero: String(res.nfse.fatura || termo),
+              quando: res.nfse.datas?.criacao || null,
+              notas: [res.nfse]
+            }]);
+          }
           setDados([]);
         } else {
+          // Se não teve sucesso ou resposta vazia
           setFaturas([]);
           setDados([]);
+          enqueueSnackbar(res?.message || "Nenhuma nota encontrada", { variant: "info" });
         }
       } else {
         // Busca por ID/Número da Nota
         const res = await getNotaPorID(termo);
-        console.log("por id", res);
+        console.log("Resposta da API por ID:", res);
         
-        if (res.status === "success" && res.nfse) {
+        if (res && res.status === "success" && res.nfse) {
           // Formata o dado para o componente LinhaNota
           setDados([{
             id: res.nfse.id || termo,
@@ -430,6 +434,7 @@ export default function Consultas() {
           }]);
         } else {
           setDados([]);
+          enqueueSnackbar(res?.message || "Nota não encontrada", { variant: "info" });
         }
         setFaturas([]);
         setExpanded(new Set());
@@ -438,7 +443,7 @@ export default function Consultas() {
       setHasSearched(true);
     } catch (error) {
       console.error("Erro na consulta:", error);
-      enqueueSnackbar("Erro na consulta", { variant: "error" });
+      enqueueSnackbar("Erro na conexão com o servidor", { variant: "error" });
     } finally {
       setLoading(false);
     }
