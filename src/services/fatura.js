@@ -17,7 +17,7 @@ const mapearDadosDjango = (item) => ({
 });
 
 export const getFaturaPorNumero = async (numeroFatura) => {
-  const { data } = await api.get(`/api//consultar-faturas/?fatura=${numeroFatura}`);
+  const { data } = await api.get(`/api/consultar-faturas/?fatura=${numeroFatura}`);
   const lista = data.results || data;
   return {
     status: "success",

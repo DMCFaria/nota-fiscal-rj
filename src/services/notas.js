@@ -36,7 +36,7 @@ export const getNotaPorID = async (id_tecnospeed) => {
 // Histórico
 export const getHistoricoFatura = async (numero_fatura) => {
   try {
-    const response = await axios.get(`http://localhost:8000/api/consultas/historico/consulta-por-fatura/${numero_fatura}`);
+    const response = await api.get(`/api/consultas/historico/consulta-por-fatura/${numero_fatura}`);
     return response.data;
   } catch (error) {
     console.error('Erro ao buscar histórico da fatura:', error);
