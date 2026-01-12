@@ -147,14 +147,14 @@ function LinhaHistorico({ item }) {
         </td>
         
         {/* TIPO */}
-        <td className="tabela-cell">
+        {/* <td className="tabela-cell">
           <BadgeTipo tipo={item.tipo} />
-        </td>
+        </td> */}
         
         {/* ORIGEM */}
-        <td className="tabela-cell">
+        {/* <td className="tabela-cell">
           <BadgeOrigem origem={item.origem} />
-        </td>
+        </td> */}
         
         {/* USUARIO */}
         <td className="tabela-cell">
@@ -165,11 +165,11 @@ function LinhaHistorico({ item }) {
         </td>
         
         {/* MENSAGEM */}
-        <td className="tabela-cell mensagem-cell">
+        {/* <td className="tabela-cell mensagem-cell">
           <div className="mensagem-texto" title={item.mensagem}>
             {item.mensagem}
           </div>
-        </td>
+        </td> */}
         
         {/* DETALHES */}
         <td className="tabela-cell">
@@ -577,10 +577,10 @@ export default function Historico() {
                   <tr>
                     <th>Fatura</th>
                     <th>Data/Hora</th>
-                    <th>Tipo</th>
-                    <th>Origem</th>
+                    {/* <th>Tipo</th>
+                    <th>Origem</th> */}
                     <th>Usuário</th>
-                    <th>Mensagem</th>
+                    {/* <th>Mensagem</th> */}
                     <th style={{ width: '50px' }}></th>
                   </tr>
                 </thead>
