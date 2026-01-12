@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle } from "react-icons/fi";
 import { useSnackbar } from "notistack";
-import { buscarPorNumeroNota} from "../services/fatura";
-import { getNotaPorFatura, downloadPdfNota, cancelarNota  } from "../services/notas";
+import { buscarPorNumeroNota } from "../services/fatura";
+import { getNotaPorFatura, downloadPdfNota, cancelarNota } from "../services/notas";
 import { fixBrokenLatin } from "../utils/normalizacao_textual";
 import "../styles/consultas.css";
 import "../styles/notaCard.css";
@@ -10,18 +10,80 @@ import "../styles/status-badge.css";
 
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
-// --- COMPONENTES VISUAIS (MANTIDOS IGUAIS) ---
-function ModalConfirm({ open, title, description, confirmLabel, cancelLabel, variant, loading, onConfirm, onClose, confirmDisabled, children }) {
+function getNotaRef(nota) {
+  return (
+    nota?.id_integracao ||
+    nota?.idIntegracao ||
+    nota?.id ||
+    nota?.protocolo ||
+    nota?.numero_nfse ||
+    nota?.numero ||
+    null
+  );
+}
+
+function isNotaCancelavel(nota) {
+  const sit = String(nota?.situacao_prefeitura || "").toUpperCase();
+  const st = String(nota?.status || "").toUpperCase();
+  return sit !== "CANCELADA" && st !== "PROCESSANDO";
+}
+
+function isNotaBaixavel(nota) {
+  const st = String(nota?.status || "").toLowerCase();
+  const sit = String(nota?.situacao_prefeitura || "").toLowerCase();
+
+  const okStatus = [
+    "sucesso",
+    "autorizada",
+    "concluido",
+    "concluída",
+    "concluida",
+    "emitida",
+    "emitido"
+  ].includes(st);
+
+  const cancelada = sit === "cancelada" || st === "cancelada";
+
+  return !!getNotaRef(nota) && okStatus && !cancelada;
+}
+
+function ModalConfirm({
+  open,
+  title,
+  description,
+  confirmLabel,
+  cancelLabel,
+  variant,
+  loading,
+  onConfirm,
+  onClose,
+  confirmDisabled,
+  children
+}) {
   if (!open) return null;
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
-        <div className="modal-header"><h3>{title}</h3></div>
+        <div className="modal-header">
+          <h3>{title}</h3>
+        </div>
+
         {description && <p className="modal-desc">{description}</p>}
+
         {children}
+
         <div className="modal-actions">
-          <button type="button" className="btn secondary" onClick={onClose} disabled={loading}>{cancelLabel}</button>
-          <button type="button" className={`btn ${variant === "danger" ? "danger" : ""}`} onClick={onConfirm} disabled={loading || confirmDisabled}>
+          <button type="button" className="btn secondary" onClick={onClose} disabled={loading}>
+            {cancelLabel}
+          </button>
+
+          <button
+            type="button"
+            className={`btn ${variant === "danger" ? "danger" : ""}`}
+            onClick={onConfirm}
+            disabled={loading || confirmDisabled}
+          >
             {loading ? "Processando..." : confirmLabel}
           </button>
         </div>
@@ -41,22 +103,20 @@ function Badge({ status, cancelada, substituida }) {
   );
 }
 
-// --- LÓGICA DE NORMALIZAÇÃO ---
 function normalizeFaturasResponse(payload) {
-  // Se não houver dado, retorna vazio
   if (!payload) return [];
 
-  // Caso 1: O formato que você enviou (Objeto com chave 'notas')
   if (payload.fatura && Array.isArray(payload.notas)) {
-    return [{
-      id: String(payload.fatura), // Usamos o número da fatura como ID único do grupo
-      numero: String(payload.fatura),
-      quando: payload.notas[0]?.created_at || null, // Pega a data da primeira nota
-      notas: payload.notas // O array de 2 notas que você mostrou
-    }];
+    return [
+      {
+        id: String(payload.fatura),
+        numero: String(payload.fatura),
+        quando: payload.notas[0]?.created_at || null,
+        notas: payload.notas
+      }
+    ];
   }
 
-  // Caso 2: Se o backend devolver um Array de faturas (várias linhas)
   if (Array.isArray(payload)) {
     return payload.map((f, idx) => ({
       id: String(f.id || f.fatura || idx),
@@ -66,27 +126,31 @@ function normalizeFaturasResponse(payload) {
     }));
   }
 
-  // Caso 3: Busca individual que retorna apenas uma nota solta
-  if (payload.numero_nfse || payload.id_integracao) {
-    return [{
-      id: String(payload.id_integracao || payload.id),
-      numero: String(payload.fatura || "—"),
-      quando: payload.created_at || null,
-      notas: [payload]
-    }];
-  } 
+  if (payload.numero_nfse || payload.id_integracao || payload.idIntegracao) {
+    return [
+      {
+        id: String(payload.id_integracao || payload.idIntegracao || payload.id || "nota"),
+        numero: String(payload.fatura || payload.numero_fatura || "—"),
+        quando: payload.created_at || null,
+        notas: [payload]
+      }
+    ];
+  }
 
   return [];
 }
 
-function isNotaCancelavel(nota) {
-  const sit = (nota?.situacao_prefeitura || "").toUpperCase();
-  const st = (nota?.status || "").toUpperCase();
-  return sit !== "CANCELADA" && st !== "PROCESSANDO";
-}
-
-// --- LINHAS DA TABELA (ACCORDION) ---
-function LinhaFatura({ fatura, isOpen, onToggle, onBaixarTodas, onBaixarUma, baixandoAll, onCancelarTodas, onCancelarUma, cancelandoAll }) {
+function LinhaFatura({
+  fatura,
+  isOpen,
+  onToggle,
+  onBaixarTodas,
+  onBaixarUma,
+  baixandoAll,
+  onCancelarTodas,
+  onCancelarUma,
+  cancelandoAll
+}) {
   const notas = toArray(fatura.notas);
   const qtdNotas = notas.length;
   const hasCancelavel = notas.some(isNotaCancelavel);
@@ -100,18 +164,27 @@ function LinhaFatura({ fatura, isOpen, onToggle, onBaixarTodas, onBaixarUma, bai
             {fatura.numero}
           </button>
         </td>
+
         <td className="fatura-resumo">
           <span className="fatura-resumo-text">{qtdNotas} nota(s) vinculada(s)</span>
         </td>
+
         <td className="acoes-col" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <button type="button" className="btn btn-xs" onClick={onBaixarTodas} disabled={!qtdNotas || baixandoAll}>
             {baixandoAll ? "Baixando..." : "Baixar todas"}
           </button>
-          <button type="button" className="btn btn-xs danger" onClick={onCancelarTodas} disabled={!hasCancelavel || cancelandoAll}>
+
+          <button
+            type="button"
+            className="btn btn-xs danger"
+            onClick={onCancelarTodas}
+            disabled={!hasCancelavel || cancelandoAll}
+          >
             <FiXCircle /> {cancelandoAll ? "Cancelando..." : "Cancelar todas"}
           </button>
         </td>
       </tr>
+
       {isOpen && (
         <tr className="accordion-expansion">
           <td colSpan={3} className="expansion-td">
@@ -127,23 +200,61 @@ function LinhaFatura({ fatura, isOpen, onToggle, onBaixarTodas, onBaixarUma, bai
                       <th style={{ width: 260, textAlign: "right" }}>AÇÕES</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {notas.map((n, idx) => (
                       <tr key={n.id ?? idx}>
                         <td className="mono">{n.numero_nfse || n.numero || "—"}</td>
+
                         <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
+
                         <td style={{ textAlign: "right" }}>
-                          {n.valor_servico ? `R$ ${parseFloat(n.valor_servico).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                          {n.valor_servico
+                            ? `R$ ${parseFloat(n.valor_servico).toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2
+                              })}`
+                            : "—"}
                         </td>
-                        <td><span className={`status-badge status-${n.status?.toLowerCase() || "unknown"}`}>{n.status || "—"}</span></td>
+
+                        <td>
+                          <span className={`status-badge status-${n.status?.toLowerCase() || "unknown"}`}>
+                            {n.status || "—"}
+                          </span>
+                        </td>
+
                         <td className="acoes-col" style={{ textAlign: "right" }}>
                           <div style={{ display: "inline-flex", gap: 10 }}>
-                            <button type="button" className="btn btn-xs secondary" onClick={() => onBaixarUma(n)} disabled={!n.pdf_url_final}>Baixar</button>
-                            <button type="button" className="btn btn-xs danger" onClick={() => onCancelarUma(n)} disabled={!isNotaCancelavel(n)}><FiXCircle /> Cancelar</button>
+                            <button
+                              type="button"
+                              className="btn btn-xs secondary"
+                              onClick={() => onBaixarUma(n)}
+                              disabled={!isNotaBaixavel(n)}
+                              title={!isNotaBaixavel(n) ? "PDF indisponível ou nota ainda não concluída" : "Baixar PDF"}
+                            >
+                              Baixar
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-xs danger"
+                              onClick={() => onCancelarUma(n)}
+                              disabled={!isNotaCancelavel(n)}
+                              title={!isNotaCancelavel(n) ? "Nota não elegível para cancelamento" : "Cancelar esta nota"}
+                            >
+                              <FiXCircle /> Cancelar
+                            </button>
                           </div>
                         </td>
                       </tr>
                     ))}
+
+                    {!qtdNotas && (
+                      <tr>
+                        <td colSpan={5} style={{ padding: 14, color: "var(--text-soft,#525a6a)" }}>
+                          Nenhuma nota vinculada nessa fatura.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -159,6 +270,7 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
   const isOpen = expanded.has(item.id);
   const sistemas = toArray(item.sistemas);
   const hasElegivel = sistemas.some((s) => s.status === "sucesso" && s.protocolo && !s.cancelada);
+
   return (
     <>
       <tr className={`accordion-row ${isOpen ? "open" : ""}`}>
@@ -168,7 +280,9 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
             {item.faturamento ?? item.fatura ?? item.numero ?? "—"}
           </button>
         </td>
+
         <td>{item.quando ? new Date(item.quando).toLocaleString("pt-BR") : "—"}</td>
+
         <td className="resultados-compactos">
           {sistemas.map((s) => (
             <span key={s.nome} className="sist-chip">
@@ -176,12 +290,14 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
             </span>
           ))}
         </td>
+
         <td className="acoes-col">
           <button type="button" className="btn btn-xs danger" disabled={!hasElegivel} onClick={() => onOpenCancelar(item)}>
             <FiXCircle /> Cancelar
           </button>
         </td>
       </tr>
+
       {isOpen && (
         <tr className="accordion-expansion">
           <td colSpan={4}>
@@ -189,9 +305,15 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
               {sistemas.map((s) => (
                 <div key={s.nome} className="sist-bloco">
                   <div className="sist-header">
-                    <div className="sist-title"><strong>{s.nome}</strong><Badge status={s.status} cancelada={s.cancelada} substituida={s.substituida} /></div>
-                    <div className="sist-proto">Protocolo: <span className="mono">{s.protocolo ?? "—"}</span></div>
+                    <div className="sist-title">
+                      <strong>{s.nome}</strong>
+                      <Badge status={s.status} cancelada={s.cancelada} substituida={s.substituida} />
+                    </div>
+                    <div className="sist-proto">
+                      Protocolo: <span className="mono">{s.protocolo ?? "—"}</span>
+                    </div>
                   </div>
+
                   {s.motivo && <div className="sist-erro-msg">Motivo: {s.motivo}</div>}
                 </div>
               ))}
@@ -203,7 +325,6 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
   );
 }
 
-// --- COMPONENTE PRINCIPAL ---
 export default function Consultas() {
   const [faturas, setFaturas] = useState([]);
   const [dados, setDados] = useState([]);
@@ -211,12 +332,21 @@ export default function Consultas() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [tipoBusca, setTipoBusca] = useState("fatura");
+
   const [expanded, setExpanded] = useState(new Set());
   const [expandedFat, setExpandedFat] = useState(new Set());
+
   const { enqueueSnackbar } = useSnackbar();
 
-  // Estados de Controle do n8n
-  const [modal, setModal] = useState({ open: false, target: "", payload: null, motivo: "", sistema: "", opcoes: [] });
+  const [modal, setModal] = useState({
+    open: false,
+    target: "",
+    payload: null,
+    motivo: "",
+    sistema: "",
+    opcoes: []
+  });
+
   const [modalLoading, setModalLoading] = useState(false);
   const [baixandoAll, setBaixandoAll] = useState({});
   const [cancelandoAll, setCancelandoAll] = useState({});
@@ -226,53 +356,70 @@ export default function Consultas() {
   const realizarBusca = useCallback(async () => {
     const termo = textoDigitado.trim();
     if (termo.length < 3) return;
+
     setLoading(true);
+
     try {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
-        const payload = (res.status === "success" && res.nfse) ? res.nfse : res;
+        const payload = res?.status === "success" && res?.nfse ? res.nfse : res;
         setFaturas(normalizeFaturasResponse(payload));
         setDados([]);
+        setExpandedFat(new Set());
       } else {
         const res = await buscarPorNumeroNota(termo);
-        setDados(toArray(res.dados || res.item || res));
+        setDados(toArray(res?.dados || res?.item || res));
         setFaturas([]);
+        setExpanded(new Set());
       }
+
       setHasSearched(true);
-    } catch { enqueueSnackbar("Erro na consulta", { variant: "error" }); }
-    finally { setLoading(false); }
+    } catch {
+      enqueueSnackbar("Erro na consulta", { variant: "error" });
+    } finally {
+      setLoading(false);
+    }
   }, [textoDigitado, isModoFatura, enqueueSnackbar]);
 
-  // --- INTEGRAÇÃO DOWNLOAD n8n ---
   const handleDownload = async (item, tipo) => {
-    const isFatura = tipo === 'fatura';
-    const idFat = isFatura ? item.id_integracao : (item.fatura || item.numero_fatura);
-    
-    if (isFatura) setBaixandoAll(p => ({ ...p, [idFat]: true }));
+    const isFatura = tipo === "fatura";
+    const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
+
+    if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: true }));
 
     try {
       const nfs = isFatura ? toArray(item.notas) : [item];
+
       const payload = {
-        tipo: tipo, // "individual" ou "fatura"
-        idIntegracao: isFatura ? "" : item.id_integracao,
-        fatura: String(item.numero || item.fatura || ""),
+        tipo: tipo,
+        idIntegracao: isFatura ? "" : String(getNotaRef(item) || ""),
+        fatura: String(item?.numero || item?.fatura || item?.numero_fatura || ""),
         emitente: nfs[0]?.emitente?.razao_social || "CONDOCORP SERVICOS DE INTERMEDIACAO",
         nfs_emitidas: String(nfs.length)
       };
+
+      if (!isFatura && !payload.idIntegracao) {
+        enqueueSnackbar("Não foi possível identificar a nota para download.", { variant: "warning" });
+        return;
+      }
+
       await downloadPdfNota(payload);
       enqueueSnackbar("Download iniciado!", { variant: "success" });
     } catch {
       enqueueSnackbar("Erro ao gerar PDF", { variant: "error" });
     } finally {
-      if (isFatura) setBaixandoAll(p => ({ ...p, [idFat]: false }));
+      if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: false }));
     }
   };
 
-  // --- INTEGRAÇÃO CANCELAMENTO n8n ---
   const openModalCancel = (item, tipo) => {
-    const nfs = tipo === 'fatura_all' ? toArray(item.notas).filter(isNotaCancelavel) : [item];
+    const nfs = tipo === "fatura_all" ? toArray(item.notas).filter(isNotaCancelavel) : [item];
+
     const sists = toArray(nfs[0]?.sistemas || (nfs[0]?.status ? [nfs[0]] : []));
-    const opcoes = sists.filter(s => s.status === "sucesso" && !s.cancelada).map(s => s.nome);
+    const opcoes = sists
+      .filter((s) => s.status === "sucesso" && !s.cancelada)
+      .map((s) => s.nome);
+
     const safeOpcoes = opcoes.length ? opcoes : ["prefeitura"];
 
     setModal({
@@ -282,20 +429,24 @@ export default function Consultas() {
       sistema: safeOpcoes.length === 1 ? safeOpcoes[0] : "",
       opcoes: safeOpcoes,
       payload: {
-        tipo: tipo === 'fatura_all' ? 'fatura' : 'individual',
-        idIntegracao: tipo === 'fatura_all' ? "" : String(getNotaRef(item)),
-        fatura: String(item.numero || item.fatura || ""),
+        tipo: tipo === "fatura_all" ? "fatura" : "individual",
+        idIntegracao: tipo === "fatura_all" ? "" : String(getNotaRef(item) || ""),
+        fatura: String(item?.numero || item?.fatura || item?.numero_fatura || ""),
         emitente: nfs[0]?.emitente?.razao_social || "CONDOCORP SERVICOS DE INTERMEDIACAO",
         nfs_emitidas: String(nfs.length),
-        faturaIdInternal: item.id // para o loading local
+        faturaIdInternal: item?.id
       }
     });
   };
 
   const onConfirmCancel = async () => {
     setModalLoading(true);
-    const { faturaIdInternal, ...restPayload } = modal.payload;
-    if (modal.target === 'fatura_all') setCancelandoAll(p => ({ ...p, [faturaIdInternal]: true }));
+
+    const { faturaIdInternal, ...restPayload } = modal.payload || {};
+
+    if (modal.target === "fatura_all" && faturaIdInternal) {
+      setCancelandoAll((p) => ({ ...p, [faturaIdInternal]: true }));
+    }
 
     try {
       await cancelarNota({
@@ -303,30 +454,44 @@ export default function Consultas() {
         sistema: modal.sistema,
         motivo: modal.motivo.trim()
       });
+
       enqueueSnackbar("Solicitação enviada com sucesso!", { variant: "success" });
-      setModal(m => ({ ...m, open: false }));
-      realizarBusca();
-    } catch (e) {
+      setModal((m) => ({ ...m, open: false }));
+      await realizarBusca();
+    } catch {
       enqueueSnackbar("Erro ao cancelar", { variant: "error" });
     } finally {
       setModalLoading(false);
-      setCancelandoAll(p => ({ ...p, [faturaIdInternal]: false }));
+      if (modal.target === "fatura_all" && faturaIdInternal) {
+        setCancelandoAll((p) => ({ ...p, [faturaIdInternal]: false }));
+      }
     }
   };
 
   return (
     <div className="consultas">
       <h1 className="tittle-cons">Consultas</h1>
+
       <div className="toolbar">
         <div className="input-group">
           <select value={tipoBusca} onChange={(e) => setTipoBusca(e.target.value)} className="select-tipo">
             <option value="fatura">Fatura</option>
             <option value="nota">Nº Nota / Protocolo</option>
           </select>
+
           <div className="input-inline">
-            <FiSearch className="icon" /><input placeholder="Busque aqui..." value={textoDigitado} onChange={(e) => setTextoDigitado(e.target.value)} onKeyDown={(e) => e.key === "Enter" && realizarBusca()} />
+            <FiSearch className="icon" />
+            <input
+              placeholder="Busque aqui..."
+              value={textoDigitado}
+              onChange={(e) => setTextoDigitado(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && realizarBusca()}
+            />
           </div>
-          <button className="btn" onClick={realizarBusca} disabled={loading || !textoDigitado.trim()}>{loading ? "..." : "Pesquisar"}</button>
+
+          <button className="btn" onClick={realizarBusca} disabled={loading || !textoDigitado.trim()}>
+            {loading ? "..." : "Pesquisar"}
+          </button>
         </div>
       </div>
 
@@ -335,31 +500,57 @@ export default function Consultas() {
           <table className="tabela tabela-accordion">
             <thead>
               {isModoFatura ? (
-                <tr><th>Fatura</th><th>Resumo</th><th style={{ width: 260, textAlign: "right" }}>Ações</th></tr>
+                <tr>
+                  <th>Fatura</th>
+                  <th>Resumo</th>
+                  <th style={{ width: 260, textAlign: "right" }}>Ações</th>
+                </tr>
               ) : (
-                <tr><th>Faturamento</th><th>Data/Hora</th><th>Resultados</th><th style={{ width: 140, textAlign: "right" }}>Ações</th></tr>
+                <tr>
+                  <th>Faturamento</th>
+                  <th>Data/Hora</th>
+                  <th>Resultados</th>
+                  <th style={{ width: 140, textAlign: "right" }}>Ações</th>
+                </tr>
               )}
             </thead>
+
             <tbody>
               {isModoFatura ? (
-                faturas.map(f => (
-                  <LinhaFatura 
-                    key={f.id} fatura={f} isOpen={expandedFat.has(f.id)} 
-                    onToggle={() => setExpandedFat(p => {const n=new Set(p); n.has(f.id)?n.delete(f.id):n.add(f.id); return n;})} 
-                    onBaixarTodas={() => handleDownload(f, 'fatura')} 
-                    onBaixarUma={(n) => handleDownload(n, 'individual')} 
-                    baixandoAll={!!baixandoAll[f.id]}
-                    onCancelarTodas={() => openModalCancel(f, 'fatura_all')}
-                    onCancelarUma={(n) => openModalCancel(n, 'individual')}
+                faturas.map((f) => (
+                  <LinhaFatura
+                    key={f.id}
+                    fatura={f}
+                    isOpen={expandedFat.has(f.id)}
+                    onToggle={() =>
+                      setExpandedFat((p) => {
+                        const n = new Set(p);
+                        n.has(f.id) ? n.delete(f.id) : n.add(f.id);
+                        return n;
+                      })
+                    }
+                    onBaixarTodas={() => handleDownload(f, "fatura")}
+                    onBaixarUma={(n) => handleDownload(n, "individual")}
+                    baixandoAll={!!baixandoAll[String(f?.id || f?.numero || f?.fatura || "")]}
+                    onCancelarTodas={() => openModalCancel(f, "fatura_all")}
+                    onCancelarUma={(n) => openModalCancel(n, "individual")}
                     cancelandoAll={!!cancelandoAll[f.id]}
                   />
                 ))
               ) : (
-                dados.map(item => (
-                  <LinhaNota 
-                    key={item.id} item={item} expanded={expanded} 
-                    onToggle={(id) => setExpanded(p => {const n=new Set(p); n.has(id)?n.delete(id):n.add(id); return n;})} 
-                    onOpenCancelar={(i) => openModalCancel(i, 'individual')} 
+                dados.map((item) => (
+                  <LinhaNota
+                    key={item.id}
+                    item={item}
+                    expanded={expanded}
+                    onToggle={(id) =>
+                      setExpanded((p) => {
+                        const n = new Set(p);
+                        n.has(id) ? n.delete(id) : n.add(id);
+                        return n;
+                      })
+                    }
+                    onOpenCancelar={(i) => openModalCancel(i, "individual")}
                   />
                 ))
               )}
@@ -377,18 +568,28 @@ export default function Consultas() {
         variant="danger"
         loading={modalLoading}
         onConfirm={onConfirmCancel}
-        onClose={() => !modalLoading && setModal(m => ({ ...m, open: false }))}
+        onClose={() => !modalLoading && setModal((m) => ({ ...m, open: false }))}
         confirmDisabled={!modal.sistema || modal.motivo.trim().length < 5}
       >
-        <select className="select modal-sistemas-select" value={modal.sistema} onChange={(e) => setModal({ ...modal, sistema: e.target.value })} disabled={modal.opcoes?.length === 1}>
+        <select
+          className="select modal-sistemas-select"
+          value={modal.sistema}
+          onChange={(e) => setModal({ ...modal, sistema: e.target.value })}
+          disabled={modal.opcoes?.length === 1}
+        >
           <option value="">{modal.opcoes?.length === 1 ? "Sistema selecionado" : "Selecione o sistema..."}</option>
-          {modal.opcoes.map(o => <option key={o} value={o}>{o}</option>)}
+          {modal.opcoes.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
         </select>
-        <textarea 
-          className="select" 
-          style={{ width: "100%", minHeight: 90, marginTop: 12, padding: 10 }} 
-          placeholder="Motivo (mín. 5 caracteres)..." 
-          value={modal.motivo} 
+
+        <textarea
+          className="select"
+          style={{ width: "100%", minHeight: 90, marginTop: 12, padding: 10 }}
+          placeholder="Motivo (mín. 5 caracteres)..."
+          value={modal.motivo}
           onChange={(e) => setModal({ ...modal, motivo: e.target.value })}
         />
       </ModalConfirm>
