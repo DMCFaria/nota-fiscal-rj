@@ -135,29 +135,35 @@ function LinhaHistorico({ item }) {
             )}
           </div>
         </td>
+        
         <td className="tabela-cell">
           <div className="cell-content">
             <FiClock className="icon-inline" />
             <span className="data-formatada">{item.data}</span>
           </div>
         </td>
+        
         <td className="tabela-cell">
           <BadgeTipo tipo={item.tipo} />
         </td>
+        
         <td className="tabela-cell">
           <BadgeOrigem origem={item.origem} />
         </td>
+        
         <td className="tabela-cell">
           <div className="cell-content">
             <FiUser className="icon-inline" />
             <span className="usuario-nome">{item.usuario}</span>
           </div>
         </td>
+        
         <td className="tabela-cell mensagem-cell">
           <div className="mensagem-texto" title={item.mensagem}>
             {item.mensagem}
           </div>
         </td>
+        
         <td className="tabela-cell">
           {hasDetalhes && (
             <button 
@@ -169,7 +175,9 @@ function LinhaHistorico({ item }) {
             </button>
           )}
         </td>
+
       </tr>
+      
       {detalhesExpandidos && hasDetalhes && (
         <tr className="detalhes-row">
           <td colSpan="7">

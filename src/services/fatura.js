@@ -36,6 +36,6 @@ export const buscarPorNumeroNota = async (termo) => {
 };
 
 export const cancelarNota = async ({ id, sistema }) => {
-  const { data } = await api.post(`/api//consultar-faturas/${id}/cancelar/`, { sistema });
+  const { data } = await api.post(`/api/consultar-faturas/${id}/cancelar/`, { sistema });
   return { item: mapearDadosDjango(data) };
 };

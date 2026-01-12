@@ -102,43 +102,6 @@ function Badge({ status, cancelada, substituida }) {
   );
 }
 
-function normalizeFaturasResponse(payload) {
-  if (!payload) return [];
-
-  if (payload.fatura && Array.isArray(payload.notas)) {
-    return [
-      {
-        id: String(payload.fatura),
-        numero: String(payload.fatura),
-        quando: payload.notas[0]?.created_at || null,
-        notas: payload.notas
-      }
-    ];
-  }
-
-  if (Array.isArray(payload)) {
-    return payload.map((f, idx) => ({
-      id: String(f.id || f.fatura || idx),
-      numero: String(f.fatura || f.numero || "—"),
-      quando: f.quando || f.created_at || null,
-      notas: toArray(f.notas || [])
-    }));
-  }
-
-  if (payload.numero_nfse || payload.id_integracao || payload.idIntegracao) {
-    return [
-      {
-        id: String(payload.id_integracao || payload.idIntegracao || payload.id || "nota"),
-        numero: String(payload.fatura || payload.numero_fatura || "—"),
-        quando: payload.created_at || null,
-        notas: [payload]
-      }
-    ];
-  }
-
-  return [];
-}
-
 function LinhaFatura({
   fatura,
   isOpen,

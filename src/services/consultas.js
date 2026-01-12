@@ -4,7 +4,7 @@ import api from "./api"
 export const consultarNotaPorProtocolo = async (protocolo) => {
     try {
         const response = await api.get(
-            `${API_BASE_URL}/api/nfse/consultar-nota-protocolo/${protocolo}`
+            `/api/nfse/consultar-nota-protocolo/${protocolo}`
         );
         return response.data;
     } catch (error) {
@@ -17,7 +17,7 @@ export const consultarNotaPorProtocolo = async (protocolo) => {
 export const consultarNotaPorId = async (id) => {
     try {
         const response = await api.get(
-            `${API_BASE_URL}/api/nfse/consultar-nota-id/${id}`
+            `/api/nfse/consultar-nota-id/${id}`
         );
         return response.data;
     } catch (error) {

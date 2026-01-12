@@ -4,7 +4,7 @@ import n8n from "./n8n";
 
 export const getNotaPorIdOuProtocolo = async (idNota) => {
     try {
-        const response = await api.get(`/consultas/nfse/${idNota}/`);
+        const response = await api.get(`/api/consultas/nfse/${idNota}/`);
         return response.data;
     }
     catch (error) {
@@ -38,7 +38,7 @@ export const getNotaPorID = async (id_tecnospeed) => {
 // Histórico
 export const getHistoricoFatura = async (numero_fatura) => {
   try {
-    const response = await api.get(`http://localhost:8000/api/consultas/historico/consulta-por-fatura/${numero_fatura}`);
+    const response = await api.get(`/api/consultas/historico/consulta-por-fatura/${numero_fatura}`);
     return response.data;
   } catch (error) {
     console.error('Erro ao buscar histórico da fatura:', error);
@@ -58,7 +58,7 @@ export const getHistoricoNota = async (notaId) => {
 
 // Outras funções que você pode estar usando
 export const transmitirNota = async (payload) => {
-  const { data } = await api.post("/consultar-faturas/", payload);
+  const { data } = await api.post("/api/consultar-faturas/", payload);
   return data;
 };
 

@@ -23,9 +23,9 @@ export default function EmissaoIndividual() {
   });
   const [servico, setServico] = useState("");
   const [valores, setValores] = useState({
-    valorNota: "",
-    deducoes: "",
-    descontos: "",
+    valorNota: "0,00",
+    deducoes: "0,00",
+    descontos: "0,00",
     issRetido: "nao"
   });
   const [codigoServico, setCodigoServico] = useState("170901");
