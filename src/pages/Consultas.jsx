@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle } from "react-icons/fi";
 import { useSnackbar } from "notistack";
-import { buscarPorNumeroNota} from "../services/fatura";
 import { getNotaPorFatura, downloadPdfNota, cancelarNota, getNotaPorID  } from "../services/notas";
 import { fixBrokenLatin } from "../utils/normalizacao_textual";
 import "../styles/consultas.css";

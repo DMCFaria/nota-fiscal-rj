@@ -14,7 +14,7 @@ export const getNotaPorIdOuProtocolo = async (idNota) => {
 
 export const getNotaPorFatura = async (numero_fatura) => {
     try {
-        const response = await api.get(`/consultas/nfse/consulta-nota-por-fatura/${numero_fatura}/`);
+        const response = await api.get(`/api/consultas/nfse/consulta-nota-por-fatura/${numero_fatura}/`);
         return response.data;
     }
     catch (error) {
@@ -24,7 +24,7 @@ export const getNotaPorFatura = async (numero_fatura) => {
 
 export const getNotaPorID = async (id_tecnospeed) => {
     try {
-        const response = await axios.get(`http://localhost:8000/api/consultas/nfse/consulta-nota-por-id/${id_tecnospeed}/`);
+        const response = await api.get(`/api/consultas/nfse/consulta-nota-por-id/${id_tecnospeed}/`);
         return response.data;
     }
     catch (error) {
@@ -32,10 +32,24 @@ export const getNotaPorID = async (id_tecnospeed) => {
     }   
 }
 
-// Função para buscar o histórico real do Django
-export const getHistorico = async () => {
-  const { data } = await api.get("/consultar-faturas/");
-  return data.results || data;
+export const getHistoricoFatura = async (faturaNumero) => {
+  try {
+    const response = await api.get(`/consultas/historico/por-fatura/?fatura=${faturaNumero}`);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao buscar histórico da fatura:', error);
+    throw error;
+  }
+};
+
+export const getHistoricoNota = async (notaId) => {
+  try {
+    const response = await api.get(`/consultas/historico/por-nota/?nota_id=${notaId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao buscar histórico da nota:', error);
+    throw error;
+  }
 };
 
 // Se o seu componente chama isso para limpar cache/mock, 
