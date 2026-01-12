@@ -70,6 +70,8 @@ export default function Historico() {
     }
   }
 
+  console.log("filtrados", filtrados)
+
   return (
     <div className="historico-container">
       <div className="historico-header">
@@ -132,9 +134,9 @@ export default function Historico() {
                   <th>Resultados</th>
                 </tr>
               </thead>
-              <tbody>
+              {/* <tbody>
                 {filtrados.map(item => <Linha key={item.id} item={item} />)}
-              </tbody>
+              </tbody> */}
             </table>
           </div>
         )}

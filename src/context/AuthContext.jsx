@@ -7,7 +7,7 @@ import React, {
     useCallback,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { authService } from "../services/authService"; // Ajuste o caminho conforme sua estrutura
+import { authService } from "../services/authService";
 
 const AuthContext = createContext(null);
 

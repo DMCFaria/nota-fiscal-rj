@@ -1,3 +1,4 @@
+import axios from "axios";
 import api from "./api";
 import n8n from "./n8n";
 
@@ -14,6 +15,16 @@ export const getNotaPorIdOuProtocolo = async (idNota) => {
 export const getNotaPorFatura = async (numero_fatura) => {
     try {
         const response = await api.get(`/consultas/nfse/consulta-nota-por-fatura/${numero_fatura}/`);
+        return response.data;
+    }
+    catch (error) {
+        console.error("Erro ao buscar nota:", error);
+    }   
+}
+
+export const getNotaPorID = async (id_tecnospeed) => {
+    try {
+        const response = await axios.get(`http://localhost:8000/api/consultas/nfse/consulta-nota-por-id/${id_tecnospeed}/`);
         return response.data;
     }
     catch (error) {
@@ -39,8 +50,6 @@ export const transmitirNota = async (payload) => {
   const { data } = await api.post("/consultar-faturas/", payload);
   return data;
 };
-
-
 
 export const downloadPdfNota = async (payload) => {
   try {
