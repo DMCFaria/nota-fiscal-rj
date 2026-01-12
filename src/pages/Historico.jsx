@@ -306,7 +306,7 @@ export default function Historico() {
   const handleSubmit = (e) => {
     e.preventDefault();
     buscarHistorico(modoBusca, termoBusca);
-  };tabela-linha
+  };
 
   // Extrai faturas únicas dos logs
   const faturasUnicas = useMemo(() => {
