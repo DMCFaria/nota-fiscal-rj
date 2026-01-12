@@ -1,6 +1,5 @@
 // Historico.jsx
 import { useMemo, useState } from "react";
-import { getHistoricoFatura, getHistoricoNota } from "../services/notas";
 import { 
   FiClock, 
   FiFilter, 
@@ -16,6 +15,7 @@ import {
   FiSend
 } from "react-icons/fi";
 import "../styles/historico.css";
+import { getHistoricoFatura, getHistoricoNota } from "../services/historico";
 
 // Componente de badge melhorado
 function BadgeTipo({ tipo }) {
@@ -221,10 +221,14 @@ export default function Historico() {
       } else {
         let notaId = termo
         dados = await getHistoricoNota(notaId);
-        console.log("HISTORICO POR NOTA: ", dados)
+        console.log("HISTORICO POR NOTA - DADOS CRUS:", dados)
+        console.log("HISTORICO POR NOTA - logs:", dados?.logs)
+        console.log("HISTORICO POR NOTA - sucesso:", dados?.sucesso)
+        console.log("HISTORICO POR NOTA - total:", dados?.total)
       }
       
       if (dados.sucesso) {
+        console.log("DADOS SETADOS NO STATE:", dados.logs)
         setItens(dados.logs || []);
       } else {
         setErro(dados.erro || "Erro ao buscar histórico");
@@ -232,7 +236,8 @@ export default function Historico() {
       }
     } catch (error) {
       console.error("Erro ao buscar histórico:", error);
-      setErro("Erro na conexão com o servidor");
+      console.error("Detalhes do erro:", error.response?.data || error.message);
+      setErro("Erro na conexão com o servidor: " + (error.message || "Erro desconhecido"));
       setItens([]);
     } finally {
       setLoading(false);

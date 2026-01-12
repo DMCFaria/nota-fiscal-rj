@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
+import Loading from "../components/Loading";
 
 const AuthContext = createContext(null);
 
@@ -114,6 +115,16 @@ export const AuthProvider = ({ children }) => {
         }),
         [user, isAuthenticated, loading, login, logout]
     );
+
+    // if (loading) {
+    //     return (
+    //         <Loading 
+    //             fullScreen 
+    //             message="Verificando autenticação..."
+    //             size="medium"
+    //         />
+    //     );
+    // }
 
     return (
         <AuthContext.Provider value={authContextValue}>
