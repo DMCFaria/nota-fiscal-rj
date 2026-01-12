@@ -29,7 +29,7 @@ export default function EmissaoPorFatura() {
   const podeGerar = useMemo(() => {
     return !!empresa && 
            !!fatura.trim() && 
-           !!observacao.trim() &&
+           !!observacao.trim() && observacao.trim().length >= 10 &&
            fatura.trim().length >= 6; // Valida que tem pelo menos 6 dígitos
   }, [empresa, fatura, observacao]);
   
@@ -450,7 +450,6 @@ export default function EmissaoPorFatura() {
             </div>
           ) : (
             <div className="fc-placeholder">
-              <div className="fc-placeholder-icon">📋</div>
               <p>Aguardando importação de dados da fatura...</p>
               <small>Preencha os campos acima e clique em "Gerar Prévia"</small>
             </div>
