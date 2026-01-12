@@ -67,10 +67,10 @@ function Sidebar() {
         <Link to="/consultas" className={isActive("/consultas")}>
           <FiSearch className="icon" /> Consultar
         </Link>
-        {/* 
+        
         <Link to="/historico" className={isActive("/historico")}>
           <FiClock className="icon" /> Histórico
-        </Link> */}
+        </Link>
 
         {/* <Link to="/configuracoes" className={isActive("/configuracoes")}>
           <FiSettings className="icon" /> Configurações

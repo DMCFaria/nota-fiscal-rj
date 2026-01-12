@@ -140,7 +140,7 @@ export default function EmissaoIndividual() {
       
       // Montar preview no MESMO formato da Emissão por Fatura
       const notaPreview = {
-        idIntegracao: `IND_${tomador.documento}_${Date.now()}`,
+        idIntegracao: `NFSe_IND_${tomador.documento}_${Date.now()}`,
         prestador: {
           cpfCnpj: empresa.CNPJ,
           razaoSocial: empresa.CEDENTE,

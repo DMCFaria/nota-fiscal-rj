@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
 import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle } from "react-icons/fi";
 import { useSnackbar } from "notistack";
-import { buscarPorNumeroNota } from "../services/fatura";
-import { getNotaPorFatura, downloadPdfNota, cancelarNota } from "../services/notas";
+import { buscarPorNumeroNota} from "../services/fatura";
+import { getNotaPorFatura, downloadPdfNota, cancelarNota, getNotaPorID  } from "../services/notas";
 import { fixBrokenLatin } from "../utils/normalizacao_textual";
 import "../styles/consultas.css";
 import "../styles/notaCard.css";
@@ -362,19 +362,83 @@ export default function Consultas() {
     try {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
-        const payload = res?.status === "success" && res?.nfse ? res.nfse : res;
-        setFaturas(normalizeFaturasResponse(payload));
-        setDados([]);
-        setExpandedFat(new Set());
+        console.log("por fatura", res);
+        
+        // Para múltiplas notas (formato array)
+        if (res.tipo === "multiplas" && Array.isArray(res.notas)) {
+          setFaturas([{
+            id: String(res.fatura || termo),
+            numero: String(res.fatura || termo),
+            quando: res.notas[0]?.datas?.criacao || null,
+            notas: res.notas.map(nota => ({
+              ...nota,
+              id: nota.id || nota.id_tecnospeed,
+              id_integracao: nota.id_integracao,
+              fatura: nota.fatura,
+              numero_nfse: nota.numero_nfse,
+              status: nota.status,
+              situacao_prefeitura: nota.situacao_prefeitura,
+              pdf_url_final: nota.pdf_url_final,
+              valor_servico: nota.valor_servico,
+              prestador: nota.prestador,
+              tomador: nota.tomador,
+              datas: nota.datas
+            }))
+          }]);
+          setDados([]);
+        } 
+        // Para nota única
+        else if (res.status === "success" && res.nfse) {
+          setFaturas([{
+            id: String(res.nfse.fatura || termo),
+            numero: String(res.nfse.fatura || termo),
+            quando: res.nfse.datas?.criacao || null,
+            notas: [res.nfse]
+          }]);
+          setDados([]);
+        } else {
+          setFaturas([]);
+          setDados([]);
+        }
       } else {
-        const res = await buscarPorNumeroNota(termo);
-        setDados(toArray(res?.dados || res?.item || res));
+        // Busca por ID/Número da Nota
+        const res = await getNotaPorID(termo);
+        console.log("por id", res);
+        
+        if (res.status === "success" && res.nfse) {
+          // Formata o dado para o componente LinhaNota
+          setDados([{
+            id: res.nfse.id || termo,
+            faturamento: res.nfse.fatura || "—",
+            quando: res.nfse.datas?.criacao || null,
+            sistemas: [{
+              nome: "Prefeitura",
+              status: res.nfse.status === "CONCLUIDO" ? "sucesso" : "erro",
+              protocolo: res.nfse.codigo_verificacao,
+              motivo: res.nfse.situacao_prefeitura
+            }],
+            // Dados para cancelamento
+            id_integracao: res.nfse.id_integracao,
+            numero: res.nfse.numero_nfse,
+            fatura: res.nfse.fatura,
+            status: res.nfse.status,
+            situacao_prefeitura: res.nfse.situacao_prefeitura,
+            pdf_url_final: res.nfse.pdf_url_final,
+            valor_servico: res.nfse.valor_servico,
+            prestador: res.nfse.prestador,
+            tomador: res.nfse.tomador,
+            emitente: res.nfse.prestador
+          }]);
+        } else {
+          setDados([]);
+        }
         setFaturas([]);
         setExpanded(new Set());
       }
 
       setHasSearched(true);
-    } catch {
+    } catch (error) {
+      console.error("Erro na consulta:", error);
       enqueueSnackbar("Erro na consulta", { variant: "error" });
     } finally {
       setLoading(false);

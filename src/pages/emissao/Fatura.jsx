@@ -75,7 +75,7 @@ export default function EmissaoPorFatura() {
       // começa como parcela 1 para deixar passar.
       try {
         const payload = {
-          protocolo_id: "REQ_" + Date.now(),
+          protocolo_id: "NFSe_FAT_" + Date.now(),
           fatura_numero: fatura,
           prestador_cnpj: empresa.CNPJ,
           razaoSocial: empresa.CEDENTE,
