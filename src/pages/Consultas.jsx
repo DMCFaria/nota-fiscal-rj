@@ -14,6 +14,10 @@ function getIdIntegracao(nota) {
   return nota?.id_integracao || nota?.idIntegracao || null;
 }
 
+function getIdTecnospeed(nota) {
+  return nota?.id_tecnospeed || nota?.idTecnospeed || nota?.id || null;
+}
+
 function getNotaRef(nota) {
   return (
     nota?.id_integracao ||
@@ -86,8 +90,90 @@ function isNotaRejeitada(nota) {
   return rejectedByStatus || rejectedBySituacao || (hasExplicitReason && (st === "erro" || st.includes("erro")));
 }
 
+function safeJsonParse(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function pickJsonInsideText(text) {
+  const s = String(text || "").trim();
+  if (!s) return null;
+
+  const firstArr = s.indexOf("[");
+  const lastArr = s.lastIndexOf("]");
+  if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
+    const candidate = s.slice(firstArr, lastArr + 1);
+    const parsed = safeJsonParse(candidate);
+    if (parsed) return parsed;
+  }
+
+  const firstObj = s.indexOf("{");
+  const lastObj = s.lastIndexOf("}");
+  if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
+    const candidate = s.slice(firstObj, lastObj + 1);
+    const parsed = safeJsonParse(candidate);
+    if (parsed) return parsed;
+  }
+
+  return safeJsonParse(s);
+}
+
+function simplifyDescricao(desc) {
+  let s = String(desc || "").trim();
+  if (!s) return "—";
+  s = s.replace(/\s+/g, " ");
+
+  const lower = s.toLowerCase();
+  const key = "não pertence ao município do endereço do tomador";
+  if (lower.includes("cep") && lower.includes(key)) {
+    return "O CEP não pertence ao município do endereço do tomador.";
+  }
+
+  if (lower.includes(" ou ")) {
+    const parts = s.split(/\s+ou\s+/i).map((p) => p.trim()).filter(Boolean);
+    const prefer = parts.find((p) => p.toLowerCase().includes("pertence ao município"));
+    if (prefer) return simplifyDescricao(prefer);
+  }
+
+  const m = s.match(/^.{0,170}?[.!?](\s|$)/);
+  const firstSentence = (m?.[0] || s).trim();
+
+  if (firstSentence.length > 120) return firstSentence.slice(0, 120).trim() + "…";
+  return firstSentence;
+}
+
+function formatTecnospeedError(err) {
+  if (!err) return "—";
+
+  if (typeof err === "string") {
+    const json = pickJsonInsideText(err);
+    if (!json) return simplifyDescricao(err);
+    return formatTecnospeedError(json);
+  }
+
+  if (Array.isArray(err)) {
+    const first = err.find(Boolean);
+    return first ? formatTecnospeedError(first) : "—";
+  }
+
+  if (typeof err === "object") {
+    const descricao = err.Descricao || err.descricao || err.message || err.mensagem || err.erro;
+    if (descricao) return simplifyDescricao(descricao);
+
+    const anyString = Object.values(err).find((v) => typeof v === "string" && v.trim());
+    if (anyString) return simplifyDescricao(anyString);
+
+    return "—";
+  }
+
+  return simplifyDescricao(String(err));
+}
+
 function extractRejectionReason(nota) {
-  const candidates = [
+  const candidatesRaw = [
     nota?.motivo_erro,
     nota?.motivo_rejeicao,
     nota?.motivo,
@@ -95,31 +181,24 @@ function extractRejectionReason(nota) {
     nota?.erro,
     nota?.error,
     nota?.situacao_prefeitura
-  ]
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter(Boolean);
+  ].filter((v) => v !== undefined && v !== null);
 
-  if (candidates.length) return candidates[0];
+  for (const c of candidatesRaw) {
+    const formatted = formatTecnospeedError(c);
+    if (formatted && formatted !== "—") return formatted;
+  }
 
   const erros = toArray(nota?.erros);
   if (erros.length) {
-    const first = erros[0];
-    if (typeof first === "string") return first;
-    if (first?.motivo_erro) return String(first.motivo_erro);
-    if (first?.mensagem) return String(first.mensagem);
-    if (first?.message) return String(first.message);
-    return JSON.stringify(first);
+    const formatted = formatTecnospeedError(erros);
+    if (formatted && formatted !== "—") return formatted;
   }
 
   const logs = toArray(nota?.logs || nota?.log);
   if (logs.length) {
     const last = logs[logs.length - 1];
-    if (typeof last === "string") return last;
-    if (last?.motivo_erro) return String(last.motivo_erro);
-    if (last?.mensagem) return String(last.mensagem);
-    if (last?.message) return String(last.message);
-    if (last?.erro) return String(last.erro);
-    return JSON.stringify(last);
+    const formatted = formatTecnospeedError(last?.motivo_erro || last?.mensagem || last?.message || last?.erro || last);
+    if (formatted && formatted !== "—") return formatted;
   }
 
   return "—";
@@ -210,7 +289,6 @@ function LinhaFatura({
   cancelandoAll
 }) {
   const notasAll = toArray(fatura.notas);
-
   const notas = notasAll.filter((n) => !isNotaCancelada(n));
 
   const qtdNotas = notas.length;
@@ -295,6 +373,7 @@ function LinhaFatura({
                             <span className={`status-badge status-${n.status?.toLowerCase() || "unknown"}`}>
                               {n.status || "—"}
                             </span>
+
                             {rejeitada && (
                               <div style={{ marginTop: 6, fontSize: 12, color: "#92400e" }}>
                                 Motivo: {extractRejectionReason(n)}
@@ -399,7 +478,7 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
                     </div>
                   </div>
 
-                  {s.motivo && <div className="sist-erro-msg">Motivo: {s.motivo}</div>}
+                  {s.motivo && <div className="sist-erro-msg">Motivo: {formatTecnospeedError(s.motivo)}</div>}
                 </div>
               ))}
             </div>
@@ -438,7 +517,6 @@ export default function Consultas() {
   const [baixandoRelatorio, setBaixandoRelatorio] = useState(false);
 
   const isModoFatura = tipoBusca === "fatura";
-
   const isModoFaturaUI = tipoBusca === "fatura" || tipoBusca === "nota";
 
   const realizarBusca = useCallback(async () => {
@@ -450,7 +528,6 @@ export default function Consultas() {
     try {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
-        console.log("Resposta da API por fatura:", res);
 
         if (res && res.status === "success") {
           if (res.tipo === "multiplas" && Array.isArray(res.notas)) {
@@ -462,6 +539,7 @@ export default function Consultas() {
                 notas: res.notas.map((nota) => ({
                   ...nota,
                   id: nota.id || nota.id_tecnospeed,
+                  id_tecnospeed: nota.id_tecnospeed || nota.id || nota.idTecnospeed,
                   id_integracao: nota.id_integracao,
                   fatura: nota.fatura,
                   numero_nfse: nota.numero_nfse,
@@ -471,7 +549,12 @@ export default function Consultas() {
                   valor_servico: nota.valor_servico,
                   prestador: nota.prestador,
                   tomador: nota.tomador,
-                  datas: nota.datas
+                  datas: nota.datas,
+                  motivo_erro: nota.motivo_erro,
+                  motivo_rejeicao: nota.motivo_rejeicao,
+                  motivo: nota.motivo,
+                  erros: nota.erros,
+                  logs: nota.logs
                 }))
               }
             ]);
@@ -492,9 +575,7 @@ export default function Consultas() {
           enqueueSnackbar(res?.message || "Nenhuma nota encontrada", { variant: "info" });
         }
       } else {
-        
         const res = await getNotaPorID(termo);
-        console.log("Resposta da API por ID:", res);
 
         if (res && res.status === "success" && res.nfse) {
           if (isNotaCancelada(res.nfse)) {
@@ -505,6 +586,7 @@ export default function Consultas() {
             const nfse = {
               ...res.nfse,
               id: res.nfse.id || termo,
+              id_tecnospeed: res.nfse.id_tecnospeed || res.nfse.id || termo,
               id_integracao: res.nfse.id_integracao,
               numero_nfse: res.nfse.numero_nfse,
               fatura: res.nfse.fatura,
@@ -560,7 +642,7 @@ export default function Consultas() {
     if (tipoBusca === "fatura" || tipoBusca === "nota") {
       for (const fat of toArray(faturas)) {
         const numeroFatura = String(fat?.numero || fat?.id || "");
-        const notasVisiveis = toArray(fat?.notas).filter((n) => !isNotaCancelada(n)); 
+        const notasVisiveis = toArray(fat?.notas).filter((n) => !isNotaCancelada(n));
 
         for (const n of notasVisiveis) {
           if (!isNotaRejeitada(n)) continue;
@@ -636,7 +718,7 @@ export default function Consultas() {
     }
   };
 
-    const handleDownload = async (item, tipo) => {
+  const handleDownload = async (item, tipo) => {
     const isFatura = tipo === "fatura";
     const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
 
@@ -705,13 +787,17 @@ export default function Consultas() {
   const openModalCancel = (item, tipo) => {
     const nfs =
       tipo === "fatura_all"
-        ? toArray(item.notas).filter((n) => !isNotaCancelada(n)).filter(isNotaCancelavel) 
+        ? toArray(item.notas).filter((n) => !isNotaCancelada(n)).filter(isNotaCancelavel)
         : [item];
 
     const sists = toArray(nfs[0]?.sistemas || (nfs[0]?.status ? [nfs[0]] : []));
     const opcoes = sists.filter((s) => s.status === "sucesso" && !s.cancelada).map((s) => s.nome);
-
     const safeOpcoes = opcoes.length ? opcoes : ["prefeitura"];
+
+    const notasPayload = nfs
+      .map((n) => getIdTecnospeed(n))
+      .filter(Boolean)
+      .map((id) => ({ id_tecnospeed: String(id) }));
 
     setModal({
       open: true,
@@ -720,11 +806,7 @@ export default function Consultas() {
       sistema: safeOpcoes.length === 1 ? safeOpcoes[0] : "",
       opcoes: safeOpcoes,
       payload: {
-        tipo: tipo === "fatura_all" ? "fatura" : "individual",
-        idIntegracao: tipo === "fatura_all" ? "" : String(getIdIntegracao(item) || ""),
-        fatura: String(item?.numero || item?.fatura || item?.numero_fatura || ""),
-        emitente: nfs[0]?.emitente?.razao_social || "CONDOCORP SERVICOS DE INTERMEDIACAO",
-        nfs_emitidas: String(nfs.length),
+        notas: notasPayload,
         faturaIdInternal: item?.id
       }
     });
@@ -733,24 +815,29 @@ export default function Consultas() {
   const onConfirmCancel = async () => {
     setModalLoading(true);
 
-    const { faturaIdInternal, ...restPayload } = modal.payload || {};
+    const { faturaIdInternal, notas } = modal.payload || {};
 
     if (modal.target === "fatura_all" && faturaIdInternal) {
       setCancelandoAll((p) => ({ ...p, [faturaIdInternal]: true }));
     }
 
     try {
+      if (!Array.isArray(notas) || !notas.length) {
+        enqueueSnackbar("Nenhuma nota elegível para cancelamento.", { variant: "info" });
+        return;
+      }
+
       await cancelarNota({
-        ...restPayload,
         sistema: modal.sistema,
-        motivo: modal.motivo.trim()
+        motivo: modal.motivo.trim(),
+        notas
       });
 
       enqueueSnackbar("Solicitação enviada com sucesso!", { variant: "success" });
       setModal((m) => ({ ...m, open: false }));
       await realizarBusca();
-    } catch {
-      enqueueSnackbar("Erro ao cancelar", { variant: "error" });
+    } catch (e) {
+      enqueueSnackbar(e?.message || "Erro ao cancelar", { variant: "error" });
     } finally {
       setModalLoading(false);
       if (modal.target === "fatura_all" && faturaIdInternal) {
