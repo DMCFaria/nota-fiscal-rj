@@ -23,3 +23,17 @@ export const iniciarEmissao = async (notas) => {
   return response.data;
 };
 
+export const processarArquivoRPSNfse = async (formData) => {
+  try {
+    const response = await api.post('/api/nfse/rps/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Erro ao processar arquivo:', error);
+    throw error;
+  }
+};
+

@@ -1,27 +1,225 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import LogEmissao from "../../components/LogEmissao";
-import JSZip from "jszip";
-import { emitirNota, baixarPdf } from "../../services/emissao";
-import "../../styles/emissaoRps.css";
-import { getEmpresas } from "../../services/empresas";
-import { enqueueSnackbar } from "notistack";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import EmpresaSelect from "../../components/EmpresaSelect";
+import LogEmissao from "../../components/LogEmissao";
+import { processarArquivoRPSNfse, iniciarEmissao } from "../../services/nfseService";
+import "../../styles/emissao.css";
+import { useSnackbar } from 'notistack';
+import { getEmpresas } from "../../services/empresas";
+import { fixBrokenLatin } from "../../utils/normalizacao_textual";
 
 export default function EmissaoPorRps() {
   const [empresa, setEmpresa] = useState("");
-  const [empresaData, setEmpresaData] = useState([]);
   const [arquivo, setArquivo] = useState(null);
-  const [itens, setItens] = useState([]);
+  const [observacao, setObservacao] = useState("");
+  const [codigoServico, setCodigoServico] = useState("170901");
+
+  const [preview, setPreview] = useState(null);
   const [logs, setLogs] = useState([]);
-  const [status, setStatus] = useState(null); // { type: "ok" | "err", msg: string }
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
+  const [empresaData, setEmpresaData] = useState([]);
+  const [progresso, setProgresso] = useState(0);
+  
+  const { enqueueSnackbar } = useSnackbar();
 
-  console.log("Empresa selecionada:", empresa);
+  // Precisa ter empresa e arquivo para gerar
+  const podeGerar = useMemo(() => {
+    return !!empresa && !!arquivo;
+  }, [empresa, arquivo]);
+  
+  const podeEmitir = useMemo(
+    () => !!preview && preview.length > 0 && !loadingGerar && !loadingEmitir,
+    [preview, loadingGerar, loadingEmitir]
+  );
 
-  // paginação
-  const [pagina, setPagina] = useState(1);
-  const porPagina = 10;
+  const pushLog = useCallback((msg, tipo = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    const tipoPrefix = tipo === 'erro' ? '❌ ERRO' : 
+                      tipo === 'sucesso' ? '✅ SUCESSO' : 
+                      tipo === 'alerta' ? '⚠️ ALERTA' : 'ℹ️ INFO';
+    
+    setLogs((prev) =>
+      [...prev, `[${timestamp}] ${tipoPrefix}: ${msg}`].slice(-200)
+    );
+  }, []);
+
+  const mostrarErro = useCallback((mensagem, detalhes = null) => {
+    enqueueSnackbar(mensagem, { 
+      variant: 'error',
+      autoHideDuration: 5000,
+      anchorOrigin: { vertical: 'top', horizontal: 'right' }
+    });
+    
+    pushLog(mensagem, 'erro');
+    
+    if (detalhes) {
+      console.error('Detalhes do erro:', detalhes);
+      if (typeof detalhes === 'object') {
+        pushLog(`Detalhes: ${JSON.stringify(detalhes)}`, 'erro');
+      } else {
+        pushLog(`Detalhes: ${detalhes}`, 'erro');
+      }
+    }
+  }, [enqueueSnackbar, pushLog]);
+
+  const mostrarSucesso = useCallback((mensagem) => {
+    enqueueSnackbar(mensagem, { 
+      variant: 'success',
+      autoHideDuration: 3000,
+      anchorOrigin: { vertical: 'top', horizontal: 'right' }
+    });
+    pushLog(mensagem, 'sucesso');
+  }, [enqueueSnackbar, pushLog]);
+
+  const mostrarInfo = useCallback((mensagem) => {
+    enqueueSnackbar(mensagem, { 
+      variant: 'info',
+      autoHideDuration: 4000,
+      anchorOrigin: { vertical: 'top', horizontal: 'right' }
+    });
+    pushLog(mensagem, 'info');
+  }, [enqueueSnackbar, pushLog]);
+
+  const handleGerar = useCallback(
+    async (e) => {
+      e?.preventDefault();
+      
+      // Validações detalhadas
+      if (!empresa) {
+        mostrarErro('Selecione uma empresa para continuar');
+        return;
+      }
+      
+      if (!arquivo) {
+        mostrarErro('Selecione um arquivo para importar');
+        return;
+      }
+      
+      if (!empresa.CNPJ || !empresa.CEDENTE) {
+        mostrarErro('Dados da empresa incompletos. Selecione novamente.');
+        return;
+      }
+
+      setLoadingGerar(true);
+      setPreview(null);
+      setProgresso(0);
+
+      mostrarInfo(`Processando arquivo ${arquivo.name}...`);
+
+      try {
+        const formData = new FormData();
+        formData.append('arquivo', arquivo);
+        formData.append('empresa', JSON.stringify({
+          CNPJ: empresa.CNPJ,
+          CEDENTE: empresa.CEDENTE,
+          INSCRICAO_MUNICIPAL: empresa.INSCRICAO_MUNICIPAL || ""
+        }));
+
+        const response = await processarArquivoRPSNfse(formData);
+
+        if (response.data.sucesso) {
+          setPreview(response.data.data);
+          mostrarSucesso('Arquivo processado com sucesso! Verifique abaixo antes de emitir.');
+          
+          pushLog(`Prévia gerada: ${response.data.data.length} nota(s) fiscal(is) encontrada(s)`, 'sucesso');
+          const valorTotal = response.data.data.reduce(
+            (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
+            0
+          );
+          pushLog(`Valor total: R$ ${valorTotal.toFixed(2)}`, 'sucesso');
+          
+        } else {
+          const erroMsg = response.data?.error || "Falha ao processar o arquivo.";
+          
+          if (erroMsg.includes('Nenhuma linha válida')) {
+            mostrarErro('Arquivo vazio ou sem linhas válidas');
+          } else if (erroMsg.includes('formato') || erroMsg.includes('CSV')) {
+            mostrarErro('Formato de arquivo inválido');
+          } else {
+            mostrarErro('Erro ao processar arquivo', erroMsg);
+          }
+        }
+      } catch (err) {
+        let mensagemErro = 'Erro ao conectar com o serviço';
+        
+        if (err.message?.includes('Network Error') || err.message?.includes('timeout')) {
+          mensagemErro = 'Falha na conexão com o servidor. Verifique sua internet e tente novamente.';
+        } else if (err.response?.status === 500) {
+          mensagemErro = 'Erro interno do servidor. Tente novamente mais tarde.';
+        } else if (err.response?.status === 404) {
+          mensagemErro = 'Serviço temporariamente indisponível';
+        }
+        
+        mostrarErro(mensagemErro, err.message);
+      } finally {
+        setLoadingGerar(false);
+      }
+    },
+    [empresa, arquivo, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]
+  );
+
+  const handleEmitir = useCallback(async () => {
+    if (!preview) {
+      mostrarErro("Processe o arquivo antes de emitir.");
+      return;
+    }
+
+    if (preview.length === 0) {
+      mostrarErro("Não há notas para emitir.");
+      return;
+    }
+
+    setLoadingEmitir(true);
+    setProgresso(10);
+
+    mostrarInfo("Iniciando emissão da nota fiscal...");
+
+    try {
+      const res = await iniciarEmissao(preview);
+
+      if (res.status === "sucesso") {
+        setProgresso(100);
+        mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
+        pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, 'sucesso');
+        pushLog(`ID do lote: ${res.protocolo || 'N/A'}`, 'info');
+        
+        // Limpa o formulário após sucesso
+        setTimeout(() => {
+          setArquivo(null);
+          setObservacao("");
+          setPreview(null);
+          setProgresso(0);
+        }, 2000);
+        
+      } else {
+        const erroMsg = res?.erro || "Erro desconhecido ao enviar lote.";
+        
+        if (erroMsg.includes('valid')) {
+          mostrarErro('Erro de validação nos dados da nota. Verifique a prévia.');
+        } else if (erroMsg.includes('conexão') || erroMsg.includes('API')) {
+          mostrarErro('Erro na conexão com o serviço de emissão. Tente novamente.');
+        } else if (erroMsg.includes('limite') || erroMsg.includes('quota')) {
+          mostrarErro('Limite de emissões atingido. Tente novamente mais tarde.');
+        } else {
+          mostrarErro('Falha ao enviar lote para emissão', erroMsg);
+        }
+      }
+    } catch (err) {
+      let mensagemErro = 'Erro ao processar emissão';
+      
+      if (err.message?.includes('Network Error')) {
+        mensagemErro = 'Falha na conexão. Verifique sua internet e tente novamente.';
+      } else if (err.response?.status === 429) {
+        mensagemErro = 'Muitas requisições. Aguarde um momento antes de tentar novamente.';
+      } else if (err.response?.status === 503) {
+        mensagemErro = 'Serviço de emissão temporariamente indisponível.';
+      }
+      
+      mostrarErro(mensagemErro, err.message);
+    } finally {
+      setLoadingEmitir(false);
+    }
+  }, [preview, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
 
   useEffect(() => {
     const carregarEmpresas = async () => {
@@ -29,319 +227,222 @@ export default function EmissaoPorRps() {
         const response = await getEmpresas();
         setEmpresaData(response.data || []);
       } catch (error) {
-        enqueueSnackbar('Erro ao carregar empresas', { variant: 'error' });
+        mostrarErro('Erro ao carregar empresas', error.message);
         console.error("Erro ao carregar empresas:", error);
       }
     };
     carregarEmpresas();
-  }, []);
+  }, [mostrarErro, mostrarInfo]);
 
-  const pushLog = useCallback((msg) => {
-    setLogs((prev) =>
-      [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-300)
-    );
-  }, []);
+  const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
+  
+  // Classes CSS baseadas nas validações
+  const gerarBtnClass = useMemo(() => {
+    const base = "fc-btn fc-btn--primary fc-btn--full";
+    const desabilitado = !podeGerar || loadingGerar || loadingEmitir;
+    return desabilitado ? `${base} fc-btn--disabled` : base;
+  }, [podeGerar, loadingGerar, loadingEmitir]);
 
-  const resumo = useMemo(() => {
-    const qtd = itens.length;
-    const total = itens.reduce((acc, it) => acc + (Number(it.valor) || 0), 0);
-    return { qtd, total };
-  }, [itens]);
-
-  const totalPaginas = useMemo(
-    () => Math.max(1, Math.ceil(itens.length / porPagina)),
-    [itens.length]
-  );
-
-  const visiveis = useMemo(() => {
-    const inicio = (pagina - 1) * porPagina;
-    return itens.slice(inicio, inicio + porPagina);
-  }, [itens, pagina]);
-
-  const podeGerar = useMemo(() => !!empresa && !!arquivo, [empresa, arquivo]);
-
-  const podeEmitir = useMemo(
-    () => itens.length > 0 && !loadingGerar && !loadingEmitir,
-    [itens, loadingGerar, loadingEmitir]
-  );
-
-  function moeda(v) {
-    return (Number(v) || 0).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL"
-    });
-  }
-
-  async function lerArquivo(file) {
-    const txt = await file.text();
-    return txt
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((l) => {
-        // aceita "RPS" OU "RPS,valor"
-        const [rps, valor] = l.split(",").map((s) => s?.trim());
-        return { rps, valor: valor ? Number(valor.replace(",", ".")) : undefined };
-      })
-      // remove duplicados por RPS
-      .filter((v, i, a) => a.findIndex((x) => x.rps === v.rps) === i);
-  }
-
-  const onGerar = useCallback(
-    async (e) => {
-      e?.preventDefault();
-      if (!podeGerar) return;
-
-      setStatus(null);
-      setItens([]);
-      setPagina(1);
-      setLoadingGerar(true);
-
-      pushLog(`Lendo arquivo para empresa ${empresa}…`);
-
-      try {
-        const arr = await lerArquivo(arquivo);
-        setItens(arr);
-        pushLog(`Arquivo processado: ${arr.length} linha(s) válida(s).`);
-
-        setStatus({
-          type: "ok",
-          msg: `Prévia pronta: ${arr.length} RPS. Valor total ${moeda(
-            arr.reduce((a, b) => a + (b.valor || 0), 0)
-          )}.`
-        });
-      } catch (err) {
-        setStatus({ type: "err", msg: "Não foi possível ler o arquivo." });
-        pushLog("Erro ao ler arquivo.");
-      } finally {
-        setLoadingGerar(false);
-      }
-    },
-    [arquivo, empresa, podeGerar, pushLog]
-  );
-
-  const onEmitir = useCallback(async () => {
-    if (!podeEmitir) return;
-
-    setStatus(null);
-    setLoadingEmitir(true);
-
-    let ok = 0,
-      erro = 0;
-
-    const zip = new JSZip();
-    const nomePasta = `NF_RPS_${empresa}_${new Date().toISOString().slice(0, 10)}`;
-    const pasta = zip.folder(nomePasta);
-
-    pushLog(`Iniciando emissão em lote (${itens.length} RPS)…`);
-
-    for (const item of itens) {
-      try {
-        pushLog(`Emitindo RPS ${item.rps}…`);
-
-        const { ok: deuBom, protocolo, pdfBlob, erro: erroApi } = await emitirNota({
-          empresa,
-          tipo: "RPS",
-          numero: item.rps,
-          preview: {
-            itens: [{ cliente: `RPS ${item.rps}`, valor: item.valor || 0 }],
-            valorTotal: item.valor || 0
-          }
-        });
-
-        if (!deuBom) {
-          erro++;
-          pushLog(`ERRO no RPS ${item.rps}: ${erroApi || "falha."}`);
-          continue;
-        }
-
-        ok++;
-        const nomePdf = `NF_RPS_${empresa}_${item.rps}_${protocolo}.pdf`;
-        pasta.file(nomePdf, pdfBlob);
-        pushLog(`OK RPS ${item.rps} — protocolo ${protocolo}. Adicionado ao ZIP.`);
-      } catch {
-        erro++;
-        pushLog(`ERRO inesperado no RPS ${item.rps}.`);
-      }
-    }
-
-    if (ok === 0) {
-      const msgNone = `Nenhuma nota emitida — nada para compactar. (${erro} erro(s))`;
-      setStatus({ type: "err", msg: msgNone });
-      pushLog(msgNone);
-      setLoadingEmitir(false);
-      return;
-    }
-
-    pushLog("Compactando arquivos em ZIP…");
-    const zipBlob = await zip.generateAsync({
-      type: "blob",
-      compression: "DEFLATE",
-      compressionOptions: { level: 6 }
-    });
-
-    const nomeZip = `Lote_RPS_${empresa}_${new Date()
-      .toISOString()
-      .replace(/[:T]/g, "-")
-      .slice(0, 19)}.zip`;
-
-    baixarPdf(nomeZip, zipBlob);
-    pushLog(`ZIP gerado e download iniciado: ${nomeZip}`);
-
-    const msg = `Lote finalizado: ${ok} sucesso(s), ${erro} erro(s).`;
-    setStatus({ type: erro > 0 ? "err" : "ok", msg });
-    pushLog(msg);
-    setLoadingEmitir(false);
-  }, [empresa, itens, podeEmitir, pushLog]);
+  const emitirBtnClass = useMemo(() => {
+    const base = "fc-btn fc-btn--success fc-btn--full";
+    const desabilitado = !podeEmitir || loadingEmitir;
+    return desabilitado ? `${base} fc-btn--disabled` : base;
+  }, [podeEmitir, loadingEmitir]);
 
   return (
-    <div className="rps-page">
-      <div className="rps-card">
+    <div className="fc-page">
+      <div className="fc-card">
         <header className="fc-header">
-          <h2 className="fc-title">Emissão · Por RPS</h2>
-        
-          {status && (
-            <div className={`rps-alert rps-alert--${status.type}`}>
-              {status.msg}
-            </div>
-          )}
+          <h2 className="fc-title">Emissão · Por Arquivo</h2>
+          <div className="fc-subtitle">
+            Importe um arquivo CSV/TXT com os dados das notas fiscais
+          </div>
         </header>
 
-        <div className="rps-body">
-          <section className="rps-section">
-            <section className="fc-section">
-              <EmpresaSelect
-                value={empresa}
-                onChange={setEmpresa}
-                empresas={empresaData}
-              />
-            </section>
-          </section>
+        <section className="fc-section">
+          <EmpresaSelect
+            value={empresa}
+            onChange={setEmpresa}
+            empresas={empresaData}
+            label="Empresa *"
+            required
+          />
+        </section>
 
-          <section className="rps-section">
-            <div className="rps-section__header">
-              <h3 className="rps-section__title">Importar arquivo</h3>
-              <p className="rps-section__hint">
-                Formatos aceitos: <code>RPS</code> ou <code>RPS,valor</code> (um por
-                linha). Duplicados são ignorados.
-              </p>
-            </div>
+        <form onSubmit={handleGerar} className="fc-form">
+          <h3 className="fc-form-title">Importação de Arquivo</h3>
 
-            <form className="rps-form" onSubmit={onGerar}>
-              <div className="rps-upload">
+          <div className="fc-form-content">
+            <div className="fc-row fc-row--inputs">
+              <div className="fc-input-group">
+                <label className="fc-input-label">
+                  Arquivo CSV/TXT *
+                </label>
                 <input
                   type="file"
                   accept=".csv,.txt"
+                  className="fc-input fc-input--grow"
                   onChange={(e) => setArquivo(e.target.files?.[0] || null)}
-                  aria-label="Arquivo de RPS"
-                  className="rps-file"
                 />
-
-                <button
-                  className="rps-btn rps-btn--primary"
-                  type="submit"
-                  disabled={!podeGerar || loadingGerar}
-                  aria-busy={loadingGerar}
-                >
-                  {loadingGerar ? "Processando..." : "GERAR"}
-                </button>
+                {/* <div className="fc-input-help">
+                  Formato: CNPJ,Nome,Email,Valor,Descrição,Código,Cep,Logradouro,Número,Bairro,Cidade,UF
+                </div> */}
               </div>
-            </form>
-          </section>
 
-          <section className="rps-section">
-            
-            <div className="rps-log">
-              <LogEmissao entries={logs} maxHeight={160} emptyText="Sem registros ainda." />
-            </div>
-          </section>
-
-          <section className="rps-section">
-            <div className="rps-section__header">
-              <h3 className="rps-section__title">Prévia</h3>
-              <p className="rps-section__hint">
-                Conferência do lote antes de emitir.
-              </p>
+              {isCondomed && (
+                <div className="fc-input-group">
+                  <label className="fc-input-label">Código de Serviço Padrão</label>
+                  <select
+                    className="fc-input fc-select"
+                    value={codigoServico}
+                    onChange={(e) => setCodigoServico(e.target.value)}
+                  >
+                    <option value="170901">Cód. 170901</option>
+                    <option value="170902">Cód. 170902</option>
+                    <option value="040301">Cód. 040301</option>
+                  </select>
+                </div>
+              )}
             </div>
 
-            {itens.length > 0 ? (
-              <div className="rps-preview">
-                <div className="rps-metrics">
-                  <div className="rps-metric">
-                    <span className="rps-metric__label">Empresa</span>
-                    <p className="rps-metric__value">{empresa || "—"}</p>
-                  </div>
-
-                  <div className="rps-metric">
-                    <span className="rps-metric__label">RPS no lote</span>
-                    <p className="rps-metric__value">{resumo.qtd}</p>
-                  </div>
-
-                  <div className="rps-metric rps-metric--total">
-                    <span className="rps-metric__label">Total</span>
-                    <p className="rps-metric__value">{moeda(resumo.total)}</p>
-                  </div>
-                </div>
-
-                <div className="rps-table">
-                  <div className="rps-thead">
-                    <div>RPS</div>
-                    <div className="rps-right">Valor</div>
-                  </div>
-
-                  {visiveis.map((it, i) => (
-                    <div className="rps-trow" key={`${pagina}-${i}`}>
-                      <div className="rps-mono">{it.rps}</div>
-                      <div className="rps-right">{moeda(it.valor)}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="rps-pagination">
-                  <button
-                    className="rps-pg-btn"
-                    onClick={() => setPagina((p) => Math.max(1, p - 1))}
-                    disabled={pagina === 1}
-                    type="button"
-                    aria-label="Página anterior"
-                  >
-                    ‹
-                  </button>
-
-                  <span className="rps-pg-info">
-                    Página <strong>{pagina}</strong> de <strong>{totalPaginas}</strong>
-                  </span>
-
-                  <button
-                    className="rps-pg-btn"
-                    onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-                    disabled={pagina === totalPaginas}
-                    type="button"
-                    aria-label="Próxima página"
-                  >
-                    ›
-                  </button>
-                </div>
+            <div className="fc-input-group">
+              <label className="fc-input-label">
+                Observação
+              </label>
+              <textarea
+                className="fc-input fc-textarea"
+                placeholder="Observação que será aplicada a todas as notas..."
+                rows={2}
+                value={observacao}
+                onChange={(e) => setObservacao(e.target.value)}
+                maxLength={500}
+              />
+              <div className="fc-input-help">
+                {observacao.length}/500 caracteres
               </div>
-            ) : (
-              <div className="rps-empty">
-                A prévia aparecerá aqui após clicar em <strong>GERAR</strong>.
+            </div>
+
+            <button
+              className={gerarBtnClass}
+              type="submit"
+              disabled={!podeGerar || loadingGerar || loadingEmitir}
+              title={!podeGerar ? "Selecione uma empresa e um arquivo" : ""}
+            >
+              {loadingGerar ? (
+                <>
+                  <span className="fc-spinner"></span>
+                  PROCESSANDO ARQUIVO...
+                </>
+              ) : "PROCESSAR ARQUIVO"}
+            </button>
+
+            {!podeGerar && (
+              <div className="fc-validation-hint">
+                ⓘ Selecione: Empresa e Arquivo CSV/TXT
               </div>
             )}
-          </section>
-        </div>
+          </div>
+        </form>
 
-        <footer className="rps-footer">
-          <button
-            className="rps-btn rps-btn--accent"
-            onClick={onEmitir}
-            disabled={!podeEmitir}
-            aria-busy={loadingEmitir}
-          >
-            {loadingEmitir ? "Emitindo..." : "EMITIR"}
-          </button>
-        </footer>
+        <section className="fc-section">
+          <LogEmissao entries={logs} maxHeight={120} />
+
+          {loadingEmitir && (
+            <div className="fc-progress-wrapper">
+              <div className="fc-progress">
+                <div className="fc-progress-bar" style={{ width: `${progresso}%` }} />
+              </div>
+              <div className="fc-progress-label">{progresso}% processado</div>
+            </div>
+          )}
+        </section>
+
+        <section className="fc-section">
+          {preview ? (
+            <div className="fc-preview">
+              <div className="fc-preview-header">
+                <h2 className="fc-preview-title">Conferência de Dados</h2>
+                <div className="fc-preview-badge">
+                  {preview.length} {preview.length === 1 ? 'NOTA' : 'NOTAS'}
+                </div>
+              </div>
+
+              <div className="fc-grid">
+                <div className="fc-metric">
+                  <span className="fc-label">Valor Total:</span>
+                  <p className="fc-value">
+                    {preview
+                      .reduce(
+                        (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
+                        0
+                      )
+                      .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                </div>
+
+                <div className="fc-metric">
+                  <span className="fc-label">Código de Serviço</span>
+                  <p className="fc-value">{preview[0]?.servico?.[0]?.codigo || "170901"}</p>
+                </div>
+
+                <div className="fc-grid-span" />
+
+                <div className="fc-metric">
+                  <span className="fc-label">Nº Notas Fiscais</span>
+                  <p className="fc-value">{preview.length}</p>
+                </div>
+
+                <div className="fc-block fc-grid-span">
+                  <div className="fc-metric">
+                    <span className="fc-label">Emissor:</span>
+                    <p className="fc-value">
+                      {fixBrokenLatin(preview[0]?.prestador?.razaoSocial || "")
+                        .split(" ")
+                        .slice(0, 2)
+                        .join(" ")}{" "}
+                      - {preview[0]?.prestador?.cpfCnpj || ""}
+                    </p>
+                  </div>
+
+                  <div className="fc-metric">
+                    <span className="fc-label">Tomador Exemplo:</span>
+                    <p className="fc-value">
+                      {fixBrokenLatin(preview[0]?.tomador?.razaoSocial || "")}
+                      {" "}- {preview[0]?.tomador?.cpfCnpj || ""}
+                    </p>
+                  </div>
+
+                  <div className="fc-grid-span" />
+
+                  <span className="fc-label">Discriminação do Serviço:</span>
+                  <p className="fc-discriminacao">{fixBrokenLatin(preview[0]?.servico?.[0]?.discriminacao || "Serviço prestado conforme arquivo")}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="fc-placeholder">
+              <p>Aguardando importação de arquivo...</p>
+              <small>Selecione um arquivo CSV/TXT e clique em "Processar Arquivo"</small>
+            </div>
+          )}
+        </section>
       </div>
+
+      <footer className="fc-footer">
+        <button
+          className={emitirBtnClass}
+          onClick={handleEmitir}
+          disabled={!podeEmitir || loadingEmitir}
+          title={!podeEmitir ? "Processe o arquivo primeiro" : ""}
+        >
+          {loadingEmitir ? (
+            <>
+              <span className="fc-spinner"></span>
+              PROCESSANDO ({progresso}%)
+            </>
+          ) : "EMITIR NOTAS FISCAIS"}
+        </button>
+      </footer>
     </div>
   );
 }
