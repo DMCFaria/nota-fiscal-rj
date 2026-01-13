@@ -26,12 +26,18 @@ export default function EmissaoPorFatura() {
   const { enqueueSnackbar } = useSnackbar();
 
   // Precisa ter empresa, fatura E observação para gerar
-  const podeGerar = useMemo(() => {
-    return !!empresa && 
-           !!fatura.trim() && 
-           !!observacao.trim() && observacao.trim().length >= 10 &&
-           fatura.trim().length >= 6; // Valida que tem pelo menos 6 dígitos
-  }, [empresa, fatura, observacao]);
+  // const podeGerar = useMemo(() => {
+  //   return !!empresa && 
+  //          !!fatura.trim() && 
+  //          !!observacao.trim() && observacao.trim().length >= 10 &&
+  //          fatura.trim().length >= 6; // Valida que tem pelo menos 6 dígitos
+  // }, [empresa, fatura, observacao]);
+
+const podeGerar = useMemo(() => {
+  return !!empresa && 
+         !!fatura.trim() && 
+         fatura.trim().length >= 6;
+}, [empresa, fatura]);
   
   const podeEmitir = useMemo(
     () => !!preview && !loadingGerar && !loadingEmitir,
@@ -107,15 +113,15 @@ export default function EmissaoPorFatura() {
         return;
       }
       
-      if (!observacao.trim()) {
-        mostrarErro('A observação da nota é obrigatória');
-        return;
-      }
+      // if (!observacao.trim()) {
+      //   mostrarErro('A observação da nota é obrigatória');
+      //   return;
+      // }
       
-      if (observacao.trim().length < 10) {
-        mostrarErro('A observação deve ter pelo menos 10 caracteres');
-        return;
-      }
+      // if (observacao.trim().length < 10) {
+      //   mostrarErro('A observação deve ter pelo menos 10 caracteres');
+      //   return;
+      // }
       
       if (!empresa.CNPJ || !empresa.CEDENTE) {
         mostrarErro('Dados da empresa incompletos. Selecione novamente.');
@@ -338,12 +344,12 @@ export default function EmissaoPorFatura() {
             </div>
 
             <div className="fc-input-group">
-              <label className="fc-input-label">
+              {/* <label className="fc-input-label">
                 Observação da Nota *
                 {observacao && observacao.length < 10 && (
                   <span className="fc-input-error"> (mínimo 10 caracteres)</span>
                 )}
-              </label>
+              </label> */}
               <textarea
                 className="fc-input fc-textarea"
                 placeholder="Ex: Programa de Gestão de Segurança do Trabalho para empresa XYZ..."
@@ -351,7 +357,7 @@ export default function EmissaoPorFatura() {
                 value={observacao}
                 required
                 onChange={(e) => setObservacao(e.target.value)}
-                minLength={10}
+                // minLength={10}
                 maxLength={500}
               />
               <div className="fc-input-help">
@@ -373,11 +379,11 @@ export default function EmissaoPorFatura() {
               ) : "GERAR PRÉVIA"}
             </button>
 
-            {!podeGerar && (
+            {/* {!podeGerar && (
               <div className="fc-validation-hint">
                 ⓘ Preencha: Empresa, Fatura (6+ dígitos) e Observação (10+ caracteres)
               </div>
-            )}
+            )} */}
           </div>
         </form>
 
