@@ -30,32 +30,34 @@ function normalizeStr(v) {
   return String(v ?? "").trim();
 }
 
+function isNotaCancelada(nota) {
+  const st = normalizeStr(nota?.status).toLowerCase();
+  const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
+  return st === "cancelada" || sit === "cancelada";
+}
+
 function isNotaCancelavel(nota) {
+  if (isNotaCancelada(nota)) return false;
+
   const sit = normalizeStr(nota?.situacao_prefeitura).toUpperCase();
   const st = normalizeStr(nota?.status).toUpperCase();
-  return sit !== "CANCELADA" && st !== "PROCESSANDO";
+
+  return sit !== "CONCLUIDO" && st !== "PROCESSANDO";
 }
 
 function isNotaBaixavel(nota) {
   const st = normalizeStr(nota?.status).toLowerCase();
   const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
 
-  const concluida = [
-    "sucesso",
-    "autorizada",
-    "concluido",
-    "concluída",
-    "concluida",
-    "emitida",
-    "emitido"
-  ].includes(st);
-
+  const concluida = ["sucesso", "autorizada", "concluido", "concluída", "concluida", "emitida", "emitido"].includes(st);
   const cancelada = sit === "cancelada" || st === "cancelada";
 
   return !!getIdIntegracao(nota) && concluida && !cancelada;
 }
 
 function isNotaRejeitada(nota) {
+  if (isNotaCancelada(nota)) return false;
+
   const st = normalizeStr(nota?.status).toLowerCase();
   const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
 
@@ -68,14 +70,12 @@ function isNotaRejeitada(nota) {
     st.includes("inval");
 
   const rejectedBySituacao =
-    sit.includes("rejeit") ||
-    sit.includes("recus") ||
-    sit.includes("deneg") ||
-    sit.includes("inval");
+    sit.includes("rejeit") || sit.includes("recus") || sit.includes("deneg") || sit.includes("inval");
 
-    const hasExplicitReason =
+  const hasExplicitReason =
     !!nota?.motivo ||
     !!nota?.motivo_rejeicao ||
+    !!nota?.motivo_erro ||
     !!nota?.mensagem ||
     !!nota?.erro ||
     !!nota?.error ||
@@ -88,8 +88,8 @@ function isNotaRejeitada(nota) {
 
 function extractRejectionReason(nota) {
   const candidates = [
-    nota?.motivo_rejeicao,
     nota?.motivo_erro,
+    nota?.motivo_rejeicao,
     nota?.motivo,
     nota?.mensagem,
     nota?.erro,
@@ -105,6 +105,7 @@ function extractRejectionReason(nota) {
   if (erros.length) {
     const first = erros[0];
     if (typeof first === "string") return first;
+    if (first?.motivo_erro) return String(first.motivo_erro);
     if (first?.mensagem) return String(first.mensagem);
     if (first?.message) return String(first.message);
     return JSON.stringify(first);
@@ -114,6 +115,7 @@ function extractRejectionReason(nota) {
   if (logs.length) {
     const last = logs[logs.length - 1];
     if (typeof last === "string") return last;
+    if (last?.motivo_erro) return String(last.motivo_erro);
     if (last?.mensagem) return String(last.mensagem);
     if (last?.message) return String(last.message);
     if (last?.erro) return String(last.erro);
@@ -137,7 +139,7 @@ function flattenLogs(nota) {
       return parts.join(" ");
     })
     .filter(Boolean)
-    .slice(0, 250) 
+    .slice(0, 250)
     .join(" | ");
 }
 
@@ -186,13 +188,12 @@ function ModalConfirm({
   );
 }
 
-function Badge({ status, cancelada, substituida }) {
+function Badge({ status, substituida }) {
   const base = status === "sucesso" ? "badge success" : "badge error";
   return (
     <span className={base}>
       {status === "sucesso" ? "Sucesso" : "Erro"}
       {substituida && <span className="pill">Substituída</span>}
-      {cancelada && <span className="pill danger">Cancelada</span>}
     </span>
   );
 }
@@ -208,11 +209,14 @@ function LinhaFatura({
   onCancelarUma,
   cancelandoAll
 }) {
-  const notas = toArray(fatura.notas);
+  const notasAll = toArray(fatura.notas);
+
+  // ✅ FILTRA CANCELADAS FORA DA TELA
+  const notas = notasAll.filter((n) => !isNotaCancelada(n));
+
   const qtdNotas = notas.length;
   const qtdBaixaveis = notas.filter(isNotaBaixavel).length;
   const hasCancelavel = notas.some(isNotaCancelavel);
-
   const qtdRejeitadas = notas.filter(isNotaRejeitada).length;
 
   return (
@@ -227,11 +231,9 @@ function LinhaFatura({
 
         <td className="fatura-resumo">
           <span className="fatura-resumo-text">
-            {qtdNotas} nota(s) vinculada(s)
+            {qtdNotas} nota(s) ativa(s)
             {qtdRejeitadas > 0 && (
-              <span style={{ marginLeft: 10, fontWeight: 600, color: "#b45309" }}>
-                • {qtdRejeitadas} rejeitada(s)
-              </span>
+              <span style={{ marginLeft: 10, fontWeight: 600, color: "#b45309" }}>• {qtdRejeitadas} rejeitada(s)</span>
             )}
           </span>
         </td>
@@ -277,6 +279,7 @@ function LinhaFatura({
                   <tbody>
                     {notas.map((n, idx) => {
                       const rejeitada = isNotaRejeitada(n);
+
                       return (
                         <tr key={n.id ?? idx} style={rejeitada ? { background: "rgba(245, 158, 11, 0.08)" } : undefined}>
                           <td className="mono">{n.id || n.numero || "—"}</td>
@@ -285,9 +288,7 @@ function LinhaFatura({
 
                           <td style={{ textAlign: "right" }}>
                             {n.valor_servico
-                              ? `R$ ${parseFloat(n.valor_servico).toLocaleString("pt-BR", {
-                                  minimumFractionDigits: 2
-                                })}`
+                              ? `R$ ${parseFloat(n.valor_servico).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
                               : "—"}
                           </td>
 
@@ -336,7 +337,7 @@ function LinhaFatura({
                     {!qtdNotas && (
                       <tr>
                         <td colSpan={5} style={{ padding: 14, color: "var(--text-soft,#525a6a)" }}>
-                          Nenhuma nota vinculada nessa fatura.
+                          Nenhuma nota ativa vinculada nessa fatura.
                         </td>
                       </tr>
                     )}
@@ -371,7 +372,7 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
         <td className="resultados-compactos">
           {sistemas.map((s) => (
             <span key={s.nome} className="sist-chip">
-              <strong>{s.nome}</strong> — <Badge status={s.status} cancelada={s.cancelada} substituida={s.substituida} />
+              <strong>{s.nome}</strong> — <Badge status={s.status} substituida={s.substituida} />
             </span>
           ))}
         </td>
@@ -392,7 +393,7 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
                   <div className="sist-header">
                     <div className="sist-title">
                       <strong>{s.nome}</strong>
-                      <Badge status={s.status} cancelada={s.cancelada} substituida={s.substituida} />
+                      <Badge status={s.status} substituida={s.substituida} />
                     </div>
                     <div className="sist-proto">
                       Protocolo: <span className="mono">{s.protocolo ?? "—"}</span>
@@ -435,7 +436,6 @@ export default function Consultas() {
   const [modalLoading, setModalLoading] = useState(false);
   const [baixandoAll, setBaixandoAll] = useState({});
   const [cancelandoAll, setCancelandoAll] = useState({});
-
   const [baixandoRelatorio, setBaixandoRelatorio] = useState(false);
 
   const isModoFatura = tipoBusca === "fatura";
@@ -495,34 +495,42 @@ export default function Consultas() {
         console.log("Resposta da API por ID:", res);
 
         if (res && res.status === "success" && res.nfse) {
-          setDados([
-            {
-              id: res.nfse.id || termo,
-              faturamento: res.nfse.fatura || "—",
-              quando: res.nfse.datas?.criacao || null,
-              sistemas: [
-                {
-                  nome: "Prefeitura",
-                  status: res.nfse.status === "CONCLUIDO" ? "sucesso" : "erro",
-                  protocolo: res.nfse.codigo_verificacao,
-                  motivo: res.nfse.situacao_prefeitura
-                }
-              ],
-              id_integracao: res.nfse.id_integracao,
-              numero: res.nfse.numero_nfse,
-              fatura: res.nfse.fatura,
-              status: res.nfse.status,
-              situacao_prefeitura: res.nfse.situacao_prefeitura,
-              pdf_url_final: res.nfse.pdf_url_final,
-              valor_servico: res.nfse.valor_servico,
-              prestador: res.nfse.prestador,
-              tomador: res.nfse.tomador,
-              emitente: res.nfse.prestador,
-              // logs/erros se vierem também serão aproveitados no relatório
-              logs: res.nfse.logs,
-              erros: res.nfse.erros
-            }
-          ]);
+          // ✅ se a nota for cancelada, NÃO EXIBE NA TELA
+          if (isNotaCancelada(res.nfse)) {
+            setDados([]);
+            enqueueSnackbar("Nota cancelada (não exibida).", { variant: "info" });
+          } else {
+            setDados([
+              {
+                id: res.nfse.id || termo,
+                faturamento: res.nfse.fatura || "—",
+                quando: res.nfse.datas?.criacao || null,
+                sistemas: [
+                  {
+                    nome: "Prefeitura",
+                    status: res.nfse.status === "CONCLUIDO" ? "sucesso" : "erro",
+                    protocolo: res.nfse.codigo_verificacao,
+                    motivo: res.nfse.situacao_prefeitura
+                  }
+                ],
+                id_integracao: res.nfse.id_integracao,
+                numero: res.nfse.numero_nfse,
+                fatura: res.nfse.fatura,
+                status: res.nfse.status,
+                situacao_prefeitura: res.nfse.situacao_prefeitura,
+                pdf_url_final: res.nfse.pdf_url_final,
+                valor_servico: res.nfse.valor_servico,
+                prestador: res.nfse.prestador,
+                tomador: res.nfse.tomador,
+                emitente: res.nfse.prestador,
+                logs: res.nfse.logs,
+                erros: res.nfse.erros,
+                motivo_erro: res.nfse.motivo_erro,
+                motivo_rejeicao: res.nfse.motivo_rejeicao,
+                motivo: res.nfse.motivo
+              }
+            ]);
+          }
         } else {
           setDados([]);
           enqueueSnackbar(res?.message || "Nota não encontrada", { variant: "info" });
@@ -541,166 +549,15 @@ export default function Consultas() {
     }
   }, [textoDigitado, isModoFatura, enqueueSnackbar]);
 
-  /**
-   * ✅ DOWNLOAD:
-   * - tipo "fatura": baixa TODAS as notas baixáveis (ativas + concluídas) como downloads INDIVIDUAIS
-   * - tipo "individual": baixa UMA nota
-   *
-   * ✅ Payload sempre no formato esperado pelo backend:
-   * {
-   *   tipo: "individual",
-   *   idIntegracao: "...",
-   *   fatura: "...",
-   *   emitente: "...",
-   *   nfs_emitidas: "1"
-   * }
-   */
-  const handleDownload = async (item, tipo) => {
-    const isFatura = tipo === "fatura";
-    const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
-
-    if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: true }));
-
-    try {
-      if (isFatura) {
-        const notas = toArray(item?.notas);
-        const baixaveis = notas.filter(isNotaBaixavel);
-
-        if (!baixaveis.length) {
-          enqueueSnackbar("Nenhuma nota concluída ativa disponível para download.", { variant: "info" });
-          return;
-        }
-
-        const faturaNumero = String(item?.numero || item?.fatura || item?.numero_fatura || "");
-        const emitenteNome =
-          baixaveis[0]?.emitente?.razao_social ||
-          baixaveis[0]?.prestador?.razao_social ||
-          "CONDOCORP SERVICOS DE INTERMEDIACAO";
-
-        const results = await Promise.allSettled(
-          baixaveis.map((n) =>
-            downloadPdfNota({
-              tipo: "individual",
-              idIntegracao: String(getIdIntegracao(n) || ""),
-              fatura: faturaNumero,
-              emitente: emitenteNome,
-              nfs_emitidas: "1"
-            })
-          )
-        );
-
-        const ok = results.filter((r) => r.status === "fulfilled").length;
-        const fail = results.length - ok;
-
-        if (ok && !fail) {
-          enqueueSnackbar(`Download iniciado para ${ok} nota(s)!`, { variant: "success" });
-        } else if (ok && fail) {
-          enqueueSnackbar(`Downloads iniciados: ${ok}. Falharam: ${fail}.`, { variant: "warning" });
-        } else {
-          enqueueSnackbar("Erro ao gerar PDF das notas concluídas.", { variant: "error" });
-        }
-
-        return;
-      }
-
-      // Individual
-      const idIntegracao = String(getIdIntegracao(item) || "");
-      if (!idIntegracao) {
-        enqueueSnackbar("Esta nota não possui idIntegracao para download.", { variant: "warning" });
-        return;
-      }
-
-      const emitenteNome =
-        item?.emitente?.razao_social ||
-        item?.prestador?.razao_social ||
-        "CONDOCORP SERVICOS DE INTERMEDIACAO";
-
-      await downloadPdfNota({
-        tipo: "individual",
-        idIntegracao,
-        fatura: String(item?.fatura || item?.numero_fatura || item?.numero || ""),
-        emitente: emitenteNome,
-        nfs_emitidas: "1"
-      });
-
-      enqueueSnackbar("Download iniciado!", { variant: "success" });
-    } catch (e) {
-      enqueueSnackbar(e?.message || "Erro ao gerar PDF", { variant: "error" });
-    } finally {
-      if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: false }));
-    }
-  };
-
-  const openModalCancel = (item, tipo) => {
-    const nfs = tipo === "fatura_all" ? toArray(item.notas).filter(isNotaCancelavel) : [item];
-
-    const sists = toArray(nfs[0]?.sistemas || (nfs[0]?.status ? [nfs[0]] : []));
-    const opcoes = sists
-      .filter((s) => s.status === "sucesso" && !s.cancelada)
-      .map((s) => s.nome);
-
-    const safeOpcoes = opcoes.length ? opcoes : ["prefeitura"];
-
-    setModal({
-      open: true,
-      target: tipo,
-      motivo: "",
-      sistema: safeOpcoes.length === 1 ? safeOpcoes[0] : "",
-      opcoes: safeOpcoes,
-      payload: {
-        tipo: tipo === "fatura_all" ? "fatura" : "individual",
-        idIntegracao: tipo === "fatura_all" ? "" : String(getIdIntegracao(item) || ""),
-        fatura: String(item?.numero || item?.fatura || item?.numero_fatura || ""),
-        emitente: nfs[0]?.emitente?.razao_social || "CONDOCORP SERVICOS DE INTERMEDIACAO",
-        nfs_emitidas: String(nfs.length),
-        faturaIdInternal: item?.id
-      }
-    });
-  };
-
-  const onConfirmCancel = async () => {
-    setModalLoading(true);
-
-    const { faturaIdInternal, ...restPayload } = modal.payload || {};
-
-    if (modal.target === "fatura_all" && faturaIdInternal) {
-      setCancelandoAll((p) => ({ ...p, [faturaIdInternal]: true }));
-    }
-
-    try {
-      await cancelarNota({
-        ...restPayload,
-        sistema: modal.sistema,
-        motivo: modal.motivo.trim()
-      });
-
-      enqueueSnackbar("Solicitação enviada com sucesso!", { variant: "success" });
-      setModal((m) => ({ ...m, open: false }));
-      await realizarBusca();
-    } catch {
-      enqueueSnackbar("Erro ao cancelar", { variant: "error" });
-    } finally {
-      setModalLoading(false);
-      if (modal.target === "fatura_all" && faturaIdInternal) {
-        setCancelandoAll((p) => ({ ...p, [faturaIdInternal]: false }));
-      }
-    }
-  };
-
-  /**
-   * ✅ Monta linhas do relatório a partir das notas carregadas (faturas ou nota individual).
-   * A ideia é: se está rejeitada, a gente exporta “o que tiver”.
-   */
   const rejectedRows = useMemo(() => {
     const rows = [];
 
-    // modo fatura: varre todas as notas
     if (tipoBusca === "fatura") {
       for (const fat of toArray(faturas)) {
         const numeroFatura = String(fat?.numero || fat?.id || "");
-        const notas = toArray(fat?.notas);
+        const notasVisiveis = toArray(fat?.notas).filter((n) => !isNotaCancelada(n)); // ✅ não exporta canceladas
 
-        for (const n of notas) {
+        for (const n of notasVisiveis) {
           if (!isNotaRejeitada(n)) continue;
 
           rows.push({
@@ -719,13 +576,11 @@ export default function Consultas() {
       return rows;
     }
 
-    // modo nota: usa o primeiro item em dados (se existir) como nota base
     const item = toArray(dados)[0];
     if (!item) return rows;
 
-    // o "item" do modo nota é uma versão “formatada”; mas ele também carrega campos da nfse
     const baseNota = item;
-    if (isNotaRejeitada(baseNota)) {
+    if (!isNotaCancelada(baseNota) && isNotaRejeitada(baseNota)) {
       rows.push({
         fatura: String(baseNota?.fatura || baseNota?.faturamento || ""),
         idIntegracao: String(getIdIntegracao(baseNota) || ""),
@@ -776,6 +631,130 @@ export default function Consultas() {
     }
   };
 
+  // ✅ FIX: no modo fatura, baixar tudo de uma vez com tipo "fatura"
+  const handleDownload = async (item, tipo) => {
+    const isFatura = tipo === "fatura";
+    const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
+
+    if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: true }));
+
+    try {
+      if (isFatura) {
+        const notas = toArray(item?.notas).filter((n) => !isNotaCancelada(n)); // ✅ não tenta baixar canceladas
+        const baixaveis = notas.filter(isNotaBaixavel);
+
+        if (!baixaveis.length) {
+          enqueueSnackbar("Nenhuma nota concluída ativa disponível para download.", { variant: "info" });
+          return;
+        }
+
+        const faturaNumero = String(item?.numero || item?.fatura || item?.numero_fatura || "");
+        const emitenteNome =
+          baixaveis[0]?.emitente?.razao_social ||
+          baixaveis[0]?.prestador?.razao_social ||
+          "CONDOCORP SERVICOS DE INTERMEDIACAO";
+
+        await downloadPdfNota({
+          tipo: "fatura",
+          idIntegracao: "",
+          fatura: faturaNumero,
+          emitente: emitenteNome,
+          nfs_emitidas: String(baixaveis.length)
+        });
+
+        enqueueSnackbar(`Download da fatura iniciado (${baixaveis.length} nota(s))!`, { variant: "success" });
+        return;
+      }
+
+      if (isNotaCancelada(item)) {
+        enqueueSnackbar("Nota cancelada (não disponível).", { variant: "info" });
+        return;
+      }
+
+      const idIntegracao = String(getIdIntegracao(item) || "");
+      if (!idIntegracao) {
+        enqueueSnackbar("Esta nota não possui idIntegracao para download.", { variant: "warning" });
+        return;
+      }
+
+      const emitenteNome =
+        item?.emitente?.razao_social ||
+        item?.prestador?.razao_social ||
+        "CONDOCORP SERVICOS DE INTERMEDIACAO";
+
+      await downloadPdfNota({
+        tipo: "individual",
+        idIntegracao,
+        fatura: String(item?.fatura || item?.numero_fatura || item?.numero || ""),
+        emitente: emitenteNome,
+        nfs_emitidas: "1"
+      });
+
+      enqueueSnackbar("Download iniciado!", { variant: "success" });
+    } catch (e) {
+      enqueueSnackbar(e?.message || "Erro ao gerar PDF", { variant: "error" });
+    } finally {
+      if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: false }));
+    }
+  };
+
+  const openModalCancel = (item, tipo) => {
+    const nfs =
+      tipo === "fatura_all"
+        ? toArray(item.notas).filter((n) => !isNotaCancelada(n)).filter(isNotaCancelavel) // ✅ não inclui canceladas
+        : [item];
+
+    const sists = toArray(nfs[0]?.sistemas || (nfs[0]?.status ? [nfs[0]] : []));
+    const opcoes = sists.filter((s) => s.status === "sucesso" && !s.cancelada).map((s) => s.nome);
+
+    const safeOpcoes = opcoes.length ? opcoes : ["prefeitura"];
+
+    setModal({
+      open: true,
+      target: tipo,
+      motivo: "",
+      sistema: safeOpcoes.length === 1 ? safeOpcoes[0] : "",
+      opcoes: safeOpcoes,
+      payload: {
+        tipo: tipo === "fatura_all" ? "fatura" : "individual",
+        idIntegracao: tipo === "fatura_all" ? "" : String(getIdIntegracao(item) || ""),
+        fatura: String(item?.numero || item?.fatura || item?.numero_fatura || ""),
+        emitente: nfs[0]?.emitente?.razao_social || "CONDOCORP SERVICOS DE INTERMEDIACAO",
+        nfs_emitidas: String(nfs.length),
+        faturaIdInternal: item?.id
+      }
+    });
+  };
+
+  const onConfirmCancel = async () => {
+    setModalLoading(true);
+
+    const { faturaIdInternal, ...restPayload } = modal.payload || {};
+
+    if (modal.target === "fatura_all" && faturaIdInternal) {
+      setCancelandoAll((p) => ({ ...p, [faturaIdInternal]: true }));
+    }
+
+    try {
+      await cancelarNota({
+        ...restPayload,
+        sistema: modal.sistema,
+        motivo: modal.motivo.trim()
+      });
+
+      enqueueSnackbar("Solicitação enviada com sucesso!", { variant: "success" });
+      setModal((m) => ({ ...m, open: false }));
+      await realizarBusca();
+    } catch {
+      enqueueSnackbar("Erro ao cancelar", { variant: "error" });
+    } finally {
+      setModalLoading(false);
+      if (modal.target === "fatura_all" && faturaIdInternal) {
+        setCancelandoAll((p) => ({ ...p, [faturaIdInternal]: false }));
+      }
+    }
+  };
+
   return (
     <div className="consultas">
       <h1 className="tittle-cons">Consultas</h1>
@@ -805,7 +784,6 @@ export default function Consultas() {
 
       {hasSearched && (
         <div className="card">
-          {/* ✅ AVISO DE REJEIÇÃO + BOTÃO BAIXAR RELATÓRIO */}
           {hasRejected && (
             <div
               style={{
