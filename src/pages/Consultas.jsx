@@ -211,7 +211,6 @@ function LinhaFatura({
 }) {
   const notasAll = toArray(fatura.notas);
 
-  // ✅ FILTRA CANCELADAS FORA DA TELA
   const notas = notasAll.filter((n) => !isNotaCancelada(n));
 
   const qtdNotas = notas.length;
@@ -440,6 +439,8 @@ export default function Consultas() {
 
   const isModoFatura = tipoBusca === "fatura";
 
+  const isModoFaturaUI = tipoBusca === "fatura" || tipoBusca === "nota";
+
   const realizarBusca = useCallback(async () => {
     const termo = textoDigitado.trim();
     if (termo.length < 3) return;
@@ -491,53 +492,57 @@ export default function Consultas() {
           enqueueSnackbar(res?.message || "Nenhuma nota encontrada", { variant: "info" });
         }
       } else {
+        
         const res = await getNotaPorID(termo);
         console.log("Resposta da API por ID:", res);
 
         if (res && res.status === "success" && res.nfse) {
-          // ✅ se a nota for cancelada, NÃO EXIBE NA TELA
           if (isNotaCancelada(res.nfse)) {
+            setFaturas([]);
             setDados([]);
             enqueueSnackbar("Nota cancelada (não exibida).", { variant: "info" });
           } else {
-            setDados([
+            const nfse = {
+              ...res.nfse,
+              id: res.nfse.id || termo,
+              id_integracao: res.nfse.id_integracao,
+              numero_nfse: res.nfse.numero_nfse,
+              fatura: res.nfse.fatura,
+              status: res.nfse.status,
+              situacao_prefeitura: res.nfse.situacao_prefeitura,
+              pdf_url_final: res.nfse.pdf_url_final,
+              valor_servico: res.nfse.valor_servico,
+              prestador: res.nfse.prestador,
+              tomador: res.nfse.tomador,
+              emitente: res.nfse.prestador,
+              logs: res.nfse.logs,
+              erros: res.nfse.erros,
+              motivo_erro: res.nfse.motivo_erro,
+              motivo_rejeicao: res.nfse.motivo_rejeicao,
+              motivo: res.nfse.motivo,
+              datas: res.nfse.datas
+            };
+
+            const faturaNumero = String(nfse.fatura || "—");
+            const fatId = faturaNumero !== "—" ? faturaNumero : String(nfse.id || termo);
+
+            setFaturas([
               {
-                id: res.nfse.id || termo,
-                faturamento: res.nfse.fatura || "—",
-                quando: res.nfse.datas?.criacao || null,
-                sistemas: [
-                  {
-                    nome: "Prefeitura",
-                    status: res.nfse.status === "CONCLUIDO" ? "sucesso" : "erro",
-                    protocolo: res.nfse.codigo_verificacao,
-                    motivo: res.nfse.situacao_prefeitura
-                  }
-                ],
-                id_integracao: res.nfse.id_integracao,
-                numero: res.nfse.numero_nfse,
-                fatura: res.nfse.fatura,
-                status: res.nfse.status,
-                situacao_prefeitura: res.nfse.situacao_prefeitura,
-                pdf_url_final: res.nfse.pdf_url_final,
-                valor_servico: res.nfse.valor_servico,
-                prestador: res.nfse.prestador,
-                tomador: res.nfse.tomador,
-                emitente: res.nfse.prestador,
-                logs: res.nfse.logs,
-                erros: res.nfse.erros,
-                motivo_erro: res.nfse.motivo_erro,
-                motivo_rejeicao: res.nfse.motivo_rejeicao,
-                motivo: res.nfse.motivo
+                id: fatId,
+                numero: faturaNumero !== "—" ? faturaNumero : fatId,
+                quando: nfse.datas?.criacao || null,
+                notas: [nfse]
               }
             ]);
+
+            setDados([]);
+            setExpanded(new Set());
           }
         } else {
+          setFaturas([]);
           setDados([]);
           enqueueSnackbar(res?.message || "Nota não encontrada", { variant: "info" });
         }
-
-        setFaturas([]);
-        setExpanded(new Set());
       }
 
       setHasSearched(true);
@@ -552,10 +557,10 @@ export default function Consultas() {
   const rejectedRows = useMemo(() => {
     const rows = [];
 
-    if (tipoBusca === "fatura") {
+    if (tipoBusca === "fatura" || tipoBusca === "nota") {
       for (const fat of toArray(faturas)) {
         const numeroFatura = String(fat?.numero || fat?.id || "");
-        const notasVisiveis = toArray(fat?.notas).filter((n) => !isNotaCancelada(n)); // ✅ não exporta canceladas
+        const notasVisiveis = toArray(fat?.notas).filter((n) => !isNotaCancelada(n)); 
 
         for (const n of notasVisiveis) {
           if (!isNotaRejeitada(n)) continue;
@@ -631,8 +636,7 @@ export default function Consultas() {
     }
   };
 
-  // ✅ FIX: no modo fatura, baixar tudo de uma vez com tipo "fatura"
-  const handleDownload = async (item, tipo) => {
+    const handleDownload = async (item, tipo) => {
     const isFatura = tipo === "fatura";
     const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
 
@@ -640,7 +644,7 @@ export default function Consultas() {
 
     try {
       if (isFatura) {
-        const notas = toArray(item?.notas).filter((n) => !isNotaCancelada(n)); // ✅ não tenta baixar canceladas
+        const notas = toArray(item?.notas).filter((n) => !isNotaCancelada(n));
         const baixaveis = notas.filter(isNotaBaixavel);
 
         if (!baixaveis.length) {
@@ -701,7 +705,7 @@ export default function Consultas() {
   const openModalCancel = (item, tipo) => {
     const nfs =
       tipo === "fatura_all"
-        ? toArray(item.notas).filter((n) => !isNotaCancelada(n)).filter(isNotaCancelavel) // ✅ não inclui canceladas
+        ? toArray(item.notas).filter((n) => !isNotaCancelada(n)).filter(isNotaCancelavel) 
         : [item];
 
     const sists = toArray(nfs[0]?.sistemas || (nfs[0]?.status ? [nfs[0]] : []));
@@ -817,7 +821,7 @@ export default function Consultas() {
 
           <table className="tabela tabela-accordion">
             <thead>
-              {isModoFatura ? (
+              {isModoFaturaUI ? (
                 <tr>
                   <th>Fatura</th>
                   <th>Resumo</th>
@@ -834,7 +838,7 @@ export default function Consultas() {
             </thead>
 
             <tbody>
-              {isModoFatura ? (
+              {isModoFaturaUI ? (
                 faturas.map((f) => (
                   <LinhaFatura
                     key={f.id}
