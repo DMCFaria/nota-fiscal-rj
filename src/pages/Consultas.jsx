@@ -2,7 +2,13 @@ import { useState, useCallback, useMemo } from "react";
 import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle } from "react-icons/fi";
 import { useSnackbar } from "notistack";
 import * as XLSX from "xlsx";
-import { getNotaPorFatura, downloadPdfNota, cancelarNota, getNotaPorID } from "../services/notas";
+import {
+  getNotaPorFatura,
+  downloadPdfNota,
+  cancelarNota,
+  getNotaPorID,
+  reemitirNota
+} from "../services/notas";
 import { fixBrokenLatin } from "../utils/normalizacao_textual";
 import "../styles/consultas.css";
 import "../styles/notaCard.css";
@@ -38,15 +44,6 @@ function isNotaCancelada(nota) {
   const st = normalizeStr(nota?.status).toLowerCase();
   const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
   return st === "cancelada" || sit === "cancelada";
-}
-
-function isNotaCancelavel(nota) {
-  if (isNotaCancelada(nota)) return false;
-
-  const sit = normalizeStr(nota?.situacao_prefeitura).toUpperCase();
-  const st = normalizeStr(nota?.status).toUpperCase();
-
-  return sit !== "CONCLUIDO" && st !== "PROCESSANDO";
 }
 
 function isNotaBaixavel(nota) {
@@ -88,6 +85,16 @@ function isNotaRejeitada(nota) {
     toArray(nota?.log).length > 0;
 
   return rejectedByStatus || rejectedBySituacao || (hasExplicitReason && (st === "erro" || st.includes("erro")));
+}
+
+function isNotaCancelavel(nota) {
+  if (isNotaCancelada(nota)) return false;
+    if (isNotaRejeitada(nota)) return false;
+
+  const sit = normalizeStr(nota?.situacao_prefeitura).toUpperCase();
+  const st = normalizeStr(nota?.status).toUpperCase();
+
+  return sit !== "CONCLUIDO" && st !== "PROCESSANDO";
 }
 
 function safeJsonParse(text) {
@@ -222,6 +229,27 @@ function flattenLogs(nota) {
     .join(" | ");
 }
 
+function getCepFromNota(nota) {
+  const t = nota?.tomador || {};
+  const endereco = t?.endereco || t?.endereco_tomador || {};
+  const raw =
+    endereco?.cep ||
+    endereco?.CEP ||
+    t?.cep ||
+    t?.CEP ||
+    nota?.cep_tomador ||
+    nota?.cep ||
+    "";
+
+  return String(raw || "").replace(/\D/g, "").slice(0, 8);
+}
+
+function formatCep(cepDigits) {
+  const d = String(cepDigits || "").replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
 function ModalConfirm({
   open,
   title,
@@ -286,7 +314,8 @@ function LinhaFatura({
   baixandoAll,
   onCancelarTodas,
   onCancelarUma,
-  cancelandoAll
+  cancelandoAll,
+  onTratarErro
 }) {
   const notasAll = toArray(fatura.notas);
   const notas = notasAll.filter((n) => !isNotaCancelada(n));
@@ -382,31 +411,40 @@ function LinhaFatura({
                           </td>
 
                           <td className="acoes-col" style={{ textAlign: "right" }}>
-                            <div style={{ display: "inline-flex", gap: 10 }}>
-                              <button
-                                type="button"
-                                className="btn btn-xs secondary"
-                                onClick={() => onBaixarUma(n)}
-                                disabled={!isNotaBaixavel(n)}
-                                title={
-                                  !isNotaBaixavel(n)
-                                    ? "PDF indisponível (sem idIntegracao) ou nota não concluída"
-                                    : "Baixar PDF"
-                                }
-                              >
-                                Baixar
+                            {rejeitada ? (
+                              <button 
+                              type="button" 
+                              className="btn btn-xs warning" 
+                              onClick={() => onTratarErro(n)}>
+                                Tratar erro
                               </button>
+                            ) : (
+                              <div style={{ display: "inline-flex", gap: 10 }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-xs secondary"
+                                  onClick={() => onBaixarUma(n)}
+                                  disabled={!isNotaBaixavel(n)}
+                                  title={
+                                    !isNotaBaixavel(n)
+                                      ? "PDF indisponível (sem idIntegracao) ou nota não concluída"
+                                      : "Baixar PDF"
+                                  }
+                                >
+                                  Baixar
+                                </button>
 
-                              <button
-                                type="button"
-                                className="btn btn-xs danger"
-                                onClick={() => onCancelarUma(n)}
-                                disabled={!isNotaCancelavel(n)}
-                                title={!isNotaCancelavel(n) ? "Nota não elegível para cancelamento" : "Cancelar esta nota"}
-                              >
-                                <FiXCircle /> Cancelar
-                              </button>
-                            </div>
+                                <button
+                                  type="button"
+                                  className="btn btn-xs danger"
+                                  onClick={() => onCancelarUma(n)}
+                                  disabled={!isNotaCancelavel(n)}
+                                  title={!isNotaCancelavel(n) ? "Nota não elegível para cancelamento" : "Cancelar esta nota"}
+                                >
+                                  <FiXCircle /> Cancelar
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -515,6 +553,13 @@ export default function Consultas() {
   const [baixandoAll, setBaixandoAll] = useState({});
   const [cancelandoAll, setCancelandoAll] = useState({});
   const [baixandoRelatorio, setBaixandoRelatorio] = useState(false);
+
+  const [tratarModal, setTratarModal] = useState({
+    open: false,
+    nota: null,
+    cep: ""
+  });
+  const [reemitindo, setReemitindo] = useState(false);
 
   const isModoFatura = tipoBusca === "fatura";
   const isModoFaturaUI = tipoBusca === "fatura" || tipoBusca === "nota";
@@ -757,6 +802,11 @@ export default function Consultas() {
         return;
       }
 
+      if (isNotaRejeitada(item)) {
+        enqueueSnackbar("Nota rejeitada: use “Tratar erro”.", { variant: "info" });
+        return;
+      }
+
       const idIntegracao = String(getIdIntegracao(item) || "");
       if (!idIntegracao) {
         enqueueSnackbar("Esta nota não possui idIntegracao para download.", { variant: "warning" });
@@ -843,6 +893,52 @@ export default function Consultas() {
       if (modal.target === "fatura_all" && faturaIdInternal) {
         setCancelandoAll((p) => ({ ...p, [faturaIdInternal]: false }));
       }
+    }
+  };
+
+  const openTratarErro = (nota) => {
+    const cepDigits = getCepFromNota(nota);
+    setTratarModal({
+      open: true,
+      nota,
+      cep: formatCep(cepDigits)
+    });
+  };
+
+  const onConfirmReemitir = async () => {
+    const nota = tratarModal.nota;
+    if (!nota) return;
+
+    const id_tecnospeed = String(getIdTecnospeed(nota) || "");
+    const cepDigits = String(tratarModal.cep || "").replace(/\D/g, "").slice(0, 8);
+
+    if (!id_tecnospeed) {
+      enqueueSnackbar("Não encontrei o id_tecnospeed dessa nota.", { variant: "error" });
+      return;
+    }
+
+    if (cepDigits.length !== 8) {
+      enqueueSnackbar("Informe um CEP válido (8 dígitos).", { variant: "warning" });
+      return;
+    }
+
+    setReemitindo(true);
+    try {
+
+      await reemitirNota({
+        id_integracao: getIdIntegracao(nota),
+        id_tecnospeed: getIdTecnospeed(nota),
+        cep: cepDigits
+      });
+
+
+      enqueueSnackbar("Reemissão solicitada com sucesso!", { variant: "success" });
+      setTratarModal({ open: false, nota: null, cep: "" });
+      await realizarBusca();
+    } catch (e) {
+      enqueueSnackbar(e?.message || "Erro ao reemitir", { variant: "error" });
+    } finally {
+      setReemitindo(false);
     }
   };
 
@@ -944,6 +1040,7 @@ export default function Consultas() {
                     onCancelarTodas={() => openModalCancel(f, "fatura_all")}
                     onCancelarUma={(n) => openModalCancel(n, "individual")}
                     cancelandoAll={!!cancelandoAll[f.id]}
+                    onTratarErro={openTratarErro}
                   />
                 ))
               ) : (
@@ -1001,6 +1098,36 @@ export default function Consultas() {
           value={modal.motivo}
           onChange={(e) => setModal({ ...modal, motivo: e.target.value })}
         />
+      </ModalConfirm>
+
+      <ModalConfirm
+        open={tratarModal.open}
+        title="Tratar erro da nota"
+        description="Ajuste o CEP do tomador e reemita a nota."
+        confirmLabel="Reemitir"
+        cancelLabel="Voltar"
+        variant="primary"
+        loading={reemitindo}
+        onConfirm={onConfirmReemitir}
+        onClose={() => !reemitindo && setTratarModal({ open: false, nota: null, cep: "" })}
+        confirmDisabled={String(tratarModal.cep || "").replace(/\D/g, "").length !== 8}
+      >
+        
+        <div style={{ marginTop: 12 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>CEP do tomador</label>
+          <input
+            className="select"
+            value={tratarModal.cep}
+            onChange={(e) =>
+              setTratarModal((p) => ({
+                ...p,
+                cep: formatCep(e.target.value)
+              }))
+            }
+            placeholder="00000-000"
+            inputMode="numeric"
+          />
+        </div>
       </ModalConfirm>
     </div>
   );
