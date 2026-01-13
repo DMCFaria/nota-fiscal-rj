@@ -1,13 +1,18 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle } from "react-icons/fi";
 import { useSnackbar } from "notistack";
-import { getNotaPorFatura, downloadPdfNota, cancelarNota, getNotaPorID  } from "../services/notas";
+import * as XLSX from "xlsx";
+import { getNotaPorFatura, downloadPdfNota, cancelarNota, getNotaPorID } from "../services/notas";
 import { fixBrokenLatin } from "../utils/normalizacao_textual";
 import "../styles/consultas.css";
 import "../styles/notaCard.css";
 import "../styles/status-badge.css";
 
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+
+function getIdIntegracao(nota) {
+  return nota?.id_integracao || nota?.idIntegracao || null;
+}
 
 function getNotaRef(nota) {
   return (
@@ -21,17 +26,21 @@ function getNotaRef(nota) {
   );
 }
 
+function normalizeStr(v) {
+  return String(v ?? "").trim();
+}
+
 function isNotaCancelavel(nota) {
-  const sit = String(nota?.situacao_prefeitura || "").toUpperCase();
-  const st = String(nota?.status || "").toUpperCase();
+  const sit = normalizeStr(nota?.situacao_prefeitura).toUpperCase();
+  const st = normalizeStr(nota?.status).toUpperCase();
   return sit !== "CANCELADA" && st !== "PROCESSANDO";
 }
 
 function isNotaBaixavel(nota) {
-  const st = String(nota?.status || "").toLowerCase();
-  const sit = String(nota?.situacao_prefeitura || "").toLowerCase();
+  const st = normalizeStr(nota?.status).toLowerCase();
+  const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
 
-  const okStatus = [
+  const concluida = [
     "sucesso",
     "autorizada",
     "concluido",
@@ -43,7 +52,93 @@ function isNotaBaixavel(nota) {
 
   const cancelada = sit === "cancelada" || st === "cancelada";
 
-  return !!getNotaRef(nota) && okStatus && !cancelada;
+  return !!getIdIntegracao(nota) && concluida && !cancelada;
+}
+
+function isNotaRejeitada(nota) {
+  const st = normalizeStr(nota?.status).toLowerCase();
+  const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
+
+  const rejectedByStatus =
+    st.includes("rejeit") ||
+    st.includes("recus") ||
+    st === "erro" ||
+    st === "falha" ||
+    st.includes("deneg") ||
+    st.includes("inval");
+
+  const rejectedBySituacao =
+    sit.includes("rejeit") ||
+    sit.includes("recus") ||
+    sit.includes("deneg") ||
+    sit.includes("inval");
+
+    const hasExplicitReason =
+    !!nota?.motivo ||
+    !!nota?.motivo_rejeicao ||
+    !!nota?.mensagem ||
+    !!nota?.erro ||
+    !!nota?.error ||
+    toArray(nota?.erros).length > 0 ||
+    toArray(nota?.logs).length > 0 ||
+    toArray(nota?.log).length > 0;
+
+  return rejectedByStatus || rejectedBySituacao || (hasExplicitReason && (st === "erro" || st.includes("erro")));
+}
+
+function extractRejectionReason(nota) {
+  const candidates = [
+    nota?.motivo_rejeicao,
+    nota?.motivo_erro,
+    nota?.motivo,
+    nota?.mensagem,
+    nota?.erro,
+    nota?.error,
+    nota?.situacao_prefeitura
+  ]
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter(Boolean);
+
+  if (candidates.length) return candidates[0];
+
+  const erros = toArray(nota?.erros);
+  if (erros.length) {
+    const first = erros[0];
+    if (typeof first === "string") return first;
+    if (first?.mensagem) return String(first.mensagem);
+    if (first?.message) return String(first.message);
+    return JSON.stringify(first);
+  }
+
+  const logs = toArray(nota?.logs || nota?.log);
+  if (logs.length) {
+    const last = logs[logs.length - 1];
+    if (typeof last === "string") return last;
+    if (last?.mensagem) return String(last.mensagem);
+    if (last?.message) return String(last.message);
+    if (last?.erro) return String(last.erro);
+    return JSON.stringify(last);
+  }
+
+  return "—";
+}
+
+function flattenLogs(nota) {
+  const logs = toArray(nota?.logs || nota?.log);
+  if (!logs.length) return "—";
+
+  return logs
+    .map((l) => {
+      if (typeof l === "string") return l;
+      const when = l?.quando || l?.data || l?.created_at || l?.timestamp;
+      const msg = l?.mensagem || l?.message || l?.erro || l?.descricao || "";
+      const st = l?.status || "";
+      const parts = [when ? `[${when}]` : "", st ? `(${st})` : "", msg].filter(Boolean);
+      return parts.join(" ");
+    })
+    .filter(Boolean)
+    .slice(0, 250) 
+    .join(" | ");
 }
 
 function ModalConfirm({
@@ -115,7 +210,10 @@ function LinhaFatura({
 }) {
   const notas = toArray(fatura.notas);
   const qtdNotas = notas.length;
+  const qtdBaixaveis = notas.filter(isNotaBaixavel).length;
   const hasCancelavel = notas.some(isNotaCancelavel);
+
+  const qtdRejeitadas = notas.filter(isNotaRejeitada).length;
 
   return (
     <>
@@ -128,12 +226,25 @@ function LinhaFatura({
         </td>
 
         <td className="fatura-resumo">
-          <span className="fatura-resumo-text">{qtdNotas} nota(s) vinculada(s)</span>
+          <span className="fatura-resumo-text">
+            {qtdNotas} nota(s) vinculada(s)
+            {qtdRejeitadas > 0 && (
+              <span style={{ marginLeft: 10, fontWeight: 600, color: "#b45309" }}>
+                • {qtdRejeitadas} rejeitada(s)
+              </span>
+            )}
+          </span>
         </td>
 
         <td className="acoes-col" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <button type="button" className="btn btn-xs" onClick={onBaixarTodas} disabled={!qtdNotas || baixandoAll}>
-            {baixandoAll ? "Baixando..." : "Baixar todas"}
+          <button
+            type="button"
+            className="btn btn-xs"
+            onClick={onBaixarTodas}
+            disabled={!qtdBaixaveis || baixandoAll}
+            title={!qtdBaixaveis ? "Nenhuma nota concluída ativa para baixar" : "Baixar PDFs das notas concluídas"}
+          >
+            {baixandoAll ? "Baixando..." : `Baixar todas (${qtdBaixaveis})`}
           </button>
 
           <button
@@ -163,54 +274,64 @@ function LinhaFatura({
                     </tr>
                   </thead>
 
-                  
-
                   <tbody>
-                    {notas.map((n, idx) => (
-                      <tr key={n.id ?? idx}>
-                        <td className="mono">{n.id || n.numero || "—"}</td>
+                    {notas.map((n, idx) => {
+                      const rejeitada = isNotaRejeitada(n);
+                      return (
+                        <tr key={n.id ?? idx} style={rejeitada ? { background: "rgba(245, 158, 11, 0.08)" } : undefined}>
+                          <td className="mono">{n.id || n.numero || "—"}</td>
 
-                        <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
+                          <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
 
-                        <td style={{ textAlign: "right" }}>
-                          {n.valor_servico
-                            ? `R$ ${parseFloat(n.valor_servico).toLocaleString("pt-BR", {
-                                minimumFractionDigits: 2
-                              })}`
-                            : "—"}
-                        </td>
+                          <td style={{ textAlign: "right" }}>
+                            {n.valor_servico
+                              ? `R$ ${parseFloat(n.valor_servico).toLocaleString("pt-BR", {
+                                  minimumFractionDigits: 2
+                                })}`
+                              : "—"}
+                          </td>
 
-                        <td>
-                          <span className={`status-badge status-${n.status?.toLowerCase() || "unknown"}`}>
-                            {n.status || "—"}
-                          </span>
-                        </td>
+                          <td>
+                            <span className={`status-badge status-${n.status?.toLowerCase() || "unknown"}`}>
+                              {n.status || "—"}
+                            </span>
+                            {rejeitada && (
+                              <div style={{ marginTop: 6, fontSize: 12, color: "#92400e" }}>
+                                Motivo: {extractRejectionReason(n)}
+                              </div>
+                            )}
+                          </td>
 
-                        <td className="acoes-col" style={{ textAlign: "right" }}>
-                          <div style={{ display: "inline-flex", gap: 10 }}>
-                            <button
-                              type="button"
-                              className="btn btn-xs secondary"
-                              onClick={() => onBaixarUma(n)}
-                              disabled={!isNotaBaixavel(n)}
-                              title={!isNotaBaixavel(n) ? "PDF indisponível ou nota ainda não concluída" : "Baixar PDF"}
-                            >
-                              Baixar
-                            </button>
+                          <td className="acoes-col" style={{ textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", gap: 10 }}>
+                              <button
+                                type="button"
+                                className="btn btn-xs secondary"
+                                onClick={() => onBaixarUma(n)}
+                                disabled={!isNotaBaixavel(n)}
+                                title={
+                                  !isNotaBaixavel(n)
+                                    ? "PDF indisponível (sem idIntegracao) ou nota não concluída"
+                                    : "Baixar PDF"
+                                }
+                              >
+                                Baixar
+                              </button>
 
-                            <button
-                              type="button"
-                              className="btn btn-xs danger"
-                              onClick={() => onCancelarUma(n)}
-                              disabled={!isNotaCancelavel(n)}
-                              title={!isNotaCancelavel(n) ? "Nota não elegível para cancelamento" : "Cancelar esta nota"}
-                            >
-                              <FiXCircle /> Cancelar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              <button
+                                type="button"
+                                className="btn btn-xs danger"
+                                onClick={() => onCancelarUma(n)}
+                                disabled={!isNotaCancelavel(n)}
+                                title={!isNotaCancelavel(n) ? "Nota não elegível para cancelamento" : "Cancelar esta nota"}
+                              >
+                                <FiXCircle /> Cancelar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
 
                     {!qtdNotas && (
                       <tr>
@@ -315,6 +436,8 @@ export default function Consultas() {
   const [baixandoAll, setBaixandoAll] = useState({});
   const [cancelandoAll, setCancelandoAll] = useState({});
 
+  const [baixandoRelatorio, setBaixandoRelatorio] = useState(false);
+
   const isModoFatura = tipoBusca === "fatura";
 
   const realizarBusca = useCallback(async () => {
@@ -327,80 +450,84 @@ export default function Consultas() {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
         console.log("Resposta da API por fatura:", res);
-        
-        // CORREÇÃO AQUI: Verifica se a resposta tem status "success"
+
         if (res && res.status === "success") {
-          // Se for do tipo "multiplas" com array de notas
           if (res.tipo === "multiplas" && Array.isArray(res.notas)) {
-            setFaturas([{
-              id: String(res.fatura || termo),
-              numero: String(res.fatura || termo),
-              quando: res.notas[0]?.datas?.criacao || null,
-              notas: res.notas.map(nota => ({
-                ...nota,
-                id: nota.id || nota.id_tecnospeed,
-                id_integracao: nota.id_integracao,
-                fatura: nota.fatura,
-                numero_nfse: nota.numero_nfse,
-                status: nota.status,
-                situacao_prefeitura: nota.situacao_prefeitura,
-                pdf_url_final: nota.pdf_url_final,
-                valor_servico: nota.valor_servico,
-                prestador: nota.prestador,
-                tomador: nota.tomador,
-                datas: nota.datas 
-              }))
-            }]);
-          } 
-          // Se for do tipo "unica" com um único nfse
-          else if (res.nfse) {
-            setFaturas([{
-              id: String(res.nfse.fatura || termo),
-              numero: String(res.nfse.fatura || termo),
-              quando: res.nfse.datas?.criacao || null,
-              notas: [res.nfse]
-            }]);
+            setFaturas([
+              {
+                id: String(res.fatura || termo),
+                numero: String(res.fatura || termo),
+                quando: res.notas[0]?.datas?.criacao || null,
+                notas: res.notas.map((nota) => ({
+                  ...nota,
+                  id: nota.id || nota.id_tecnospeed,
+                  id_integracao: nota.id_integracao,
+                  fatura: nota.fatura,
+                  numero_nfse: nota.numero_nfse,
+                  status: nota.status,
+                  situacao_prefeitura: nota.situacao_prefeitura,
+                  pdf_url_final: nota.pdf_url_final,
+                  valor_servico: nota.valor_servico,
+                  prestador: nota.prestador,
+                  tomador: nota.tomador,
+                  datas: nota.datas
+                }))
+              }
+            ]);
+          } else if (res.nfse) {
+            setFaturas([
+              {
+                id: String(res.nfse.fatura || termo),
+                numero: String(res.nfse.fatura || termo),
+                quando: res.nfse.datas?.criacao || null,
+                notas: [res.nfse]
+              }
+            ]);
           }
           setDados([]);
         } else {
-          // Se não teve sucesso ou resposta vazia
           setFaturas([]);
           setDados([]);
           enqueueSnackbar(res?.message || "Nenhuma nota encontrada", { variant: "info" });
         }
       } else {
-        // Busca por ID/Número da Nota
         const res = await getNotaPorID(termo);
         console.log("Resposta da API por ID:", res);
-        
+
         if (res && res.status === "success" && res.nfse) {
-          // Formata o dado para o componente LinhaNota
-          setDados([{
-            id: res.nfse.id || termo,
-            faturamento: res.nfse.fatura || "—",
-            quando: res.nfse.datas?.criacao || null,
-            sistemas: [{
-              nome: "Prefeitura",
-              status: res.nfse.status === "CONCLUIDO" ? "sucesso" : "erro",
-              protocolo: res.nfse.codigo_verificacao,
-              motivo: res.nfse.situacao_prefeitura
-            }],
-            // Dados para cancelamento
-            id_integracao: res.nfse.id_integracao,
-            numero: res.nfse.numero_nfse,
-            fatura: res.nfse.fatura,
-            status: res.nfse.status,
-            situacao_prefeitura: res.nfse.situacao_prefeitura,
-            pdf_url_final: res.nfse.pdf_url_final,
-            valor_servico: res.nfse.valor_servico,
-            prestador: res.nfse.prestador,
-            tomador: res.nfse.tomador,
-            emitente: res.nfse.prestador
-          }]);
+          setDados([
+            {
+              id: res.nfse.id || termo,
+              faturamento: res.nfse.fatura || "—",
+              quando: res.nfse.datas?.criacao || null,
+              sistemas: [
+                {
+                  nome: "Prefeitura",
+                  status: res.nfse.status === "CONCLUIDO" ? "sucesso" : "erro",
+                  protocolo: res.nfse.codigo_verificacao,
+                  motivo: res.nfse.situacao_prefeitura
+                }
+              ],
+              id_integracao: res.nfse.id_integracao,
+              numero: res.nfse.numero_nfse,
+              fatura: res.nfse.fatura,
+              status: res.nfse.status,
+              situacao_prefeitura: res.nfse.situacao_prefeitura,
+              pdf_url_final: res.nfse.pdf_url_final,
+              valor_servico: res.nfse.valor_servico,
+              prestador: res.nfse.prestador,
+              tomador: res.nfse.tomador,
+              emitente: res.nfse.prestador,
+              // logs/erros se vierem também serão aproveitados no relatório
+              logs: res.nfse.logs,
+              erros: res.nfse.erros
+            }
+          ]);
         } else {
           setDados([]);
           enqueueSnackbar(res?.message || "Nota não encontrada", { variant: "info" });
         }
+
         setFaturas([]);
         setExpanded(new Set());
       }
@@ -414,6 +541,20 @@ export default function Consultas() {
     }
   }, [textoDigitado, isModoFatura, enqueueSnackbar]);
 
+  /**
+   * ✅ DOWNLOAD:
+   * - tipo "fatura": baixa TODAS as notas baixáveis (ativas + concluídas) como downloads INDIVIDUAIS
+   * - tipo "individual": baixa UMA nota
+   *
+   * ✅ Payload sempre no formato esperado pelo backend:
+   * {
+   *   tipo: "individual",
+   *   idIntegracao: "...",
+   *   fatura: "...",
+   *   emitente: "...",
+   *   nfs_emitidas: "1"
+   * }
+   */
   const handleDownload = async (item, tipo) => {
     const isFatura = tipo === "fatura";
     const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
@@ -421,25 +562,70 @@ export default function Consultas() {
     if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: true }));
 
     try {
-      const nfs = isFatura ? toArray(item.notas) : [item];
+      if (isFatura) {
+        const notas = toArray(item?.notas);
+        const baixaveis = notas.filter(isNotaBaixavel);
 
-      const payload = {
-        tipo: tipo,
-        idIntegracao: isFatura ? "" : String(getNotaRef(item) || ""),
-        fatura: String(item?.numero || item?.fatura || item?.numero_fatura || ""),
-        emitente: nfs[0]?.emitente?.razao_social || "CONDOCORP SERVICOS DE INTERMEDIACAO",
-        nfs_emitidas: String(nfs.length)
-      };
+        if (!baixaveis.length) {
+          enqueueSnackbar("Nenhuma nota concluída ativa disponível para download.", { variant: "info" });
+          return;
+        }
 
-      if (!isFatura && !payload.idIntegracao) {
-        enqueueSnackbar("Não foi possível identificar a nota para download.", { variant: "warning" });
+        const faturaNumero = String(item?.numero || item?.fatura || item?.numero_fatura || "");
+        const emitenteNome =
+          baixaveis[0]?.emitente?.razao_social ||
+          baixaveis[0]?.prestador?.razao_social ||
+          "CONDOCORP SERVICOS DE INTERMEDIACAO";
+
+        const results = await Promise.allSettled(
+          baixaveis.map((n) =>
+            downloadPdfNota({
+              tipo: "individual",
+              idIntegracao: String(getIdIntegracao(n) || ""),
+              fatura: faturaNumero,
+              emitente: emitenteNome,
+              nfs_emitidas: "1"
+            })
+          )
+        );
+
+        const ok = results.filter((r) => r.status === "fulfilled").length;
+        const fail = results.length - ok;
+
+        if (ok && !fail) {
+          enqueueSnackbar(`Download iniciado para ${ok} nota(s)!`, { variant: "success" });
+        } else if (ok && fail) {
+          enqueueSnackbar(`Downloads iniciados: ${ok}. Falharam: ${fail}.`, { variant: "warning" });
+        } else {
+          enqueueSnackbar("Erro ao gerar PDF das notas concluídas.", { variant: "error" });
+        }
+
         return;
       }
 
-      await downloadPdfNota(payload);
+      // Individual
+      const idIntegracao = String(getIdIntegracao(item) || "");
+      if (!idIntegracao) {
+        enqueueSnackbar("Esta nota não possui idIntegracao para download.", { variant: "warning" });
+        return;
+      }
+
+      const emitenteNome =
+        item?.emitente?.razao_social ||
+        item?.prestador?.razao_social ||
+        "CONDOCORP SERVICOS DE INTERMEDIACAO";
+
+      await downloadPdfNota({
+        tipo: "individual",
+        idIntegracao,
+        fatura: String(item?.fatura || item?.numero_fatura || item?.numero || ""),
+        emitente: emitenteNome,
+        nfs_emitidas: "1"
+      });
+
       enqueueSnackbar("Download iniciado!", { variant: "success" });
-    } catch {
-      enqueueSnackbar("Erro ao gerar PDF", { variant: "error" });
+    } catch (e) {
+      enqueueSnackbar(e?.message || "Erro ao gerar PDF", { variant: "error" });
     } finally {
       if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: false }));
     }
@@ -463,7 +649,7 @@ export default function Consultas() {
       opcoes: safeOpcoes,
       payload: {
         tipo: tipo === "fatura_all" ? "fatura" : "individual",
-        idIntegracao: tipo === "fatura_all" ? "" : String(getNotaRef(item) || ""),
+        idIntegracao: tipo === "fatura_all" ? "" : String(getIdIntegracao(item) || ""),
         fatura: String(item?.numero || item?.fatura || item?.numero_fatura || ""),
         emitente: nfs[0]?.emitente?.razao_social || "CONDOCORP SERVICOS DE INTERMEDIACAO",
         nfs_emitidas: String(nfs.length),
@@ -501,6 +687,95 @@ export default function Consultas() {
     }
   };
 
+  /**
+   * ✅ Monta linhas do relatório a partir das notas carregadas (faturas ou nota individual).
+   * A ideia é: se está rejeitada, a gente exporta “o que tiver”.
+   */
+  const rejectedRows = useMemo(() => {
+    const rows = [];
+
+    // modo fatura: varre todas as notas
+    if (tipoBusca === "fatura") {
+      for (const fat of toArray(faturas)) {
+        const numeroFatura = String(fat?.numero || fat?.id || "");
+        const notas = toArray(fat?.notas);
+
+        for (const n of notas) {
+          if (!isNotaRejeitada(n)) continue;
+
+          rows.push({
+            fatura: numeroFatura || String(n?.fatura || ""),
+            idIntegracao: String(getIdIntegracao(n) || ""),
+            numero_nfse: String(n?.numero_nfse || n?.numero || ""),
+            tomador: fixBrokenLatin(n?.tomador?.razao_social) || "—",
+            valor_servico: n?.valor_servico ?? "",
+            status: String(n?.status || ""),
+            situacao_prefeitura: String(n?.situacao_prefeitura || ""),
+            motivo: extractRejectionReason(n),
+            logs: flattenLogs(n)
+          });
+        }
+      }
+      return rows;
+    }
+
+    // modo nota: usa o primeiro item em dados (se existir) como nota base
+    const item = toArray(dados)[0];
+    if (!item) return rows;
+
+    // o "item" do modo nota é uma versão “formatada”; mas ele também carrega campos da nfse
+    const baseNota = item;
+    if (isNotaRejeitada(baseNota)) {
+      rows.push({
+        fatura: String(baseNota?.fatura || baseNota?.faturamento || ""),
+        idIntegracao: String(getIdIntegracao(baseNota) || ""),
+        numero_nfse: String(baseNota?.numero || ""),
+        tomador: fixBrokenLatin(baseNota?.tomador?.razao_social) || "—",
+        valor_servico: baseNota?.valor_servico ?? "",
+        status: String(baseNota?.status || ""),
+        situacao_prefeitura: String(baseNota?.situacao_prefeitura || ""),
+        motivo: extractRejectionReason(baseNota),
+        logs: flattenLogs(baseNota)
+      });
+    }
+
+    return rows;
+  }, [faturas, dados, tipoBusca]);
+
+  const hasRejected = rejectedRows.length > 0;
+
+  const baixarRelatorioRejeitadas = async () => {
+    try {
+      setBaixandoRelatorio(true);
+
+      if (!rejectedRows.length) {
+        enqueueSnackbar("Nenhuma rejeição encontrada para exportar.", { variant: "info" });
+        return;
+      }
+
+      const ws = XLSX.utils.json_to_sheet(rejectedRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Rejeitadas");
+
+      const now = new Date();
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(
+        2,
+        "0"
+      )}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+
+      const nameBase = tipoBusca === "fatura" ? "relatorio_rejeitadas_fatura" : "relatorio_rejeitadas_nota";
+      const fileName = `${nameBase}_${stamp}.xlsx`;
+
+      XLSX.writeFile(wb, fileName);
+      enqueueSnackbar("Relatório gerado com sucesso!", { variant: "success" });
+    } catch (e) {
+      console.error(e);
+      enqueueSnackbar(e?.message || "Erro ao gerar relatório", { variant: "error" });
+    } finally {
+      setBaixandoRelatorio(false);
+    }
+  };
+
   return (
     <div className="consultas">
       <h1 className="tittle-cons">Consultas</h1>
@@ -530,6 +805,38 @@ export default function Consultas() {
 
       {hasSearched && (
         <div className="card">
+          {/* ✅ AVISO DE REJEIÇÃO + BOTÃO BAIXAR RELATÓRIO */}
+          {hasRejected && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "12px 14px",
+                marginBottom: 12,
+                borderRadius: 12,
+                border: "1px solid rgba(245, 158, 11, 0.35)",
+                background: "rgba(245, 158, 11, 0.10)"
+              }}
+            >
+              <div style={{ color: "#92400e" }}>
+                <strong>Atenção:</strong> encontramos <strong>{rejectedRows.length}</strong> item(ns) rejeitado(s).{" "}
+                <span style={{ opacity: 0.9 }}>Baixe o relatório para o time conferir e corrigir.</span>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-xs secondary"
+                onClick={baixarRelatorioRejeitadas}
+                disabled={baixandoRelatorio}
+                title="Baixar relatório (.xlsx) com as notas rejeitadas e detalhes"
+              >
+                {baixandoRelatorio ? "Gerando..." : "Baixar relatório"}
+              </button>
+            </div>
+          )}
+
           <table className="tabela tabela-accordion">
             <thead>
               {isModoFatura ? (
