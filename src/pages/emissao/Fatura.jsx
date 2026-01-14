@@ -423,9 +423,7 @@ export default function EmissaoPorFatura() {
             <div className="fc-preview">
               <div className="fc-preview-header">
                 <h2 className="fc-preview-title">Conferência de Dados</h2>
-                <div className="fc-preview-badge">
-                  {preview.length} {preview.length === 1 ? "NOTA" : "NOTAS"}
-                </div>
+              
               </div>
 
               <div className="fc-grid">

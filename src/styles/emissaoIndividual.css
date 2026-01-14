@@ -4,6 +4,7 @@
   --ind-primary-light: #eff6ff;
 
   --ind-success: #10b981;
+  --ind-success-hover: #10b981;
   --ind-success-light: #d1fae5;
 
   --ind-error: #ef4444;
@@ -552,4 +553,20 @@
   .ind-preview .ind-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.ind-btn--success {
+  background: linear-gradient(135deg, var(--ind-success), #0ea371);
+  color: #fff;
+}
+
+.ind-btn--success:hover:not(:disabled),
+.ind-btn--success:focus-visible:not(:disabled) {
+  background: linear-gradient(135deg, #059669, #047857);
+  filter: none; 
+}
+
+.ind-btn--success:focus-visible:not(:disabled) {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22);
 }
