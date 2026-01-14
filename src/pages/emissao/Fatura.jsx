@@ -6,13 +6,14 @@ import {
   iniciarEmissao,
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
-import { useSnackbar } from 'notistack';
+import { useSnackbar } from "notistack";
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
 
 export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
   const [fatura, setFatura] = useState("");
+  const [parcelada, setParcelada] = useState(false); 
   const [observacao, setObservacao] = useState("");
   const [codigoServico, setCodigoServico] = useState("170901");
 
@@ -22,109 +23,110 @@ export default function EmissaoPorFatura() {
   const [loadingEmitir, setLoadingEmitir] = useState(false);
   const [empresaData, setEmpresaData] = useState([]);
   const [progresso, setProgresso] = useState(0);
-  
+
   const { enqueueSnackbar } = useSnackbar();
 
   // Precisa ter empresa, fatura E observação para gerar
   // const podeGerar = useMemo(() => {
-  //   return !!empresa && 
-  //          !!fatura.trim() && 
+  //   return !!empresa &&
+  //          !!fatura.trim() &&
   //          !!observacao.trim() && observacao.trim().length >= 10 &&
   //          fatura.trim().length >= 6; // Valida que tem pelo menos 6 dígitos
   // }, [empresa, fatura, observacao]);
 
-const podeGerar = useMemo(() => {
-  return !!empresa && 
-         !!fatura.trim() && 
-         fatura.trim().length >= 6;
-}, [empresa, fatura]);
-  
+  const podeGerar = useMemo(() => {
+    return !!empresa &&
+      !!fatura.trim() &&
+      fatura.trim().length >= 6;
+  }, [empresa, fatura]);
+
   const podeEmitir = useMemo(
     () => !!preview && !loadingGerar && !loadingEmitir,
     [preview, loadingGerar, loadingEmitir]
   );
 
-  const pushLog = useCallback((msg, tipo = 'info') => {
+  const pushLog = useCallback((msg, tipo = "info") => {
     const timestamp = new Date().toLocaleTimeString();
-    const tipoPrefix = tipo === 'erro' ? '❌ ERRO' : 
-                      tipo === 'sucesso' ? '✅ SUCESSO' : 
-                      tipo === 'alerta' ? '⚠️ ALERTA' : 'ℹ️ INFO';
-    
+    const tipoPrefix =
+      tipo === "erro" ? "❌ ERRO" :
+        tipo === "sucesso" ? "✅ SUCESSO" :
+          tipo === "alerta" ? "⚠️ ALERTA" : "ℹ️ INFO";
+
     setLogs((prev) =>
       [...prev, `[${timestamp}] ${tipoPrefix}: ${msg}`].slice(-200)
     );
   }, []);
 
   const mostrarErro = useCallback((mensagem, detalhes = null) => {
-    enqueueSnackbar(mensagem, { 
-      variant: 'error',
+    enqueueSnackbar(mensagem, {
+      variant: "error",
       autoHideDuration: 5000,
-      anchorOrigin: { vertical: 'top', horizontal: 'right' }
+      anchorOrigin: { vertical: "top", horizontal: "right" }
     });
-    
-    pushLog(mensagem, 'erro');
-    
+
+    pushLog(mensagem, "erro");
+
     if (detalhes) {
-      console.error('Detalhes do erro:', detalhes);
+      console.error("Detalhes do erro:", detalhes);
       // Se houver mais detalhes, adiciona como log secundário
-      if (typeof detalhes === 'object') {
-        pushLog(`Detalhes: ${JSON.stringify(detalhes)}`, 'erro');
+      if (typeof detalhes === "object") {
+        pushLog(`Detalhes: ${JSON.stringify(detalhes)}`, "erro");
       } else {
-        pushLog(`Detalhes: ${detalhes}`, 'erro');
+        pushLog(`Detalhes: ${detalhes}`, "erro");
       }
     }
   }, [enqueueSnackbar, pushLog]);
 
   const mostrarSucesso = useCallback((mensagem) => {
-    enqueueSnackbar(mensagem, { 
-      variant: 'success',
+    enqueueSnackbar(mensagem, {
+      variant: "success",
       autoHideDuration: 3000,
-      anchorOrigin: { vertical: 'top', horizontal: 'right' }
+      anchorOrigin: { vertical: "top", horizontal: "right" }
     });
-    pushLog(mensagem, 'sucesso');
+    pushLog(mensagem, "sucesso");
   }, [enqueueSnackbar, pushLog]);
 
   const mostrarInfo = useCallback((mensagem) => {
-    enqueueSnackbar(mensagem, { 
-      variant: 'info',
+    enqueueSnackbar(mensagem, {
+      variant: "info",
       autoHideDuration: 4000,
-      anchorOrigin: { vertical: 'top', horizontal: 'right' }
+      anchorOrigin: { vertical: "top", horizontal: "right" }
     });
-    pushLog(mensagem, 'info');
+    pushLog(mensagem, "info");
   }, [enqueueSnackbar, pushLog]);
 
   const handleGerar = useCallback(
     async (e) => {
       e?.preventDefault();
-      
+
       // Validações detalhadas
       if (!empresa) {
-        mostrarErro('Selecione uma empresa para continuar');
+        mostrarErro("Selecione uma empresa para continuar");
         return;
       }
-      
+
       if (!fatura.trim()) {
-        mostrarErro('Informe o número da fatura');
+        mostrarErro("Informe o número da fatura");
         return;
       }
-      
+
       if (fatura.trim().length < 6) {
-        mostrarErro('O número da fatura deve ter pelo menos 6 dígitos');
+        mostrarErro("O número da fatura deve ter pelo menos 6 dígitos");
         return;
       }
-      
+
       // if (!observacao.trim()) {
       //   mostrarErro('A observação da nota é obrigatória');
       //   return;
       // }
-      
+
       // if (observacao.trim().length < 10) {
       //   mostrarErro('A observação deve ter pelo menos 10 caracteres');
       //   return;
       // }
-      
+
       if (!empresa.CNPJ || !empresa.CEDENTE) {
-        mostrarErro('Dados da empresa incompletos. Selecione novamente.');
+        mostrarErro("Dados da empresa incompletos. Selecione novamente.");
         return;
       }
 
@@ -142,56 +144,57 @@ const podeGerar = useMemo(() => {
           razaoSocial: empresa.CEDENTE,
           observacao: observacao.trim(),
           parcela: 1,
-          codigo: codigoServico
+          codigo: codigoServico,
+
+          parcelada: !!parcelada
         };
 
         const response = await getNfsePreview(payload);
 
-        console.log("response", response.data)
+        console.log("response", response.data);
 
         if (response.sucesso) {
           setPreview(response.data);
-          mostrarSucesso('Dados carregados com sucesso! Verifique abaixo antes de emitir.');
-          
-          // Adiciona informações detalhadas no log
-          pushLog(`Prévia gerada: ${response.data.length} nota(s) fiscal(is) encontrada(s)`, 'sucesso');
+          mostrarSucesso("Dados carregados com sucesso! Verifique abaixo antes de emitir.");
+
+          pushLog(`Prévia gerada: ${response.data.length} nota(s) fiscal(is) encontrada(s)`, "sucesso");
           const valorTotal = response.data.reduce(
             (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
             0
           );
-          pushLog(`Valor total: R$ ${valorTotal.toFixed(2)}`, 'sucesso');
-          
+          pushLog(`Valor total: R$ ${valorTotal.toFixed(2)}`, "sucesso");
+
         } else {
           const erroMsg = response?.erro || "Falha ao obter prévia da nota.";
-          
+
           // Tratamento específico para erros comuns
-          if (erroMsg.includes('fatura') && erroMsg.includes('não encontrada')) {
+          if (erroMsg.includes("fatura") && erroMsg.includes("não encontrada")) {
             mostrarErro(`Fatura ${fatura} não encontrada no sistema`);
-          } else if (erroMsg.includes('CNPJ') || erroMsg.includes('prestador')) {
-            mostrarErro('Problema com os dados do prestador. Verifique a empresa selecionada.');
-          } else if (erroMsg.includes('serviço') || erroMsg.includes('código')) {
-            mostrarErro('Código de serviço inválido ou não configurado para esta empresa');
+          } else if (erroMsg.includes("CNPJ") || erroMsg.includes("prestador")) {
+            mostrarErro("Problema com os dados do prestador. Verifique a empresa selecionada.");
+          } else if (erroMsg.includes("serviço") || erroMsg.includes("código")) {
+            mostrarErro("Código de serviço inválido ou não configurado para esta empresa");
           } else {
-            mostrarErro('Erro ao gerar prévia', erroMsg);
+            mostrarErro("Erro ao gerar prévia", erroMsg);
           }
         }
       } catch (err) {
-        let mensagemErro = 'Erro ao conectar com o serviço';
-        
-        if (err.message?.includes('Network Error') || err.message?.includes('timeout')) {
-          mensagemErro = 'Falha na conexão com o servidor. Verifique sua internet e tente novamente.';
+        let mensagemErro = "Erro ao conectar com o serviço";
+
+        if (err.message?.includes("Network Error") || err.message?.includes("timeout")) {
+          mensagemErro = "Falha na conexão com o servidor. Verifique sua internet e tente novamente.";
         } else if (err.response?.status === 500) {
-          mensagemErro = 'Erro interno do servidor. Tente novamente mais tarde.';
+          mensagemErro = "Erro interno do servidor. Tente novamente mais tarde.";
         } else if (err.response?.status === 404) {
-          mensagemErro = 'Serviço temporariamente indisponível';
+          mensagemErro = "Serviço temporariamente indisponível";
         }
-        
+
         mostrarErro(mensagemErro, err.message);
       } finally {
         setLoadingGerar(false);
       }
     },
-    [empresa, fatura, observacao, codigoServico, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]
+    [empresa, fatura, observacao, codigoServico, parcelada, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]
   );
 
   const handleEmitir = useCallback(async () => {
@@ -216,42 +219,42 @@ const podeGerar = useMemo(() => {
       if (res.status === "sucesso") {
         setProgresso(100);
         mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
-        pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, 'sucesso');
-        pushLog(`ID do lote: ${res.protocolo_id || 'N/A'}`, 'info');
-        
-        // Limpa o formulário após sucesso
+        pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, "sucesso");
+        pushLog(`ID do lote: ${res.protocolo_id || "N/A"}`, "info");
+
         setTimeout(() => {
           setFatura("");
+          setParcelada(false);
           setObservacao("");
           setPreview(null);
           setProgresso(0);
         }, 2000);
-        
+
       } else {
         const erroMsg = res?.erro || "Erro desconhecido ao enviar lote.";
-        
+
         // Tratamento específico para erros de emissão
-        if (erroMsg.includes('valid')) {
-          mostrarErro('Erro de validação nos dados da nota. Verifique a prévia.');
-        } else if (erroMsg.includes('conexão') || erroMsg.includes('API')) {
-          mostrarErro('Erro na conexão com o serviço de emissão. Tente novamente.');
-        } else if (erroMsg.includes('limite') || erroMsg.includes('quota')) {
-          mostrarErro('Limite de emissões atingido. Tente novamente mais tarde.');
+        if (erroMsg.includes("valid")) {
+          mostrarErro("Erro de validação nos dados da nota. Verifique a prévia.");
+        } else if (erroMsg.includes("conexão") || erroMsg.includes("API")) {
+          mostrarErro("Erro na conexão com o serviço de emissão. Tente novamente.");
+        } else if (erroMsg.includes("limite") || erroMsg.includes("quota")) {
+          mostrarErro("Limite de emissões atingido. Tente novamente mais tarde.");
         } else {
-          mostrarErro('Falha ao enviar lote para emissão', erroMsg);
+          mostrarErro("Falha ao enviar lote para emissão", erroMsg);
         }
       }
     } catch (err) {
-      let mensagemErro = 'Erro ao processar emissão';
-      
-      if (err.message?.includes('Network Error')) {
-        mensagemErro = 'Falha na conexão. Verifique sua internet e tente novamente.';
+      let mensagemErro = "Erro ao processar emissão";
+
+      if (err.message?.includes("Network Error")) {
+        mensagemErro = "Falha na conexão. Verifique sua internet e tente novamente.";
       } else if (err.response?.status === 429) {
-        mensagemErro = 'Muitas requisições. Aguarde um momento antes de tentar novamente.';
+        mensagemErro = "Muitas requisições. Aguarde um momento antes de tentar novamente.";
       } else if (err.response?.status === 503) {
-        mensagemErro = 'Serviço de emissão temporariamente indisponível.';
+        mensagemErro = "Serviço de emissão temporariamente indisponível.";
       }
-      
+
       mostrarErro(mensagemErro, err.message);
     } finally {
       setLoadingEmitir(false);
@@ -264,7 +267,7 @@ const podeGerar = useMemo(() => {
         const response = await getEmpresas();
         setEmpresaData(response.data || []);
       } catch (error) {
-        mostrarErro('Erro ao carregar empresas', error.message);
+        mostrarErro("Erro ao carregar empresas", error.message);
         console.error("Erro ao carregar empresas:", error);
       }
     };
@@ -272,8 +275,7 @@ const podeGerar = useMemo(() => {
   }, [mostrarErro, mostrarInfo]);
 
   const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
-  
-  // Classes CSS baseadas nas validações
+
   const gerarBtnClass = useMemo(() => {
     const base = "fc-btn fc-btn--primary fc-btn--full";
     const desabilitado = !podeGerar || loadingGerar || loadingEmitir;
@@ -325,6 +327,22 @@ const podeGerar = useMemo(() => {
                   onChange={(e) => setFatura(e.target.value.replace(/[^\d]/g, ""))}
                   maxLength={10}
                 />
+              </div>
+
+              <div className="fc-input-group fc-input-group--narrow">
+                <label className="fc-input-label"> </label>
+                <div className="fc-row fc-row--flag">
+                  <label className="fc-flag">
+                    <input
+                      className="fc-checkbox"
+                      type="checkbox"
+                      checked={parcelada}
+                      onChange={(e) => setParcelada(e.target.checked)}
+                      disabled={loadingGerar || loadingEmitir}
+                    />
+                    <span className="fc-flag-text">Fatura parcelada</span>
+                  </label>
+                </div>
               </div>
 
               {isCondomed && (
@@ -406,7 +424,7 @@ const podeGerar = useMemo(() => {
               <div className="fc-preview-header">
                 <h2 className="fc-preview-title">Conferência de Dados</h2>
                 <div className="fc-preview-badge">
-                  {preview.length} {preview.length === 1 ? 'NOTA' : 'NOTAS'}
+                  {preview.length} {preview.length === 1 ? "NOTA" : "NOTAS"}
                 </div>
               </div>
 

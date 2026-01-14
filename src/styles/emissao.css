@@ -86,6 +86,7 @@ button {
   letter-spacing: -0.025em;
 }
 
+.fc-subtitle,
 .fc-subtitle-muted {
   margin: 0.5rem 0 0;
   font-size: 0.95rem;
@@ -98,7 +99,7 @@ button {
   margin: var(--fc-gap) 0;
 }
 
-.fc-header+.fc-section {
+.fc-header + .fc-section {
   margin-top: 1.25rem;
 }
 
@@ -110,7 +111,7 @@ button {
   overflow: hidden;
 }
 
-.fc-section>* {
+.fc-section > * {
   width: 100%;
   max-width: 100%;
 }
@@ -121,7 +122,7 @@ button {
   max-width: 100%;
 }
 
-.fc-section:first-of-type>* {
+.fc-section:first-of-type > * {
   padding: 0.9rem 1rem;
   background: linear-gradient(180deg, #ffffff 0%, var(--color-bg-secondary) 100%);
   border: 1px solid var(--color-border);
@@ -299,11 +300,11 @@ button {
   box-shadow: none !important;
 }
 
-.fc-section:nth-of-type(2)>* {
+.fc-section:nth-of-type(2) > * {
   width: 100%;
 }
 
-.fc-section:nth-of-type(2)>*:first-child {
+.fc-section:nth-of-type(2) > *:first-child {
   padding: 1rem;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
@@ -484,4 +485,35 @@ button {
 
 .fc-footer .fc-btn.fc-btn--success:hover:not(.fc-btn--disabled) {
   border: none;
+}
+
+.fc-input-group--narrow .fc-input-label {
+  height: 18px;
+}
+
+.fc-row--flag {
+  min-height: 44px;
+  align-items: center;
+}
+
+.fc-flag {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.75rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fc-flag:hover {
+  border-color: #d1d5db;
+}
+
+.fc-flag:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.fc-flag-text {
+  font-weight: 700;
 }
