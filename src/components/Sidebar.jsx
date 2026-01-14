@@ -57,9 +57,9 @@ function Sidebar() {
               {/* <Link to="/emissao/rps" className={isActive("/emissao/rps")}>
                 RPS
               </Link> */}
-              <Link to="/emissao/individual" className={isActive("/emissao/individual")}>
+              {/* <Link to="/emissao/individual" className={isActive("/emissao/individual")}>
                 Individual
-              </Link>
+              </Link> */}
             </div>
           )}
         </div>
