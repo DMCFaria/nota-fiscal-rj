@@ -305,7 +305,7 @@ export default function EmissaoPorRps() {
               )}
             </div>
 
-            <div className="fc-input-group">
+            {/* <div className="fc-input-group">
               <label className="fc-input-label">
                 Observação
               </label>
@@ -320,7 +320,7 @@ export default function EmissaoPorRps() {
               <div className="fc-input-help">
                 {observacao.length}/500 caracteres
               </div>
-            </div>
+            </div> */}
 
             <button
               className={gerarBtnClass}
