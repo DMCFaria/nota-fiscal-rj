@@ -305,6 +305,23 @@ function Badge({ status, substituida }) {
   );
 }
 
+function formatDataHoraBR(value, options = {}) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    ...options
+  });
+}
+
+
 function LinhaFatura({
   fatura,
   isOpen,
@@ -328,6 +345,7 @@ function LinhaFatura({
   return (
     <>
       <tr className={`accordion-row ${isOpen ? "open" : ""}`}>
+        
         <td className="mono">
           <button type="button" className="accordion-toggle" onClick={onToggle}>
             <span className="chev">{isOpen ? <FiChevronDown /> : <FiChevronRight />}</span>
@@ -376,6 +394,7 @@ function LinhaFatura({
                     <tr>
                       <th style={{ width: 130 }}>Nº DA NOTA</th>
                       <th>TOMADOR</th>
+                      <th>DATA</th>
                       <th style={{ width: 120, textAlign: "right" }}>VALOR</th>
                       <th style={{ width: 160 }}>STATUS</th>
                       <th style={{ width: 260, textAlign: "right" }}>AÇÕES</th>
@@ -388,9 +407,12 @@ function LinhaFatura({
 
                       return (
                         <tr key={n.id ?? idx} style={rejeitada ? { background: "rgba(245, 158, 11, 0.08)" } : undefined}>
+                          {console.log("data", n)}
                           <td className="mono">{n.id || n.numero || "—"}</td>
 
                           <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
+                          
+                          <td>{formatDataHoraBR(n.datas?.criacao)}</td>
 
                           <td style={{ textAlign: "right" }}>
                             {n.valor_servico
@@ -574,14 +596,19 @@ export default function Consultas() {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
 
+        const notasOrdenadas = [...res.notas].sort(
+          (a, b) =>
+            new Date(b?.datas?.criacao || 0) - new Date(a?.datas?.criacao || 0)
+        );
+
         if (res && res.status === "success") {
           if (res.tipo === "multiplas" && Array.isArray(res.notas)) {
             setFaturas([
               {
                 id: String(res.fatura || termo),
                 numero: String(res.fatura || termo),
-                quando: res.notas[0]?.datas?.criacao || null,
-                notas: res.notas.map((nota) => ({
+                quando: notasOrdenadas[0]?.datas?.criacao || null,
+                notas: notasOrdenadas.map((nota) => ({
                   ...nota,
                   id: nota.id || nota.id_tecnospeed,
                   id_tecnospeed: nota.id_tecnospeed || nota.id || nota.idTecnospeed,
