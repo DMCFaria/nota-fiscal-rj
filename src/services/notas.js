@@ -16,7 +16,6 @@ export const getNotaPorIdOuProtocolo = async (idNota) => {
 // Notas
 export const getNotaPorFatura = async (numero_fatura) => {
   try {
-    // const response = await axios.get(`http://localhost:8000/api/consultas/nfse/consulta-nota-por-fatura/${numero_fatura}/`);
     const response = await api.get(`/api/consultas/nfse/consulta-nota-por-fatura/${numero_fatura}/`);
     return response.data;
   } catch (error) {
@@ -27,11 +26,24 @@ export const getNotaPorFatura = async (numero_fatura) => {
 
 export const getNotaPorID = async (id_tecnospeed) => {
   try {
-    // const response = await axios.get(`http://localhost:8000/api/consultas/nfse/consulta-nota-por-id/${id_tecnospeed}/`);
     const response = await api.get(`/api/consultas/nfse/consulta-nota-por-id/${id_tecnospeed}/`);
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar nota:", error);
+    throw error;
+  }
+};
+
+/** Sincronizar */
+export const sincronizarNotas = async ({ tipo, termo }) => {
+  try {
+    const t = String(termo ?? "").trim();
+    if (!t) throw new Error("Informe um termo para sincronizar.");
+    
+    const response = await api.get(`/api/consultas/nfse/sincronizar/${tipo}/${encodeURIComponent(t)}/`);
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao sincronizar notas:", error);
     throw error;
   }
 };
@@ -77,10 +89,8 @@ export const downloadPdfNota = async (payload) => {
       }
     });
 
-    // Verificação de segurança: se for JSON (erro), o byteLength será pequeno
     const blob = new Blob([response.data], { type: "application/pdf" });
 
-    // Teste rápido: se o PDF está vindo em branco, tente verificar o tamanho no console
     console.log("Tamanho do Blob gerado:", blob.size);
 
     if (blob.size < 1000) {
@@ -98,7 +108,6 @@ export const downloadPdfNota = async (payload) => {
     document.body.appendChild(link);
     link.click();
 
-    // Limpeza com delay para garantir o clique
     setTimeout(() => {
       link.remove();
       window.URL.revokeObjectURL(url);
@@ -110,7 +119,6 @@ export const downloadPdfNota = async (payload) => {
 };
 
 export const cancelarNota = async (notasArray) => {
-  
   const payload =
     Array.isArray(notasArray)
       ? { notas: notasArray }
@@ -124,7 +132,6 @@ export const cancelarNota = async (notasArray) => {
 // função: reemitir nota (usada no "Tratar erro")
 export const reemitirNota = async (payload) => {
   try {
-    
     const response = await n8n.post("webhook/reemitir-nfse", {
       id_integracao: payload?.id_integracao ?? payload?.idIntegracao ?? "",
       id_tecnospeed: payload?.id_tecnospeed ?? payload?.idTecnospeed ?? payload?.id ?? "",
