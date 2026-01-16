@@ -7,9 +7,9 @@ export const getNfsePreview = async (payload) => {
     const response = await api.post("/api/nfse/preview/", payload);
     return response.data
   } catch (err) {
-    console.error("Falha ao gerar Preview", err)
+    console.error("Falha ao gerar Preview", response)
+    throw err
   }
-  return response.data;
 };
 
 // 2. Iniciar: Envia o lote para emissão
@@ -20,7 +20,6 @@ export const iniciarEmissao = async (notas) => {
   } catch (error){
      console.error("Falha ao emitir nota", error)
   }
-  return response.data;
 };
 
 export const processarArquivoRPSNfse = async (formData) => {

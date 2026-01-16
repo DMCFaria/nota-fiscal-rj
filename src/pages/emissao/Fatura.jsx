@@ -151,7 +151,7 @@ export default function EmissaoPorFatura() {
 
         const response = await getNfsePreview(payload);
 
-        console.log("response", response.data);
+        console.log("PREVIEW GERADO", response.data);
 
         if (response.sucesso) {
           setPreview(response.data);
@@ -213,8 +213,14 @@ export default function EmissaoPorFatura() {
 
     mostrarInfo("Iniciando emissão da nota fiscal...");
 
+    const notaFinal = preview.map(nota => ({
+      ...nota,
+      fatura_numero: fatura
+    }))
+
     try {
-      const res = await iniciarEmissao(preview);
+      const res = await iniciarEmissao(notaFinal);
+      console.log("RESULTADO DA EMISSÃO", res);
 
       if (res.status === "sucesso") {
         setProgresso(100);
