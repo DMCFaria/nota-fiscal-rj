@@ -57,9 +57,9 @@ function Sidebar() {
               {/* <Link to="/emissao/rps" className={isActive("/emissao/rps")}>
                 RPS
               </Link> */}
-              {/* <Link to="/emissao/individual" className={isActive("/emissao/individual")}>
+               {/* <Link to="/emissao/individual" className={isActive("/emissao/individual")}>
                 Individual
-              </Link> */}
+              </Link>  */}
             </div>
           )}
         </div>
@@ -67,8 +67,8 @@ function Sidebar() {
         <Link to="/consultas" className={isActive("/consultas")}>
           <FiSearch className="icon" /> Consultar
         </Link>
-{/*         
-        <Link to="/historico" className={isActive("/historico")}>
+              
+        {/* <Link to="/historico" className={isActive("/historico")}>
           <FiClock className="icon" /> Histórico
         </Link> */}
 

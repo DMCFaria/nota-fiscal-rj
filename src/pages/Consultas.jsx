@@ -454,6 +454,7 @@ function LinhaFatura({
 
                       return (
                         <tr key={n.id ?? idx} style={rejeitada ? { background: "rgba(245, 158, 11, 0.08)" } : undefined}>
+                          {/* {console.log("data", n)} */}
                           <td className="mono">{n.id || n.numero || "—"}</td>
 
                           <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
@@ -661,9 +662,16 @@ export default function Consultas() {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
 
-        const notasOrdenadas = [...res.notas].sort(
-          (a, b) => new Date(b?.datas?.criacao || 0) - new Date(a?.datas?.criacao || 0)
-        );
+        console.log("res", res)
+
+        const notasOrdenadas =
+        res.tipo === "multiplas" && Array.isArray(res.notas)
+          ? [...res.notas].sort(
+              (a, b) =>
+                new Date(b?.datas?.criacao || 0) -
+                new Date(a?.datas?.criacao || 0)
+            )
+          : [];
 
         if (res && res.status === "success") {
           if (res.tipo === "multiplas" && Array.isArray(res.notas)) {
