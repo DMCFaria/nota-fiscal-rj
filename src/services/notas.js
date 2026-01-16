@@ -108,7 +108,7 @@ export const downloadPdfNota = async (payload) => {
 
     const fileName =
       payload.tipo === "fatura"
-        ? `FATURA_${payload.fatura}.pdf`
+        ? `NFSE_FATURA_${payload.fatura}.pdf`
         : `NFSE_${payload.idIntegracao}.pdf`;
 
     link.setAttribute("download", fileName);
