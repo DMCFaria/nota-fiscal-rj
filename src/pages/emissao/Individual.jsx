@@ -430,7 +430,7 @@ export default function EmissaoIndividual() {
               </div>
             </section>
 
-            <section className="ind-section">
+            {/* <section className="ind-section">
               <div className="ind-section__header">
                 <h2 className="ind-section__title">Valores da nota</h2>
                 <p className="ind-section__hint">O valor total precisa ser maior que zero.</p>
@@ -521,7 +521,7 @@ export default function EmissaoIndividual() {
                   </div>
                 </div>
               </div>
-            </section>
+            </section> */}
 
             <button
               className={gerarBtnClass}

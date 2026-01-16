@@ -19,14 +19,14 @@ export default function EmissaoPorRps() {
   const [loadingEmitir, setLoadingEmitir] = useState(false);
   const [empresaData, setEmpresaData] = useState([]);
   const [progresso, setProgresso] = useState(0);
-  
+
   const { enqueueSnackbar } = useSnackbar();
 
   // Precisa ter empresa e arquivo para gerar
   const podeGerar = useMemo(() => {
     return !!empresa && !!arquivo;
   }, [empresa, arquivo]);
-  
+
   const podeEmitir = useMemo(
     () => !!preview && preview.length > 0 && !loadingGerar && !loadingEmitir,
     [preview, loadingGerar, loadingEmitir]
@@ -34,24 +34,24 @@ export default function EmissaoPorRps() {
 
   const pushLog = useCallback((msg, tipo = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
-    const tipoPrefix = tipo === 'erro' ? '❌ ERRO' : 
-                      tipo === 'sucesso' ? '✅ SUCESSO' : 
-                      tipo === 'alerta' ? '⚠️ ALERTA' : 'ℹ️ INFO';
-    
+    const tipoPrefix = tipo === 'erro' ? '❌ ERRO' :
+      tipo === 'sucesso' ? '✅ SUCESSO' :
+        tipo === 'alerta' ? '⚠️ ALERTA' : 'ℹ️ INFO';
+
     setLogs((prev) =>
       [...prev, `[${timestamp}] ${tipoPrefix}: ${msg}`].slice(-200)
     );
   }, []);
 
   const mostrarErro = useCallback((mensagem, detalhes = null) => {
-    enqueueSnackbar(mensagem, { 
+    enqueueSnackbar(mensagem, {
       variant: 'error',
       autoHideDuration: 5000,
       anchorOrigin: { vertical: 'top', horizontal: 'right' }
     });
-    
+
     pushLog(mensagem, 'erro');
-    
+
     if (detalhes) {
       console.error('Detalhes do erro:', detalhes);
       if (typeof detalhes === 'object') {
@@ -63,7 +63,7 @@ export default function EmissaoPorRps() {
   }, [enqueueSnackbar, pushLog]);
 
   const mostrarSucesso = useCallback((mensagem) => {
-    enqueueSnackbar(mensagem, { 
+    enqueueSnackbar(mensagem, {
       variant: 'success',
       autoHideDuration: 3000,
       anchorOrigin: { vertical: 'top', horizontal: 'right' }
@@ -72,7 +72,7 @@ export default function EmissaoPorRps() {
   }, [enqueueSnackbar, pushLog]);
 
   const mostrarInfo = useCallback((mensagem) => {
-    enqueueSnackbar(mensagem, { 
+    enqueueSnackbar(mensagem, {
       variant: 'info',
       autoHideDuration: 4000,
       anchorOrigin: { vertical: 'top', horizontal: 'right' }
@@ -83,18 +83,18 @@ export default function EmissaoPorRps() {
   const handleGerar = useCallback(
     async (e) => {
       e?.preventDefault();
-      
+
       // Validações detalhadas
       if (!empresa) {
         mostrarErro('Selecione uma empresa para continuar');
         return;
       }
-      
+
       if (!arquivo) {
         mostrarErro('Selecione um arquivo para importar');
         return;
       }
-      
+
       if (!empresa.CNPJ || !empresa.CEDENTE) {
         mostrarErro('Dados da empresa incompletos. Selecione novamente.');
         return;
@@ -120,17 +120,17 @@ export default function EmissaoPorRps() {
         if (response.data.sucesso) {
           setPreview(response.data.data);
           mostrarSucesso('Arquivo processado com sucesso! Verifique abaixo antes de emitir.');
-          
+
           pushLog(`Prévia gerada: ${response.data.data.length} nota(s) fiscal(is) encontrada(s)`, 'sucesso');
           const valorTotal = response.data.data.reduce(
             (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
             0
           );
           pushLog(`Valor total: R$ ${valorTotal.toFixed(2)}`, 'sucesso');
-          
+
         } else {
           const erroMsg = response.data?.error || "Falha ao processar o arquivo.";
-          
+
           if (erroMsg.includes('Nenhuma linha válida')) {
             mostrarErro('Arquivo vazio ou sem linhas válidas');
           } else if (erroMsg.includes('formato') || erroMsg.includes('CSV')) {
@@ -141,7 +141,7 @@ export default function EmissaoPorRps() {
         }
       } catch (err) {
         let mensagemErro = 'Erro ao conectar com o serviço';
-        
+
         if (err.message?.includes('Network Error') || err.message?.includes('timeout')) {
           mensagemErro = 'Falha na conexão com o servidor. Verifique sua internet e tente novamente.';
         } else if (err.response?.status === 500) {
@@ -149,7 +149,7 @@ export default function EmissaoPorRps() {
         } else if (err.response?.status === 404) {
           mensagemErro = 'Serviço temporariamente indisponível';
         }
-        
+
         mostrarErro(mensagemErro, err.message);
       } finally {
         setLoadingGerar(false);
@@ -182,7 +182,7 @@ export default function EmissaoPorRps() {
         mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
         pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, 'sucesso');
         pushLog(`ID do lote: ${res.protocolo || 'N/A'}`, 'info');
-        
+
         // Limpa o formulário após sucesso
         setTimeout(() => {
           setArquivo(null);
@@ -190,10 +190,10 @@ export default function EmissaoPorRps() {
           setPreview(null);
           setProgresso(0);
         }, 2000);
-        
+
       } else {
         const erroMsg = res?.erro || "Erro desconhecido ao enviar lote.";
-        
+
         if (erroMsg.includes('valid')) {
           mostrarErro('Erro de validação nos dados da nota. Verifique a prévia.');
         } else if (erroMsg.includes('conexão') || erroMsg.includes('API')) {
@@ -206,7 +206,7 @@ export default function EmissaoPorRps() {
       }
     } catch (err) {
       let mensagemErro = 'Erro ao processar emissão';
-      
+
       if (err.message?.includes('Network Error')) {
         mensagemErro = 'Falha na conexão. Verifique sua internet e tente novamente.';
       } else if (err.response?.status === 429) {
@@ -214,7 +214,7 @@ export default function EmissaoPorRps() {
       } else if (err.response?.status === 503) {
         mensagemErro = 'Serviço de emissão temporariamente indisponível.';
       }
-      
+
       mostrarErro(mensagemErro, err.message);
     } finally {
       setLoadingEmitir(false);
@@ -235,7 +235,7 @@ export default function EmissaoPorRps() {
   }, [mostrarErro, mostrarInfo]);
 
   const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
-  
+
   // Classes CSS baseadas nas validações
   const gerarBtnClass = useMemo(() => {
     const base = "fc-btn fc-btn--primary fc-btn--full";
