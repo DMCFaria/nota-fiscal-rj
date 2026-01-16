@@ -7,7 +7,8 @@ import {
   downloadPdfNota,
   cancelarNota,
   getNotaPorID,
-  reemitirNota
+  reemitirNota,
+  sincronizarNotas
 } from "../services/notas";
 import { fixBrokenLatin } from "../utils/normalizacao_textual";
 import "../styles/consultas.css";
@@ -46,10 +47,6 @@ function isNotaCancelada(nota) {
   return st === "cancelada" || sit === "cancelada";
 }
 
-/**
- * ✅ Concluída = “autorizada/emitida/concluída/sucesso” etc.
- * (não depende de idIntegracao)
- */
 function isNotaConcluida(nota) {
   if (!nota) return false;
   if (isNotaCancelada(nota)) return false;
@@ -77,16 +74,16 @@ function isNotaConcluida(nota) {
   ].includes(sit);
 
   const concluidaIncludes =
-    st.includes("conclu") || st.includes("autoriz") || st.includes("emitid") ||
-    sit.includes("conclu") || sit.includes("autoriz") || sit.includes("emitid");
+    st.includes("conclu") ||
+    st.includes("autoriz") ||
+    st.includes("emitid") ||
+    sit.includes("conclu") ||
+    sit.includes("autoriz") ||
+    sit.includes("emitid");
 
   return concluidaByStatus || concluidaBySituacao || concluidaIncludes;
 }
 
-/**
- * ✅ Baixável = concluída + tem idIntegracao + não cancelada
- * (isso é “download”, não é “concluída”)
- */
 function isNotaBaixavel(nota) {
   const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
   const st = normalizeStr(nota?.status).toLowerCase();
@@ -150,15 +147,49 @@ function safeJsonParse(text) {
   }
 }
 
+function deepJsonParse(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+
+  const first = safeJsonParse(s);
+  if (first !== null) {
+    if (typeof first === "string") {
+      const second = safeJsonParse(first);
+      if (second !== null) return second;
+    }
+    return first;
+  }
+
+  if (s.includes('\\"')) {
+    const unescaped = s.replace(/\\\\/g, "\\").replace(/\\"/g, '"');
+    const attempt = safeJsonParse(unescaped);
+    if (attempt !== null) return attempt;
+  }
+
+  try {
+    const wrapped = `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+    const unwrapped = JSON.parse(wrapped);
+    const attempt = safeJsonParse(unwrapped);
+    if (attempt !== null) return attempt;
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
 function pickJsonInsideText(text) {
   const s = String(text || "").trim();
   if (!s) return null;
+
+  const direct = deepJsonParse(s);
+  if (direct) return direct;
 
   const firstArr = s.indexOf("[");
   const lastArr = s.lastIndexOf("]");
   if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
     const candidate = s.slice(firstArr, lastArr + 1);
-    const parsed = safeJsonParse(candidate);
+    const parsed = deepJsonParse(candidate);
     if (parsed) return parsed;
   }
 
@@ -166,11 +197,11 @@ function pickJsonInsideText(text) {
   const lastObj = s.lastIndexOf("}");
   if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
     const candidate = s.slice(firstObj, lastObj + 1);
-    const parsed = safeJsonParse(candidate);
+    const parsed = deepJsonParse(candidate);
     if (parsed) return parsed;
   }
 
-  return safeJsonParse(s);
+  return null;
 }
 
 function simplifyDescricao(desc) {
@@ -212,8 +243,24 @@ function formatTecnospeedError(err) {
   }
 
   if (typeof err === "object") {
-    const descricao = err.Descricao || err.descricao || err.message || err.mensagem || err.erro;
+    const descricao =
+      err?.error?.message ||
+      err?.error?.mensagem ||
+      err?.message ||
+      err?.mensagem ||
+      err?.Descricao ||
+      err?.descricao ||
+      err?.erro;
+
     if (descricao) return simplifyDescricao(descricao);
+
+    const nested =
+      err?.data?.new?.message ||
+      err?.data?.new?.mensagem ||
+      err?.data?.message ||
+      err?.data?.mensagem;
+
+    if (nested) return simplifyDescricao(nested);
 
     const anyString = Object.values(err).find((v) => typeof v === "string" && v.trim());
     if (anyString) return simplifyDescricao(anyString);
@@ -222,6 +269,30 @@ function formatTecnospeedError(err) {
   }
 
   return simplifyDescricao(String(err));
+}
+
+function getFriendlyApiErrorMessage(e) {
+  const data = e?.response?.data;
+  const status = e?.response?.status;
+
+  const msgFromData =
+    data?.error?.message ||
+    data?.error?.mensagem ||
+    data?.message ||
+    data?.mensagem ||
+    null;
+
+  const msgFromStringData = typeof data === "string" ? formatTecnospeedError(data) : null;
+  const msgFromMessage = e?.message ? formatTecnospeedError(e.message) : null;
+
+  const msg = msgFromData || msgFromStringData || msgFromMessage || "Erro inesperado.";
+
+  if (status === 409) {
+    if (String(msg).toLowerCase().includes("já existe")) return msg;
+    return "Já existe uma NFS-e com os parâmetros informados (conflito 409).";
+  }
+
+  return msg;
 }
 
 function extractRejectionReason(nota) {
@@ -366,6 +437,36 @@ function formatDataHoraBR(value, options = {}) {
   });
 }
 
+function buildNotasPayloadFromTela({ tipoBusca, faturas, dados }) {
+  if (tipoBusca === "fatura" || tipoBusca === "nota") {
+    const notas = [];
+    for (const fat of toArray(faturas)) {
+      for (const n of toArray(fat?.notas)) {
+        if (!n) continue;
+
+        notas.push({
+          id_tecnospeed: getIdTecnospeed(n),
+          id_integracao: getIdIntegracao(n),
+          protocolo: n?.protocolo,
+          numero: n?.numero_nfse || n?.numero || n?.id,
+          fatura: n?.fatura || fat?.numero || fat?.id
+        });
+      }
+    }
+    return { notas: notas.filter((x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero) };
+  }
+
+  const notas = toArray(dados).map((n) => ({
+    id_tecnospeed: getIdTecnospeed(n),
+    id_integracao: getIdIntegracao(n),
+    protocolo: n?.protocolo,
+    numero: n?.numero_nfse || n?.numero || n?.id,
+    fatura: n?.fatura || n?.faturamento
+  }));
+
+  return { notas: notas.filter((x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero) };
+}
+
 function LinhaFatura({
   fatura,
   isOpen,
@@ -450,7 +551,10 @@ function LinhaFatura({
                       const rejeitada = isNotaRejeitada(n);
 
                       return (
-                        <tr key={n.id ?? idx} style={rejeitada ? { background: "rgba(245, 158, 11, 0.08)" } : undefined}>
+                        <tr
+                          key={n.id ?? idx}
+                          style={rejeitada ? { background: "rgba(245, 158, 11, 0.08)" } : undefined}
+                        >
                           <td className="mono">{n.id || n.numero || "—"}</td>
 
                           <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
@@ -623,11 +727,9 @@ export default function Consultas() {
   });
   const [reemitindo, setReemitindo] = useState(false);
 
-  // ✅ novo: loading específico do botão “Sincronizar”
   const [sincronizando, setSincronizando] = useState(false);
 
-  // ✅ filtro clicável no resumo
-  const [filtroResumo, setFiltroResumo] = useState("todas"); // "todas" | "concluidas" | "pendentes" | "rejeitadas"
+  const [filtroResumo, setFiltroResumo] = useState("todas"); 
 
   const isModoFatura = tipoBusca === "fatura";
   const isModoFaturaUI = tipoBusca === "fatura" || tipoBusca === "nota";
@@ -661,15 +763,9 @@ export default function Consultas() {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
 
-        console.log("res", res);
-
         const notasOrdenadas =
           res.tipo === "multiplas" && Array.isArray(res.notas)
-            ? [...res.notas].sort(
-                (a, b) =>
-                  new Date(b?.datas?.criacao || 0) -
-                  new Date(a?.datas?.criacao || 0)
-              )
+            ? [...res.notas].sort((a, b) => new Date(b?.datas?.criacao || 0) - new Date(a?.datas?.criacao || 0))
             : [];
 
         if (res && res.status === "success") {
@@ -775,26 +871,41 @@ export default function Consultas() {
       setExpandedFat(new Set());
     } catch (error) {
       console.error("Erro na consulta:", error);
-      enqueueSnackbar("Erro na conexão com o servidor", { variant: "error" });
+      enqueueSnackbar(getFriendlyApiErrorMessage(error), { variant: "error" });
     } finally {
       setLoading(false);
     }
   }, [textoDigitado, isModoFatura, enqueueSnackbar]);
 
-  // ✅ novo: botão “Sincronizar” (reexecuta a busca atual)
   const handleSincronizar = useCallback(async () => {
     if (loading || sincronizando) return;
 
-    const termo = textoDigitado.trim();
-    if (!termo) return;
+    if (!hasSearched) {
+      enqueueSnackbar("Faça uma busca antes de sincronizar.", { variant: "info" });
+      return;
+    }
 
     setSincronizando(true);
     try {
+      const payload = buildNotasPayloadFromTela({ tipoBusca, faturas, dados });
+
+      if (!payload?.notas?.length) {
+        enqueueSnackbar("Nenhuma nota encontrada para sincronizar.", { variant: "info" });
+        return;
+      }
+
+      await sincronizarNotas(payload);
+
+      enqueueSnackbar(`Sincronização solicitada (${payload.notas.length} item(ns)).`, { variant: "success" });
+
       await realizarBusca();
+    } catch (e) {
+      console.error("Erro ao sincronizar:", e);
+      enqueueSnackbar(getFriendlyApiErrorMessage(e), { variant: "error" });
     } finally {
       setSincronizando(false);
     }
-  }, [loading, sincronizando, textoDigitado, realizarBusca]);
+  }, [loading, sincronizando, hasSearched, tipoBusca, faturas, dados, enqueueSnackbar, realizarBusca]);
 
   const rejectedRows = useMemo(() => {
     const rows = [];
@@ -895,7 +1006,7 @@ export default function Consultas() {
       enqueueSnackbar("Relatório gerado com sucesso!", { variant: "success" });
     } catch (e) {
       console.error(e);
-      enqueueSnackbar(e?.message || "Erro ao gerar relatório", { variant: "error" });
+      enqueueSnackbar(getFriendlyApiErrorMessage(e), { variant: "error" });
     } finally {
       setBaixandoRelatorio(false);
     }
@@ -966,7 +1077,7 @@ export default function Consultas() {
 
       enqueueSnackbar("Download iniciado!", { variant: "success" });
     } catch (e) {
-      enqueueSnackbar(e?.message || "Erro ao gerar PDF", { variant: "error" });
+      enqueueSnackbar(getFriendlyApiErrorMessage(e), { variant: "error" });
     } finally {
       if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: false }));
     }
@@ -1025,7 +1136,7 @@ export default function Consultas() {
       setModal((m) => ({ ...m, open: false }));
       await realizarBusca();
     } catch (e) {
-      enqueueSnackbar(e?.message || "Erro ao cancelar", { variant: "error" });
+      enqueueSnackbar(getFriendlyApiErrorMessage(e), { variant: "error" });
     } finally {
       setModalLoading(false);
       if (modal.target === "fatura_all" && faturaIdInternal) {
@@ -1072,7 +1183,7 @@ export default function Consultas() {
       setTratarModal({ open: false, nota: null, cep: "" });
       await realizarBusca();
     } catch (e) {
-      enqueueSnackbar(e?.message || "Erro ao reemitir", { variant: "error" });
+      enqueueSnackbar(getFriendlyApiErrorMessage(e), { variant: "error" });
     } finally {
       setReemitindo(false);
     }
@@ -1107,8 +1218,8 @@ export default function Consultas() {
             type="button"
             className="btn btn-sync"
             onClick={handleSincronizar}
-            disabled={loading || sincronizando || !textoDigitado.trim()}
-            title="Recarregar e sincronizar os dados dessa busca"
+            disabled={loading || sincronizando || !hasSearched}
+            title="Sincronizar as notas do resultado atual e recarregar"
             style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
           >
             <FiRefreshCw />
