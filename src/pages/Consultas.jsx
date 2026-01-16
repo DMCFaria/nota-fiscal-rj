@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle } from "react-icons/fi";
+import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle, FiRefreshCw } from "react-icons/fi";
 import { useSnackbar } from "notistack";
 import * as XLSX from "xlsx";
 import {
@@ -76,7 +76,6 @@ function isNotaConcluida(nota) {
     "emitido"
   ].includes(sit);
 
-  // alguns retornos vêm como “CONCLUIDO” etc.
   const concluidaIncludes =
     st.includes("conclu") || st.includes("autoriz") || st.includes("emitid") ||
     sit.includes("conclu") || sit.includes("autoriz") || sit.includes("emitid");
@@ -383,8 +382,6 @@ function LinhaFatura({
   const notas = notasAll.filter((n) => !isNotaCancelada(n));
 
   const qtdNotas = notas.length;
-
-  // download usa “baixável”, não “concluída”
   const qtdBaixaveis = notas.filter(isNotaBaixavel).length;
 
   const hasCancelavel = notas.some(isNotaCancelavel);
@@ -454,7 +451,6 @@ function LinhaFatura({
 
                       return (
                         <tr key={n.id ?? idx} style={rejeitada ? { background: "rgba(245, 158, 11, 0.08)" } : undefined}>
-                          {/* {console.log("data", n)} */}
                           <td className="mono">{n.id || n.numero || "—"}</td>
 
                           <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
@@ -627,6 +623,9 @@ export default function Consultas() {
   });
   const [reemitindo, setReemitindo] = useState(false);
 
+  // ✅ novo: loading específico do botão “Sincronizar”
+  const [sincronizando, setSincronizando] = useState(false);
+
   // ✅ filtro clicável no resumo
   const [filtroResumo, setFiltroResumo] = useState("todas"); // "todas" | "concluidas" | "pendentes" | "rejeitadas"
 
@@ -649,7 +648,7 @@ export default function Consultas() {
 
   const toggleFiltro = useCallback((novo) => {
     setFiltroResumo((atual) => (atual === novo ? "todas" : novo));
-    setExpandedFat(new Set()); // fecha pra não “ficar preso” em fatura que some ao filtrar
+    setExpandedFat(new Set());
   }, []);
 
   const realizarBusca = useCallback(async () => {
@@ -662,16 +661,16 @@ export default function Consultas() {
       if (isModoFatura) {
         const res = await getNotaPorFatura(termo);
 
-        console.log("res", res)
+        console.log("res", res);
 
         const notasOrdenadas =
-        res.tipo === "multiplas" && Array.isArray(res.notas)
-          ? [...res.notas].sort(
-              (a, b) =>
-                new Date(b?.datas?.criacao || 0) -
-                new Date(a?.datas?.criacao || 0)
-            )
-          : [];
+          res.tipo === "multiplas" && Array.isArray(res.notas)
+            ? [...res.notas].sort(
+                (a, b) =>
+                  new Date(b?.datas?.criacao || 0) -
+                  new Date(a?.datas?.criacao || 0)
+              )
+            : [];
 
         if (res && res.status === "success") {
           if (res.tipo === "multiplas" && Array.isArray(res.notas)) {
@@ -782,6 +781,21 @@ export default function Consultas() {
     }
   }, [textoDigitado, isModoFatura, enqueueSnackbar]);
 
+  // ✅ novo: botão “Sincronizar” (reexecuta a busca atual)
+  const handleSincronizar = useCallback(async () => {
+    if (loading || sincronizando) return;
+
+    const termo = textoDigitado.trim();
+    if (!termo) return;
+
+    setSincronizando(true);
+    try {
+      await realizarBusca();
+    } finally {
+      setSincronizando(false);
+    }
+  }, [loading, sincronizando, textoDigitado, realizarBusca]);
+
   const rejectedRows = useMemo(() => {
     const rows = [];
 
@@ -832,7 +846,6 @@ export default function Consultas() {
 
   const hasRejected = rejectedRows.length > 0;
 
-  // ✅ RESUMO (concluídas / pendentes / rejeitadas / total)
   const resumoNotas = useMemo(() => {
     const notasVisiveis = [];
 
@@ -1089,12 +1102,23 @@ export default function Consultas() {
           <button className="btn" onClick={realizarBusca} disabled={loading || !textoDigitado.trim()}>
             {loading ? "..." : "Pesquisar"}
           </button>
+
+          <button
+            type="button"
+            className="btn btn-sync"
+            onClick={handleSincronizar}
+            disabled={loading || sincronizando || !textoDigitado.trim()}
+            title="Recarregar e sincronizar os dados dessa busca"
+            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+          >
+            <FiRefreshCw />
+            {sincronizando ? "Sincronizando..." : "Sincronizar"}
+          </button>
         </div>
       </div>
 
       {hasSearched && (
         <div className="card">
-          {/* ✅ Resumo + filtro */}
           <div className="consultas-resumo">
             <div className="consultas-resumo__items">
               <div className="tittle">

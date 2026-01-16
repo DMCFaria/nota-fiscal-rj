@@ -1098,3 +1098,54 @@
 .consultas-resumo .corpo-resumo .consultas-resumo__item {
   -webkit-tap-highlight-color: transparent;
 }
+
+.btn.btn-sync {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+
+  height: 40px;
+  padding: 0 14px;
+
+  border-radius: 10px;
+  border: 1px solid #0f3d5d;
+  background: #0f3d5d;
+
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+
+  transition: background 150ms ease, box-shadow 150ms ease, transform 120ms ease;
+}
+
+.btn.btn-sync:hover:not(:disabled) {
+  background: #155a87; 
+  box-shadow: 0 8px 20px rgba(15, 61, 93, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn.btn-sync:active:not(:disabled) {
+  background: #0c314c;
+  box-shadow: 0 4px 12px rgba(15, 61, 93, 0.25);
+  transform: translateY(0);
+}
+
+.btn.btn-sync:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn.btn-sync svg {
+  font-size: 16px;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
