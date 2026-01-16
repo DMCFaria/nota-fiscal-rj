@@ -558,7 +558,7 @@ export default function Historico() {
                 >
                   <FiDownload /> Exportar
                 </button>
-              </div>
+              </div> */}
             </div>
 
             {/* Tabela */}
