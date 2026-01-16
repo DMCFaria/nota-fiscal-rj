@@ -39,20 +39,14 @@ export const getNotaPorID = async (id_tecnospeed) => {
 };
 
 /** Sincronizar */
-export const sincronizarNotas = async ({ tipo, termo }) => {
-  try {
-    const t = String(termo ?? "").trim();
-    if (!t) throw new Error("Informe um termo para sincronizar.");
+export const sincronizarNotas = async (notasArray) => {
+  const payload = Array.isArray(notasArray)
+    ? { notas: notasArray }
+    : notasArray && typeof notasArray === "object"
+      ? notasArray
+      : { notas: [] };
 
-    const response = await n8n.post(
-      `/webhook/nfse/sincronizar/`,
-      (data = { id: tipo })
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao sincronizar notas:", error);
-    throw error;
-  }
+  return await n8n.post("webhook/sincronizar-nf", payload);
 };
 
 // Histórico
