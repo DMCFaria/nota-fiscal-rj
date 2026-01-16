@@ -45,7 +45,7 @@ export const sincronizarNotas = async ({ tipo, termo }) => {
     if (!t) throw new Error("Informe um termo para sincronizar.");
 
     const response = await n8n.post(
-      `/nfse/sincronizar/`,
+      `/webhook/nfse/sincronizar/`,
       (data = { id: tipo })
     );
     return response.data;
