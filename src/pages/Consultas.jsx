@@ -46,14 +46,54 @@ function isNotaCancelada(nota) {
   return st === "cancelada" || sit === "cancelada";
 }
 
-function isNotaBaixavel(nota) {
+/**
+ * ✅ Concluída = “autorizada/emitida/concluída/sucesso” etc.
+ * (não depende de idIntegracao)
+ */
+function isNotaConcluida(nota) {
+  if (!nota) return false;
+  if (isNotaCancelada(nota)) return false;
+
   const st = normalizeStr(nota?.status).toLowerCase();
   const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
 
-  const concluida = ["sucesso", "autorizada", "concluido", "concluída", "concluida", "emitida", "emitido"].includes(st);
-  const cancelada = sit === "cancelada" || st === "cancelada";
+  const concluidaByStatus = [
+    "sucesso",
+    "autorizada",
+    "concluido",
+    "concluída",
+    "concluida",
+    "emitida",
+    "emitido"
+  ].includes(st);
 
-  return !!getIdIntegracao(nota) && concluida && !cancelada;
+  const concluidaBySituacao = [
+    "concluido",
+    "concluída",
+    "concluida",
+    "autorizada",
+    "emitida",
+    "emitido"
+  ].includes(sit);
+
+  // alguns retornos vêm como “CONCLUIDO” etc.
+  const concluidaIncludes =
+    st.includes("conclu") || st.includes("autoriz") || st.includes("emitid") ||
+    sit.includes("conclu") || sit.includes("autoriz") || sit.includes("emitid");
+
+  return concluidaByStatus || concluidaBySituacao || concluidaIncludes;
+}
+
+/**
+ * ✅ Baixável = concluída + tem idIntegracao + não cancelada
+ * (isso é “download”, não é “concluída”)
+ */
+function isNotaBaixavel(nota) {
+  const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
+  const st = normalizeStr(nota?.status).toLowerCase();
+
+  const cancelada = sit === "cancelada" || st === "cancelada";
+  return !!getIdIntegracao(nota) && isNotaConcluida(nota) && !cancelada;
 }
 
 function isNotaRejeitada(nota) {
@@ -87,9 +127,15 @@ function isNotaRejeitada(nota) {
   return rejectedByStatus || rejectedBySituacao || (hasExplicitReason && (st === "erro" || st.includes("erro")));
 }
 
+function isNotaPendente(nota) {
+  if (isNotaCancelada(nota)) return false;
+  if (isNotaRejeitada(nota)) return false;
+  return !isNotaConcluida(nota);
+}
+
 function isNotaCancelavel(nota) {
   if (isNotaCancelada(nota)) return false;
-    if (isNotaRejeitada(nota)) return false;
+  if (isNotaRejeitada(nota)) return false;
 
   const sit = normalizeStr(nota?.situacao_prefeitura).toUpperCase();
   const st = normalizeStr(nota?.status).toUpperCase();
@@ -321,7 +367,6 @@ function formatDataHoraBR(value, options = {}) {
   });
 }
 
-
 function LinhaFatura({
   fatura,
   isOpen,
@@ -338,14 +383,16 @@ function LinhaFatura({
   const notas = notasAll.filter((n) => !isNotaCancelada(n));
 
   const qtdNotas = notas.length;
+
+  // download usa “baixável”, não “concluída”
   const qtdBaixaveis = notas.filter(isNotaBaixavel).length;
+
   const hasCancelavel = notas.some(isNotaCancelavel);
   const qtdRejeitadas = notas.filter(isNotaRejeitada).length;
 
   return (
     <>
       <tr className={`accordion-row ${isOpen ? "open" : ""}`}>
-        
         <td className="mono">
           <button type="button" className="accordion-toggle" onClick={onToggle}>
             <span className="chev">{isOpen ? <FiChevronDown /> : <FiChevronRight />}</span>
@@ -407,11 +454,10 @@ function LinhaFatura({
 
                       return (
                         <tr key={n.id ?? idx} style={rejeitada ? { background: "rgba(245, 158, 11, 0.08)" } : undefined}>
-                          {console.log("data", n)}
                           <td className="mono">{n.id || n.numero || "—"}</td>
 
                           <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
-                          
+
                           <td>{formatDataHoraBR(n.datas?.criacao)}</td>
 
                           <td style={{ textAlign: "right" }}>
@@ -434,10 +480,7 @@ function LinhaFatura({
 
                           <td className="acoes-col" style={{ textAlign: "right" }}>
                             {rejeitada ? (
-                              <button 
-                              type="button" 
-                              className="btn btn-xs warning" 
-                              onClick={() => onTratarErro(n)}>
+                              <button type="button" className="btn btn-xs warning" onClick={() => onTratarErro(n)}>
                                 Tratar erro
                               </button>
                             ) : (
@@ -583,8 +626,30 @@ export default function Consultas() {
   });
   const [reemitindo, setReemitindo] = useState(false);
 
+  // ✅ filtro clicável no resumo
+  const [filtroResumo, setFiltroResumo] = useState("todas"); // "todas" | "concluidas" | "pendentes" | "rejeitadas"
+
   const isModoFatura = tipoBusca === "fatura";
   const isModoFaturaUI = tipoBusca === "fatura" || tipoBusca === "nota";
+
+  const aplicaFiltroNota = useCallback(
+    (nota) => {
+      if (isNotaCancelada(nota)) return false;
+
+      if (filtroResumo === "todas") return true;
+      if (filtroResumo === "concluidas") return isNotaConcluida(nota);
+      if (filtroResumo === "rejeitadas") return isNotaRejeitada(nota);
+      if (filtroResumo === "pendentes") return isNotaPendente(nota);
+
+      return true;
+    },
+    [filtroResumo]
+  );
+
+  const toggleFiltro = useCallback((novo) => {
+    setFiltroResumo((atual) => (atual === novo ? "todas" : novo));
+    setExpandedFat(new Set()); // fecha pra não “ficar preso” em fatura que some ao filtrar
+  }, []);
 
   const realizarBusca = useCallback(async () => {
     const termo = textoDigitado.trim();
@@ -597,8 +662,7 @@ export default function Consultas() {
         const res = await getNotaPorFatura(termo);
 
         const notasOrdenadas = [...res.notas].sort(
-          (a, b) =>
-            new Date(b?.datas?.criacao || 0) - new Date(a?.datas?.criacao || 0)
+          (a, b) => new Date(b?.datas?.criacao || 0) - new Date(a?.datas?.criacao || 0)
         );
 
         if (res && res.status === "success") {
@@ -700,6 +764,8 @@ export default function Consultas() {
       }
 
       setHasSearched(true);
+      setFiltroResumo("todas");
+      setExpandedFat(new Set());
     } catch (error) {
       console.error("Erro na consulta:", error);
       enqueueSnackbar("Erro na conexão com o servidor", { variant: "error" });
@@ -757,6 +823,30 @@ export default function Consultas() {
   }, [faturas, dados, tipoBusca]);
 
   const hasRejected = rejectedRows.length > 0;
+
+  // ✅ RESUMO (concluídas / pendentes / rejeitadas / total)
+  const resumoNotas = useMemo(() => {
+    const notasVisiveis = [];
+
+    if (tipoBusca === "fatura" || tipoBusca === "nota") {
+      for (const fat of toArray(faturas)) {
+        for (const n of toArray(fat?.notas)) {
+          if (!isNotaCancelada(n)) notasVisiveis.push(n);
+        }
+      }
+    } else {
+      for (const n of toArray(dados)) {
+        if (!isNotaCancelada(n)) notasVisiveis.push(n);
+      }
+    }
+
+    const total = notasVisiveis.length;
+    const concluidas = notasVisiveis.filter(isNotaConcluida).length;
+    const rejeitadas = notasVisiveis.filter(isNotaRejeitada).length;
+    const pendentes = notasVisiveis.filter(isNotaPendente).length;
+
+    return { total, concluidas, pendentes, rejeitadas };
+  }, [faturas, dados, tipoBusca]);
 
   const baixarRelatorioRejeitadas = async () => {
     try {
@@ -951,13 +1041,11 @@ export default function Consultas() {
 
     setReemitindo(true);
     try {
-
       await reemitirNota({
         id_integracao: getIdIntegracao(nota),
         id_tecnospeed: getIdTecnospeed(nota),
         cep: cepDigits
       });
-
 
       enqueueSnackbar("Reemissão solicitada com sucesso!", { variant: "success" });
       setTratarModal({ open: false, nota: null, cep: "" });
@@ -998,23 +1086,62 @@ export default function Consultas() {
 
       {hasSearched && (
         <div className="card">
+          {/* ✅ Resumo + filtro */}
+          <div className="consultas-resumo">
+            <div className="consultas-resumo__items">
+              <div className="tittle">
+                <h3>Acompanhamento de emissão</h3>
+              </div>
+
+              <div className="corpo-resumo">
+                <button
+                  type="button"
+                  className={`consultas-resumo__item ${filtroResumo === "todas" ? "is-active" : ""}`}
+                  onClick={() => toggleFiltro("todas")}
+                  title="Mostrar todas"
+                >
+                  <strong>Total:</strong> {resumoNotas.total}
+                </button>
+
+                <button
+                  type="button"
+                  className={`consultas-resumo__item ${filtroResumo === "concluidas" ? "is-active" : ""}`}
+                  onClick={() => toggleFiltro("concluidas")}
+                  title="Mostrar somente notas concluídas"
+                >
+                  <strong>Concluídas:</strong> {resumoNotas.concluidas}
+                </button>
+
+                <button
+                  type="button"
+                  className={`consultas-resumo__item ${filtroResumo === "pendentes" ? "is-active" : ""}`}
+                  onClick={() => toggleFiltro("pendentes")}
+                  title="Mostrar somente notas pendentes"
+                >
+                  <strong>Pendentes:</strong> {resumoNotas.pendentes}
+                </button>
+
+                {resumoNotas.rejeitadas > 0 && (
+                  <button
+                    type="button"
+                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${
+                      filtroResumo === "rejeitadas" ? "is-active" : ""
+                    }`}
+                    onClick={() => toggleFiltro("rejeitadas")}
+                    title="Mostrar somente rejeitadas"
+                  >
+                    <strong>Rejeitadas:</strong> {resumoNotas.rejeitadas}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {hasRejected && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                padding: "12px 14px",
-                marginBottom: 12,
-                borderRadius: 12,
-                border: "1px solid rgba(245, 158, 11, 0.35)",
-                background: "rgba(245, 158, 11, 0.10)"
-              }}
-            >
-              <div style={{ color: "#92400e" }}>
+            <div className="consultas-rejeitadas">
+              <div className="consultas-rejeitadas__text">
                 <strong>Atenção:</strong> encontramos <strong>{rejectedRows.length}</strong> item(ns) rejeitado(s).{" "}
-                <span style={{ opacity: 0.9 }}>Baixe o relatório para o time conferir e corrigir.</span>
+                <span className="consultas-rejeitadas__sub">Baixe o relatório para o time conferir e corrigir.</span>
               </div>
 
               <button
@@ -1049,43 +1176,51 @@ export default function Consultas() {
 
             <tbody>
               {isModoFaturaUI ? (
-                faturas.map((f) => (
-                  <LinhaFatura
-                    key={f.id}
-                    fatura={f}
-                    isOpen={expandedFat.has(f.id)}
-                    onToggle={() =>
-                      setExpandedFat((p) => {
-                        const n = new Set(p);
-                        n.has(f.id) ? n.delete(f.id) : n.add(f.id);
-                        return n;
-                      })
-                    }
-                    onBaixarTodas={() => handleDownload(f, "fatura")}
-                    onBaixarUma={(n) => handleDownload(n, "individual")}
-                    baixandoAll={!!baixandoAll[String(f?.id || f?.numero || f?.fatura || "")]}
-                    onCancelarTodas={() => openModalCancel(f, "fatura_all")}
-                    onCancelarUma={(n) => openModalCancel(n, "individual")}
-                    cancelandoAll={!!cancelandoAll[f.id]}
-                    onTratarErro={openTratarErro}
-                  />
-                ))
+                toArray(faturas)
+                  .map((f) => {
+                    const notasFiltradas = toArray(f?.notas).filter(aplicaFiltroNota);
+                    return { ...f, notas: notasFiltradas };
+                  })
+                  .filter((f) => toArray(f?.notas).length > 0)
+                  .map((f) => (
+                    <LinhaFatura
+                      key={f.id}
+                      fatura={f}
+                      isOpen={expandedFat.has(f.id)}
+                      onToggle={() =>
+                        setExpandedFat((p) => {
+                          const n = new Set(p);
+                          n.has(f.id) ? n.delete(f.id) : n.add(f.id);
+                          return n;
+                        })
+                      }
+                      onBaixarTodas={() => handleDownload(f, "fatura")}
+                      onBaixarUma={(n) => handleDownload(n, "individual")}
+                      baixandoAll={!!baixandoAll[String(f?.id || f?.numero || f?.fatura || "")]}
+                      onCancelarTodas={() => openModalCancel(f, "fatura_all")}
+                      onCancelarUma={(n) => openModalCancel(n, "individual")}
+                      cancelandoAll={!!cancelandoAll[f.id]}
+                      onTratarErro={openTratarErro}
+                    />
+                  ))
               ) : (
-                dados.map((item) => (
-                  <LinhaNota
-                    key={item.id}
-                    item={item}
-                    expanded={expanded}
-                    onToggle={(id) =>
-                      setExpanded((p) => {
-                        const n = new Set(p);
-                        n.has(id) ? n.delete(id) : n.add(id);
-                        return n;
-                      })
-                    }
-                    onOpenCancelar={(i) => openModalCancel(i, "individual")}
-                  />
-                ))
+                toArray(dados)
+                  .filter(aplicaFiltroNota)
+                  .map((item) => (
+                    <LinhaNota
+                      key={item.id}
+                      item={item}
+                      expanded={expanded}
+                      onToggle={(id) =>
+                        setExpanded((p) => {
+                          const n = new Set(p);
+                          n.has(id) ? n.delete(id) : n.add(id);
+                          return n;
+                        })
+                      }
+                      onOpenCancelar={(i) => openModalCancel(i, "individual")}
+                    />
+                  ))
               )}
             </tbody>
           </table>
@@ -1139,7 +1274,6 @@ export default function Consultas() {
         onClose={() => !reemitindo && setTratarModal({ open: false, nota: null, cep: "" })}
         confirmDisabled={String(tratarModal.cep || "").replace(/\D/g, "").length !== 8}
       >
-        
         <div style={{ marginTop: 12 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>CEP do tomador</label>
           <input

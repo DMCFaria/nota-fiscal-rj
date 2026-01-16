@@ -392,7 +392,7 @@ export default function Historico() {
       </div>
 
       {/* Painel de Estatísticas */}
-      {estatisticas && (
+      {/* {estatisticas && (
         <div className="card estatisticas-card">
           <h3>
             <FiInfo /> Estatísticas da Busca
@@ -427,7 +427,7 @@ export default function Historico() {
             </div>
           </div>
           
-          {/* Distribuição por Origem */}
+          
           {estatisticas.porOrigem && Object.keys(estatisticas.porOrigem).length > 0 && (
             <div className="distribuicao-origens">
               <h4>Distribuição por Origem:</h4>
@@ -442,7 +442,7 @@ export default function Historico() {
             </div>
           )}
           
-          {/* Faturas Encontradas */}
+          
           {faturasUnicas.length > 0 && (
             <div className="faturas-encontradas">
               <h4>Faturas Relacionadas:</h4>
@@ -461,7 +461,7 @@ export default function Historico() {
             </div>
           )}
         </div>
-      )}
+      )} */}
 
       {/* Barra de Ferramentas */}
       {itens.length > 0 && (
@@ -523,15 +523,13 @@ export default function Historico() {
             </p>
             <div className="empty-state-examples">
               <div className="example-group">
-                <strong>Exemplos de Fatura:</strong>
-                <code>162028</code>
-                <code>162029</code>
-                <code>162030</code>
+                <br />
+                <p>Exemplos de Fatura: 162028</p>
+                
               </div>
               <div className="example-group">
-                <strong>Exemplos de ID:</strong>
-                <code>695c0f7b3c4938a3ad10411a</code>
-                <code>NFSE_162028_1</code>
+              
+             <p>Exemplo de ID: 695c0f7b3c4938a3ad10411a</p>
               </div>
             </div>
           </div>
@@ -596,7 +594,7 @@ export default function Historico() {
               <div className="pagination-info">
                 Mostrando {filtrados.length} de {itens.length} registros
               </div>
-              <div className="export-options">
+              {/* <div className="export-options">
                 <button 
                   className="btn btn-sm btn-outline"
                   onClick={() => {
@@ -611,7 +609,7 @@ export default function Historico() {
                 >
                   <FiDownload /> Exportar JSON
                 </button>
-              </div>
+              </div> */}
             </div>
           </div>
         )}

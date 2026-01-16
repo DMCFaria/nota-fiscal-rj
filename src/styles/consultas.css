@@ -882,3 +882,219 @@
 .btn.primary:active {
   transform: translateY(0);
 }
+
+.consultas-resumo {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e6eaf2;
+  border-radius: 12px;
+
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+
+.consultas-resumo__items {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.consultas-resumo .tittle h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: #111827;
+}
+
+.consultas-resumo .tittle {
+  display: flex;
+  align-items: center;
+}
+
+.consultas-resumo .corpo-resumo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.consultas-resumo__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+
+  padding: 8px 10px;
+  border-radius: 999px;
+
+  border: 1px solid #e6eaf2;
+  background: #f8fafc;
+
+  color: #374151;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.consultas-resumo__item strong {
+  font-weight: 800;
+  color: #111827;
+}
+
+.consultas-resumo__item--rejeitadas {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.10);
+  color: #b45309;
+}
+
+.consultas-resumo__item--rejeitadas strong {
+  color: #b45309;
+}
+
+@media (max-width: 900px) {
+  .consultas-resumo__items {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .consultas-resumo .corpo-resumo {
+    justify-content: flex-start;
+  }
+}
+
+.consultas-rejeitadas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 12px 14px;
+  margin-bottom: 12px;
+
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.10);
+}
+
+.consultas-rejeitadas__text {
+  color: #92400e;
+  font-size: 14px;
+}
+
+.consultas-rejeitadas__sub {
+  opacity: 0.9;
+}
+
+@media (max-width: 700px) {
+  .consultas-rejeitadas {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.consultas-resumo .consultas-resumo__item {
+  appearance: none;
+  -webkit-appearance: none;
+
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #fff;
+
+  color: #0f172a;
+  border-radius: 999px;
+  padding: 8px 12px;
+
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.consultas-resumo .consultas-resumo__item:hover {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(148, 163, 184, 0.7);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.consultas-resumo .consultas-resumo__item:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.consultas-resumo .consultas-resumo__item:focus {
+  outline: none;
+}
+
+.consultas-resumo .consultas-resumo__item:focus-visible {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.consultas-resumo .consultas-resumo__item.is-active {
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: none;
+}
+
+.consultas-resumo .consultas-resumo__item.is-active:hover {
+  background: rgba(37, 99, 235, 0.18);
+  border-color: rgba(37, 99, 235, 0.55);
+}
+
+.consultas-resumo .consultas-resumo__item--rejeitadas {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.consultas-resumo .consultas-resumo__item--rejeitadas:hover {
+  background: rgba(245, 158, 11, 0.10);
+  border-color: rgba(245, 158, 11, 0.65);
+}
+
+.consultas-resumo .consultas-resumo__item--rejeitadas.is-active {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.60);
+}
+
+.consultas-resumo .corpo-resumo .consultas-resumo__item,
+.consultas-resumo .corpo-resumo .consultas-resumo__item--rejeitadas {
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: #0f172a;
+}
+
+.consultas-resumo .corpo-resumo .consultas-resumo__item:hover {
+  background: rgba(15, 23, 42, 0.04) !important;
+  border-color: rgba(148, 163, 184, 0.7) !important;
+  color: #0f172a !important;
+}
+
+.consultas-resumo .corpo-resumo .consultas-resumo__item--rejeitadas:hover {
+  background: rgba(245, 158, 11, 0.10) !important;
+  border-color: rgba(245, 158, 11, 0.65) !important;
+  color: #92400e !important;
+}
+
+.consultas-resumo .corpo-resumo .consultas-resumo__item--rejeitadas.is-active {
+  background: rgba(245, 158, 11, 0.18) !important;
+  border-color: rgba(245, 158, 11, 0.60) !important;
+  color: #92400e !important;
+}
+
+.consultas-resumo .corpo-resumo .consultas-resumo__item:hover,
+.consultas-resumo .corpo-resumo .consultas-resumo__item:focus,
+.consultas-resumo .corpo-resumo .consultas-resumo__item:focus-visible {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.consultas-resumo .corpo-resumo .consultas-resumo__item:focus-visible {
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.12) !important;
+}
+
+.consultas-resumo .corpo-resumo .consultas-resumo__item {
+  -webkit-tap-highlight-color: transparent;
+}
