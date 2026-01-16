@@ -16,7 +16,9 @@ export const getNotaPorIdOuProtocolo = async (idNota) => {
 // Notas
 export const getNotaPorFatura = async (numero_fatura) => {
   try {
-    const response = await api.get(`/api/consultas/nfse/consulta-nota-por-fatura/${numero_fatura}/`);
+    const response = await api.get(
+      `/api/consultas/nfse/consulta-nota-por-fatura/${numero_fatura}/`
+    );
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar nota:", error);
@@ -26,7 +28,9 @@ export const getNotaPorFatura = async (numero_fatura) => {
 
 export const getNotaPorID = async (id_tecnospeed) => {
   try {
-    const response = await api.get(`/api/consultas/nfse/consulta-nota-por-id/${id_tecnospeed}/`);
+    const response = await api.get(
+      `/api/consultas/nfse/consulta-nota-por-id/${id_tecnospeed}/`
+    );
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar nota:", error);
@@ -39,8 +43,11 @@ export const sincronizarNotas = async ({ tipo, termo }) => {
   try {
     const t = String(termo ?? "").trim();
     if (!t) throw new Error("Informe um termo para sincronizar.");
-    
-    const response = await api.get(`/api/consultas/nfse/sincronizar/${tipo}/${encodeURIComponent(t)}/`);
+
+    const response = await n8n.post(
+      `/nfse/sincronizar/`,
+      (data = { id: tipo })
+    );
     return response.data;
   } catch (error) {
     console.error("Erro ao sincronizar notas:", error);
@@ -51,7 +58,9 @@ export const sincronizarNotas = async ({ tipo, termo }) => {
 // Histórico
 export const getHistoricoFatura = async (numero_fatura) => {
   try {
-    const response = await api.get(`/api/consultas/historico/consulta-por-fatura/${numero_fatura}`);
+    const response = await api.get(
+      `/api/consultas/historico/consulta-por-fatura/${numero_fatura}`
+    );
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar histórico da fatura:", error);
@@ -61,7 +70,9 @@ export const getHistoricoFatura = async (numero_fatura) => {
 
 export const getHistoricoNota = async (notaId) => {
   try {
-    const response = await api.get(`/api/consultas/historico/consulta-por-id/${notaId}`);
+    const response = await api.get(
+      `/api/consultas/historico/consulta-por-id/${notaId}`
+    );
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar histórico da nota:", error);
@@ -85,8 +96,8 @@ export const downloadPdfNota = async (payload) => {
     const response = await n8n.post("webhook/baixar-pdf-nfse/", payload, {
       responseType: "arraybuffer",
       headers: {
-        Accept: "application/pdf"
-      }
+        Accept: "application/pdf",
+      },
     });
 
     const blob = new Blob([response.data], { type: "application/pdf" });
@@ -102,7 +113,9 @@ export const downloadPdfNota = async (payload) => {
     link.href = url;
 
     const fileName =
-      payload.tipo === "fatura" ? `FATURA_${payload.fatura}.pdf` : `NFSE_${payload.idIntegracao}.pdf`;
+      payload.tipo === "fatura"
+        ? `FATURA_${payload.fatura}.pdf`
+        : `NFSE_${payload.idIntegracao}.pdf`;
 
     link.setAttribute("download", fileName);
     document.body.appendChild(link);
@@ -119,10 +132,9 @@ export const downloadPdfNota = async (payload) => {
 };
 
 export const cancelarNota = async (notasArray) => {
-  const payload =
-    Array.isArray(notasArray)
-      ? { notas: notasArray }
-      : notasArray && typeof notasArray === "object"
+  const payload = Array.isArray(notasArray)
+    ? { notas: notasArray }
+    : notasArray && typeof notasArray === "object"
       ? notasArray
       : { notas: [] };
 
@@ -134,8 +146,11 @@ export const reemitirNota = async (payload) => {
   try {
     const response = await n8n.post("webhook/reemitir-nfse", {
       id_integracao: payload?.id_integracao ?? payload?.idIntegracao ?? "",
-      id_tecnospeed: payload?.id_tecnospeed ?? payload?.idTecnospeed ?? payload?.id ?? "",
-      cep: String(payload?.cep || "").replace(/\D/g, "").slice(0, 8)
+      id_tecnospeed:
+        payload?.id_tecnospeed ?? payload?.idTecnospeed ?? payload?.id ?? "",
+      cep: String(payload?.cep || "")
+        .replace(/\D/g, "")
+        .slice(0, 8),
     });
 
     return response.data;
