@@ -172,7 +172,7 @@ function deepJsonParse(raw) {
     const attempt = safeJsonParse(unwrapped);
     if (attempt !== null) return attempt;
   } catch {
-    // ignore
+    
   }
 
   return null;
@@ -729,7 +729,7 @@ export default function Consultas() {
 
   const [sincronizando, setSincronizando] = useState(false);
 
-  const [filtroResumo, setFiltroResumo] = useState("todas"); 
+  const [filtroResumo, setFiltroResumo] = useState("todas");
 
   const isModoFatura = tipoBusca === "fatura";
   const isModoFaturaUI = tipoBusca === "fatura" || tipoBusca === "nota";
@@ -886,6 +886,7 @@ export default function Consultas() {
     }
 
     setSincronizando(true);
+
     try {
       const payload = buildNotasPayloadFromTela({ tipoBusca, faturas, dados });
 
@@ -894,9 +895,17 @@ export default function Consultas() {
         return;
       }
 
-      await sincronizarNotas(payload);
+      const res = await sincronizarNotas({
+        ...payload,
+        origem: "portal_nacional"
+      });
 
-      enqueueSnackbar(`Sincronização solicitada (${payload.notas.length} item(ns)).`, { variant: "success" });
+      const msg =
+        res?.message ||
+        res?.mensagem ||
+        `Sincronização solicitada.`;
+
+      enqueueSnackbar(msg, { variant: "success" });
 
       await realizarBusca();
     } catch (e) {
