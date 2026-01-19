@@ -13,11 +13,13 @@ import Configuracoes from "./pages/Configuracoes";
 
 import "./styles/global.css";
 import Consultas from "./pages/Consultas";
+import Navbar from "./components/Navbar";
 
 function AppLayout() {
   return (
     <div className="app-container">
       <Sidebar />
+      <Navbar/>
       <main className="content">
         <Routes>
           <Route path="/home" element={<Navigate to="/emissao/fatura" replace />} />

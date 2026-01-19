@@ -116,15 +116,15 @@ export const AuthProvider = ({ children }) => {
         [user, isAuthenticated, loading, login, logout]
     );
 
-    // if (loading) {
-    //     return (
-    //         <Loading 
-    //             fullScreen 
-    //             message="Verificando autenticação..."
-    //             size="medium"
-    //         />
-    //     );
-    // }
+    if (loading) {
+        return (
+            <Loading 
+                fullScreen 
+                message="Carregando..."
+                size="medium"
+            />
+        );
+    }
 
     return (
         <AuthContext.Provider value={authContextValue}>

@@ -8,10 +8,7 @@ const Loading = ({
 }) => {
   const LoadingSpinner = () => (
     <div className={`loading-spinner ${size}`}>
-      <div className="spinner-circle"></div>
-      <div className="spinner-circle"></div>
-      <div className="spinner-circle"></div>
-      <div className="spinner-circle"></div>
+      <div className="spinner"></div>
     </div>
   );
 
