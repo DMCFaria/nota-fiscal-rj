@@ -1199,3 +1199,59 @@
     transform: rotate(360deg);
   }
 }
+/* =========================
+   AÇÕES COM ÍCONES (FIX)
+========================= */
+
+.acoes-col {
+  white-space: nowrap;
+}
+
+.icon-btn {
+  all: unset; /* 🔥 mata herança de .btn */
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+
+  color: #0f3d5d; /* azul do sistema */
+  background: transparent;
+
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* hover LIMPO, sem azul piscina */
+.icon-btn:hover:not(:disabled) {
+  background: rgba(15, 61, 93, 0.08);
+  transform: translateY(-1px);
+}
+
+/* estados */
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-btn.danger {
+  color: #b91c1c;
+}
+
+.icon-btn.danger:hover:not(:disabled) {
+  background: rgba(185, 28, 28, 0.12);
+}
+
+.icon-btn.warning {
+  color: #b45309;
+}
+
+.icon-btn.warning:hover:not(:disabled) {
+  background: rgba(180, 83, 9, 0.12);
+}

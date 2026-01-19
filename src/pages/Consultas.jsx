@@ -1,5 +1,9 @@
 import { useState, useCallback, useMemo } from "react";
-import { FiSearch, FiChevronRight, FiChevronDown, FiXCircle, FiRefreshCw } from "react-icons/fi";
+import {
+  FiSearch, FiChevronRight, FiChevronDown, FiXCircle, FiRefreshCw, FiDownload,
+  FiTrash2,
+  FiAlertTriangle
+} from "react-icons/fi";
 import { useSnackbar } from "notistack";
 import * as XLSX from "xlsx";
 import {
@@ -172,7 +176,7 @@ function deepJsonParse(raw) {
     const attempt = safeJsonParse(unwrapped);
     if (attempt !== null) return attempt;
   } catch {
-    
+
   }
 
   return null;
@@ -507,26 +511,34 @@ function LinhaFatura({
           </span>
         </td>
 
-        <td className="acoes-col" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <button
-            type="button"
-            className="btn btn-xs"
-            onClick={onBaixarTodas}
-            disabled={!qtdBaixaveis || baixandoAll}
-            title={!qtdBaixaveis ? "Nenhuma nota concluída ativa para baixar" : "Baixar PDFs das notas concluídas"}
-          >
-            {baixandoAll ? "Baixando..." : `Baixar todas (${qtdBaixaveis})`}
-          </button>
+    <td className="acoes-col" style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+  <button
+    type="button"
+    className="btn btn-xs secondary"
+    onClick={onBaixarTodas}
+    disabled={!qtdBaixaveis || baixandoAll}
+    title={!qtdBaixaveis ? "Nenhuma nota concluída para baixar" : "Baixar PDFs das notas concluídas"}
+    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+  >
+    <FiDownload />
+    {baixandoAll ? "Baixando..." : `Baixar todas (${qtdBaixaveis})`}
+  </button>
 
-          <button
-            type="button"
-            className="btn btn-xs danger"
-            onClick={onCancelarTodas}
-            disabled={!hasCancelavel || cancelandoAll}
-          >
-            <FiXCircle /> {cancelandoAll ? "Cancelando..." : "Cancelar todas"}
-          </button>
-        </td>
+  <button
+    type="button"
+    className="btn btn-xs danger"
+    onClick={onCancelarTodas}
+    disabled={!hasCancelavel || cancelandoAll}
+    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+    title="Cancelar todas as notas da fatura"
+  >
+    <FiTrash2 />
+    {cancelandoAll ? "Cancelando..." : "Cancelar todas"}
+  </button>
+</td>
+
+
+
       </tr>
 
       {isOpen && (
@@ -538,9 +550,9 @@ function LinhaFatura({
                   <thead>
                     <tr>
                       <th style={{ width: 130 }}>Nº DA NOTA</th>
-                      <th>TOMADOR</th>
+                      <th style={{ width: 4000 }}>TOMADOR</th>
                       <th>DATA</th>
-                      <th style={{ width: 120, textAlign: "right" }}>VALOR</th>
+                      <th style={{ width: 1500, textAlign: "right" }}>VALOR</th>
                       <th style={{ width: 160 }}>STATUS</th>
                       <th style={{ width: 260, textAlign: "right" }}>AÇÕES</th>
                     </tr>
@@ -581,37 +593,39 @@ function LinhaFatura({
 
                           <td className="acoes-col" style={{ textAlign: "right" }}>
                             {rejeitada ? (
-                              <button type="button" className="btn btn-xs warning" onClick={() => onTratarErro(n)}>
-                                Tratar erro
+                              <button
+                                type="button"
+                                className="icon-btn warning"
+                                onClick={() => onTratarErro(n)}
+                                title="Tratar erro da nota"
+                              >
+                                <FiAlertTriangle />
                               </button>
                             ) : (
                               <div style={{ display: "inline-flex", gap: 10 }}>
                                 <button
                                   type="button"
-                                  className="btn btn-xs secondary"
+                                  className="icon-btn"
                                   onClick={() => onBaixarUma(n)}
                                   disabled={!isNotaBaixavel(n)}
-                                  title={
-                                    !isNotaBaixavel(n)
-                                      ? "PDF indisponível (sem idIntegracao) ou nota não concluída"
-                                      : "Baixar PDF"
-                                  }
+                                  title="Baixar PDF da nota"
                                 >
-                                  Baixar
+                                  <FiDownload />
                                 </button>
 
                                 <button
                                   type="button"
-                                  className="btn btn-xs danger"
+                                  className="icon-btn danger"
                                   onClick={() => onCancelarUma(n)}
                                   disabled={!isNotaCancelavel(n)}
-                                  title={!isNotaCancelavel(n) ? "Nota não elegível para cancelamento" : "Cancelar esta nota"}
+                                  title="Cancelar esta nota"
                                 >
-                                  <FiXCircle /> Cancelar
+                                  <FiTrash2 />
                                 </button>
                               </div>
                             )}
                           </td>
+
                         </tr>
                       );
                     })}
@@ -660,10 +674,17 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
         </td>
 
         <td className="acoes-col">
-          <button type="button" className="btn btn-xs danger" disabled={!hasElegivel} onClick={() => onOpenCancelar(item)}>
-            <FiXCircle /> Cancelar
+          <button
+            type="button"
+            className="icon-btn danger"
+            disabled={!hasElegivel}
+            onClick={() => onOpenCancelar(item)}
+            title="Cancelar nota"
+          >
+            <FiTrash2 />
           </button>
         </td>
+
       </tr>
 
       {isOpen && (
@@ -1276,9 +1297,8 @@ export default function Consultas() {
                 {resumoNotas.rejeitadas > 0 && (
                   <button
                     type="button"
-                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${
-                      filtroResumo === "rejeitadas" ? "is-active" : ""
-                    }`}
+                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${filtroResumo === "rejeitadas" ? "is-active" : ""
+                      }`}
                     onClick={() => toggleFiltro("rejeitadas")}
                     title="Mostrar somente rejeitadas"
                   >
