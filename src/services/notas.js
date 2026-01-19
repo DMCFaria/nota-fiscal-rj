@@ -37,8 +37,7 @@ export const getNotaPorID = async (id_tecnospeed) => {
     throw error;
   }
 };
-
-/** Sincronizar */
+// Sincronizar Notas
 export const sincronizarNotas = async (notasArray) => {
   const payload = Array.isArray(notasArray)
     ? { notas: notasArray }
@@ -46,7 +45,10 @@ export const sincronizarNotas = async (notasArray) => {
       ? notasArray
       : { notas: [] };
 
-  return await n8n.post("webhook/sincronizar-nf", payload);
+  if (!payload.origem) payload.origem = "portal_nacional";
+
+  const response = await n8n.post("webhook/sincronizar-nf/", payload);
+  return response.data;
 };
 
 // Histórico
