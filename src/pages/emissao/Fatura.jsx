@@ -3,7 +3,7 @@ import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
 import {
   getNfsePreview,
-  iniciarEmissao,
+  iniciarEmissao, iniciarEmissao2
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from "notistack";
@@ -219,7 +219,9 @@ export default function EmissaoPorFatura() {
     }))
 
     try {
-      const res = await iniciarEmissao(notaFinal);
+      if (preview[0].prestador.cpfCnpj == "35315360000167"){
+
+      const res = await iniciarEmissao2(notaFinal);
       console.log("RESULTADO DA EMISSÃO", res);
 
       if (res.status === "sucesso") {
@@ -235,7 +237,25 @@ export default function EmissaoPorFatura() {
           setPreview(null);
           setProgresso(0);
         }, 2000);
+}else{
+    
+     // const res = await iniciarEmissao(notaFinal);
+      console.log("RESULTADO DA EMISSÃO", res);
 
+      if (res.status === "sucesso") {
+        setProgresso(100);
+        mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
+        pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, "sucesso");
+        pushLog(`ID do lote: ${res.protocolo_id || "N/A"}`, "info");
+
+        setTimeout(() => {
+          setFatura("");
+          setParcelada(false);
+          setObservacao("");
+          setPreview(null);
+          setProgresso(0);
+        }, 2000);}
+}
       } else {
         const erroMsg = res?.erro || "Erro desconhecido ao enviar lote.";
 
