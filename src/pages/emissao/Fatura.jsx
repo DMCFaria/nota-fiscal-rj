@@ -197,95 +197,81 @@ export default function EmissaoPorFatura() {
     [empresa, fatura, observacao, codigoServico, parcelada, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]
   );
 
-  const handleEmitir = useCallback(async () => {
-    if (!preview) {
-      mostrarErro("Gere a prévia antes de emitir.");
-      return;
-    }
+const handleEmitir = useCallback(async () => {
+  if (!preview) {
+    mostrarErro("Gere a prévia antes de emitir.");
+    return;
+  }
 
-    if (preview.length === 0) {
-      mostrarErro("Não há notas para emitir.");
-      return;
-    }
+  if (preview.length === 0) {
+    mostrarErro("Não há notas para emitir.");
+    return;
+  }
 
-    setLoadingEmitir(true);
-    setProgresso(10);
+  setLoadingEmitir(true);
+  setProgresso(10);
 
-    mostrarInfo("Iniciando emissão da nota fiscal...");
+  mostrarInfo("Iniciando emissão da nota fiscal...");
 
-    const notaFinal = preview.map(nota => ({
-      ...nota,
-      fatura_numero: fatura
-    }))
+  const notaFinal = preview.map(nota => ({
+    ...nota,
+    fatura_numero: fatura
+  }))
 
-    try {
-      if (preview[0].prestador.cpfCnpj == "35315360000167"){
-
-      const res = await iniciarEmissao2(notaFinal);
-      console.log("RESULTADO DA EMISSÃO", res);
-
-      if (res.status === "sucesso") {
-        setProgresso(100);
-        mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
-        pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, "sucesso");
-        pushLog(`ID do lote: ${res.protocolo_id || "N/A"}`, "info");
-
-        setTimeout(() => {
-          setFatura("");
-          setParcelada(false);
-          setObservacao("");
-          setPreview(null);
-          setProgresso(0);
-        }, 2000);
-}else{
+  try {
+    console.log("DADOS A SEREM ENVIADOS PARA O BACK:", preview);
     
-     // const res = await iniciarEmissao(notaFinal);
-      console.log("RESULTADO DA EMISSÃO", res);
+    let res;
+    
+    // DECIDE QUAL FUNÇÃO CHAMAR BASEADO NO CNPJ
+    res = await iniciarEmissao2(notaFinal);
 
-      if (res.status === "sucesso") {
-        setProgresso(100);
-        mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
-        pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, "sucesso");
-        pushLog(`ID do lote: ${res.protocolo_id || "N/A"}`, "info");
+    console.log("RESPOSTA SUCESSO >>>", res);
 
-        setTimeout(() => {
-          setFatura("");
-          setParcelada(false);
-          setObservacao("");
-          setPreview(null);
-          setProgresso(0);
-        }, 2000);}
-}
+    if (res.status === "sucesso") {
+      setProgresso(100);
+      mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
+      pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, "sucesso");
+      pushLog(`ID do lote: ${res.protocolo_id || "N/A"}`, "info");
+
+      setTimeout(() => {
+        setFatura("");
+        setParcelada(false);
+        setObservacao("");
+        setPreview(null);
+        setProgresso(0);
+      }, 2000);
+    } else {
+      // SE NÃO FOR SUCESSO, TRATA O ERRO
+      const erroMsg = res?.erro || res?.error || "Erro desconhecido ao enviar lote.";
+
+      // Tratamento específico para erros de emissão
+      if (erroMsg.includes("valid")) {
+        mostrarErro("Erro de validação nos dados da nota. Verifique a prévia.");
+      } else if (erroMsg.includes("conexão") || erroMsg.includes("API") || erroMsg.includes("conectar")) {
+        mostrarErro("Erro na conexão com o serviço de emissão. Tente novamente.");
+      } else if (erroMsg.includes("limite") || erroMsg.includes("quota")) {
+        mostrarErro("Limite de emissões atingido. Tente novamente mais tarde.");
       } else {
-        const erroMsg = res?.erro || "Erro desconhecido ao enviar lote.";
-
-        // Tratamento específico para erros de emissão
-        if (erroMsg.includes("valid")) {
-          mostrarErro("Erro de validação nos dados da nota. Verifique a prévia.");
-        } else if (erroMsg.includes("conexão") || erroMsg.includes("API")) {
-          mostrarErro("Erro na conexão com o serviço de emissão. Tente novamente.");
-        } else if (erroMsg.includes("limite") || erroMsg.includes("quota")) {
-          mostrarErro("Limite de emissões atingido. Tente novamente mais tarde.");
-        } else {
-          mostrarErro("Falha ao enviar lote para emissão", erroMsg);
-        }
+        mostrarErro("Falha ao enviar lote para emissão", erroMsg);
       }
-    } catch (err) {
-      let mensagemErro = "Erro ao processar emissão";
-
-      if (err.message?.includes("Network Error")) {
-        mensagemErro = "Falha na conexão. Verifique sua internet e tente novamente.";
-      } else if (err.response?.status === 429) {
-        mensagemErro = "Muitas requisições. Aguarde um momento antes de tentar novamente.";
-      } else if (err.response?.status === 503) {
-        mensagemErro = "Serviço de emissão temporariamente indisponível.";
-      }
-
-      mostrarErro(mensagemErro, err.message);
-    } finally {
-      setLoadingEmitir(false);
     }
-  }, [preview, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
+  } catch (err) {
+    let mensagemErro = "Erro ao processar emissão";
+
+    if (err.message?.includes("Network Error")) {
+      mensagemErro = "Falha na conexão. Verifique sua internet e tente novamente.";
+    } else if (err.response?.status === 429) {
+      mensagemErro = "Muitas requisições. Aguarde um momento antes de tentar novamente.";
+    } else if (err.response?.status === 503) {
+      mensagemErro = "Serviço de emissão temporariamente indisponível.";
+    }
+
+    mostrarErro(mensagemErro, err.message);
+  } finally {
+    setLoadingEmitir(false);
+  }
+}, [preview, fatura, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
 
   useEffect(() => {
     const carregarEmpresas = async () => {

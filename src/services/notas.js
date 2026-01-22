@@ -37,6 +37,18 @@ export const getNotaPorID = async (id_tecnospeed) => {
     throw error;
   }
 };
+
+export const getNotaPorIDIntegracao = async (id_integracao) => {
+  try {
+    // const response = await axios.get(`http://localhost:8000/api/consultas/nfse/consulta-nota-por-id/${id_integracao}/`);
+    const response = await api.get(`/api/consultas/nfse/consulta-nota-por-integracao/${id_integracao}/`);
+    return response.data;
+  } catch (error) {
+    console.error("ENDPOINT - Erro ao buscar nota:", error);
+    throw error;
+  }
+};
+
 // Sincronizar Notas
 export const sincronizarNotas = async (notasArray) => {
   const payload = Array.isArray(notasArray)
