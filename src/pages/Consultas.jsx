@@ -176,7 +176,7 @@ function deepJsonParse(raw) {
     const attempt = safeJsonParse(unwrapped);
     if (attempt !== null) return attempt;
   } catch {
-
+    // ignore
   }
 
   return null;
@@ -511,34 +511,31 @@ function LinhaFatura({
           </span>
         </td>
 
-    <td className="acoes-col" style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-  <button
-    type="button"
-    className="btn btn-xs secondary"
-    onClick={onBaixarTodas}
-    disabled={!qtdBaixaveis || baixandoAll}
-    title={!qtdBaixaveis ? "Nenhuma nota concluída para baixar" : "Baixar PDFs das notas concluídas"}
-    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-  >
-    <FiDownload />
-    {baixandoAll ? "Baixando..." : `Baixar todas (${qtdBaixaveis})`}
-  </button>
+        <td className="acoes-col" style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+          <button
+            type="button"
+            className="btn btn-xs secondary"
+            onClick={onBaixarTodas}
+            disabled={!qtdBaixaveis || baixandoAll}
+            title={!qtdBaixaveis ? "Nenhuma nota concluída para baixar" : "Baixar PDFs das notas concluídas"}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <FiDownload />
+            {baixandoAll ? "Baixando..." : `Baixar todas (${qtdBaixaveis})`}
+          </button>
 
-  <button
-    type="button"
-    className="btn btn-xs danger"
-    onClick={onCancelarTodas}
-    disabled={!hasCancelavel || cancelandoAll}
-    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-    title="Cancelar todas as notas da fatura"
-  >
-    <FiTrash2 />
-    {cancelandoAll ? "Cancelando..." : "Cancelar todas"}
-  </button>
-</td>
-
-
-
+          <button
+            type="button"
+            className="btn btn-xs danger"
+            onClick={onCancelarTodas}
+            disabled={!hasCancelavel || cancelandoAll}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            title="Cancelar todas as notas da fatura"
+          >
+            <FiTrash2 />
+            {cancelandoAll ? "Cancelando..." : "Cancelar todas"}
+          </button>
+        </td>
       </tr>
 
       {isOpen && (
@@ -625,7 +622,6 @@ function LinhaFatura({
                               </div>
                             )}
                           </td>
-
                         </tr>
                       );
                     })}
@@ -684,7 +680,6 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
             <FiTrash2 />
           </button>
         </td>
-
       </tr>
 
       {isOpen && (
@@ -712,6 +707,38 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
       )}
     </>
   );
+}
+
+/** ===== Excel (somente as colunas pedidas) ===== */
+function getTomadorCnpj(nota) {
+  const t = nota?.tomador || {};
+  const raw =
+    t?.cnpj ||
+    t?.CNPJ ||
+    t?.cpf_cnpj ||
+    t?.cpfCnpj ||
+    t?.cpfcnpj ||
+    t?.documento ||
+    t?.document ||
+    t?.doc ||
+    nota?.tomador_cnpj ||
+    nota?.cnpj_tomador ||
+    "";
+  return String(raw || "").trim();
+}
+
+function getNumeroNota(nota) {
+  return String(nota?.numero_nfse || nota?.numero || nota?.id || "").trim();
+}
+
+function normalizeForExcelRow(nota) {
+  return {
+    tomador: fixBrokenLatin(nota?.tomador?.razao_social) || "",
+    cnpj_tomador: getTomadorCnpj(nota),
+    valor_nota: nota?.valor_servico ?? "",
+    situacao_prefeitura: String(nota?.situacao_prefeitura || ""),
+    numero_nota: getNumeroNota(nota)
+  };
 }
 
 export default function Consultas() {
@@ -751,6 +778,8 @@ export default function Consultas() {
   const [sincronizando, setSincronizando] = useState(false);
 
   const [filtroResumo, setFiltroResumo] = useState("todas");
+
+  const [baixandoExcelNotas, setBaixandoExcelNotas] = useState(false);
 
   const isModoFatura = tipoBusca === "fatura";
   const isModoFaturaUI = tipoBusca === "fatura" || tipoBusca === "nota";
@@ -1042,6 +1071,66 @@ export default function Consultas() {
     }
   };
 
+  const baixarExcelNotas = useCallback(async () => {
+    if (baixandoExcelNotas || loading) return;
+
+    try {
+      setBaixandoExcelNotas(true);
+
+      if (!hasSearched) {
+        enqueueSnackbar("Faça uma busca antes de exportar.", { variant: "info" });
+        return;
+      }
+
+      const notasAll = [];
+      const faturasAll = toArray(faturas);
+
+      for (const fat of faturasAll) {
+        for (const n of toArray(fat?.notas)) {
+          if (!n) continue;
+          if (isNotaCancelada(n)) continue;
+          notasAll.push(n);
+        }
+      }
+
+      if (!notasAll.length) {
+        for (const n of toArray(dados)) {
+          if (!n) continue;
+          if (isNotaCancelada(n)) continue;
+          notasAll.push(n);
+        }
+      }
+
+      if (!notasAll.length) {
+        enqueueSnackbar("Sem notas para exportar.", { variant: "info" });
+        return;
+      }
+
+      const rowsNotas = notasAll.map((nota) => normalizeForExcelRow(nota));
+
+      const wb = XLSX.utils.book_new();
+      const wsNotas = XLSX.utils.json_to_sheet(rowsNotas);
+      XLSX.utils.book_append_sheet(wb, wsNotas, "Notas");
+
+      const now = new Date();
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(
+        2,
+        "0"
+      )}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+
+      const termo = textoDigitado.trim().replace(/[^\w.-]+/g, "_").slice(0, 40) || "resultado";
+      const fileName = `notas_${termo}_${stamp}.xlsx`;
+
+      XLSX.writeFile(wb, fileName);
+      enqueueSnackbar("Excel gerado com sucesso!", { variant: "success" });
+    } catch (e) {
+      console.error(e);
+      enqueueSnackbar(getFriendlyApiErrorMessage(e), { variant: "error" });
+    } finally {
+      setBaixandoExcelNotas(false);
+    }
+  }, [baixandoExcelNotas, loading, hasSearched, faturas, dados, textoDigitado, enqueueSnackbar]);
+
   const handleDownload = async (item, tipo) => {
     const isFatura = tipo === "fatura";
     const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
@@ -1255,6 +1344,18 @@ export default function Consultas() {
             <FiRefreshCw />
             {sincronizando ? "Sincronizando..." : "Sincronizar"}
           </button>
+
+          <button
+            type="button"
+            className="btn btn-xs secondary"
+            onClick={baixarExcelNotas}
+            disabled={loading || baixandoExcelNotas || !hasSearched}
+            title={!hasSearched ? "Faça uma pesquisa primeiro" : "Baixar Excel com os dados das notas"}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+          >
+            <FiDownload />
+            {baixandoExcelNotas ? "Gerando Excel..." : "Baixar Excel"}
+          </button>
         </div>
       </div>
 
@@ -1297,8 +1398,9 @@ export default function Consultas() {
                 {resumoNotas.rejeitadas > 0 && (
                   <button
                     type="button"
-                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${filtroResumo === "rejeitadas" ? "is-active" : ""
-                      }`}
+                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${
+                      filtroResumo === "rejeitadas" ? "is-active" : ""
+                    }`}
                     onClick={() => toggleFiltro("rejeitadas")}
                     title="Mostrar somente rejeitadas"
                   >
