@@ -482,14 +482,6 @@ export default function Historico() {
             <p>
               Digite um número de fatura ou ID de nota para consultar seu histórico de atividades
             </p>
-            <div className="empty-state-examples">
-              <div className="example-group">
-                <strong>Exemplos de Fatura:</strong>
-                <code>158356</code>
-                <code>162028</code>
-                <code>162029</code>
-              </div>
-            </div>
           </div>
         ) : itens.length === 0 ? (
           <div className="empty-state">
@@ -558,7 +550,7 @@ export default function Historico() {
                 >
                   <FiDownload /> Exportar
                 </button>
-              </div> */}
+              </div>
             </div>
 
             {/* Tabela */}
