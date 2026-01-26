@@ -733,6 +733,7 @@ function getNumeroNota(nota) {
 
 function normalizeForExcelRow(nota) {
   return {
+    id_integracao: String(getIdIntegracao(nota) || ""),
     tomador: fixBrokenLatin(nota?.tomador?.razao_social) || "",
     cnpj_tomador: getTomadorCnpj(nota),
     valor_nota: nota?.valor_servico ?? "",
