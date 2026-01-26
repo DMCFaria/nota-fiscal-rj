@@ -151,7 +151,7 @@ export default function EmissaoPorFatura() {
 
         const response = await getNfsePreview(payload);
 
-        console.log("PREVIEW GERADO", response.data);
+        // console.log("PREVIEW GERADO", response.data);
 
         if (response.sucesso) {
           setPreview(response.data);
@@ -219,14 +219,14 @@ const handleEmitir = useCallback(async () => {
   }))
 
   try {
-    console.log("DADOS A SEREM ENVIADOS PARA O BACK:", preview);
+    // console.log("DADOS A SEREM ENVIADOS PARA O BACK:", preview);
     
     let res;
     
     // DECIDE QUAL FUNÇÃO CHAMAR BASEADO NO CNPJ
     res = await iniciarEmissao2(notaFinal);
 
-    console.log("RESPOSTA SUCESSO >>>", res);
+    // console.log("RESPOSTA SUCESSO >>>", res);
 
     if (res.status === "sucesso") {
       setProgresso(100);

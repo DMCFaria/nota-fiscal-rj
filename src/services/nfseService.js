@@ -21,6 +21,7 @@ export const iniciarEmissao = async (notas) => {
      console.error("Falha ao emitir nota", error)
   }
 };
+
 export const iniciarEmissao2 = async (notas) => {
   try{
     const response = await api.post("/api/nfse/emissao2/", { notas });

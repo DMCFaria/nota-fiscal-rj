@@ -110,7 +110,7 @@ export const downloadPdfNota = async (payload) => {
 
     const blob = new Blob([response.data], { type: "application/pdf" });
 
-    console.log("Tamanho do Blob gerado:", blob.size);
+    // console.log("Tamanho do Blob gerado:", blob.size);
 
     if (blob.size < 1000) {
       throw new Error("Arquivo PDF parece estar vazio ou inválido.");

@@ -224,7 +224,7 @@ export default function EmissaoIndividual() {
 
         const response = await getNfsePreview(payload);
 
-        console.log("response", response)
+        // console.log("response", response)
 
         if (response.sucesso) {
           setPreview(response.data);
@@ -332,7 +332,7 @@ export default function EmissaoIndividual() {
     try {
       const res = await iniciarEmissao(preview);
 
-      console.log("res", res)
+      // console.log("res", res)
 
       if (res.status === "sucesso") {
         setProgresso(100);
