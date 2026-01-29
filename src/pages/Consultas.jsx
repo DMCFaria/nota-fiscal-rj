@@ -709,37 +709,77 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
   );
 }
 
-/** ===== Excel (somente as colunas pedidas) ===== */
-function getTomadorCnpj(nota) {
-  const t = nota?.tomador || {};
-  const raw =
-    t?.cnpj ||
-    t?.CNPJ ||
-    t?.cpf_cnpj ||
-    t?.cpfCnpj ||
-    t?.cpfcnpj ||
-    t?.documento ||
-    t?.document ||
-    t?.doc ||
-    nota?.tomador_cnpj ||
-    nota?.cnpj_tomador ||
-    "";
-  return String(raw || "").trim();
+
+function toExcelValue(v) {
+  if (v === undefined) return "";
+  if (v === null) return "";
+  if (typeof v === "number") return v;
+  if (typeof v === "boolean") return v ? "true" : "false";
+
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? "" : v.toISOString();
+
+  if (typeof v === "string") {
+    const s = v.trim();
+    return fixBrokenLatin(s);
+  }
+
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
 }
 
-function getNumeroNota(nota) {
-  return String(nota?.numero_nfse || nota?.numero || nota?.id || "").trim();
+function flattenForExcel(input, prefix = "", out = {}) {
+  if (input === undefined || input === null) {
+    if (prefix) out[prefix] = "";
+    return out;
+  }
+
+  if (Array.isArray(input)) {
+    if (!input.length) {
+      if (prefix) out[prefix] = "";
+      return out;
+    }
+    input.forEach((item, idx) => {
+      const p = prefix ? `${prefix}[${idx}]` : `[${idx}]`;
+      flattenForExcel(item, p, out);
+    });
+    return out;
+  }
+
+  if (typeof input === "object") {
+    const keys = Object.keys(input);
+    if (!keys.length) {
+      if (prefix) out[prefix] = "";
+      return out;
+    }
+    for (const k of keys) {
+      const val = input[k];
+      const p = prefix ? `${prefix}.${k}` : k;
+      flattenForExcel(val, p, out);
+    }
+    return out;
+  }
+
+  if (prefix) out[prefix] = toExcelValue(input);
+  return out;
 }
 
-function normalizeForExcelRow(nota) {
-  return {
+function normalizeForExcelRow(nota, extras = {}) {
+  const base = {
+    ...extras,
     id_integracao: String(getIdIntegracao(nota) || ""),
-    tomador: fixBrokenLatin(nota?.tomador?.razao_social) || "",
-    cnpj_tomador: getTomadorCnpj(nota),
-    valor_nota: nota?.valor_servico ?? "",
-    situacao_prefeitura: String(nota?.situacao_prefeitura || ""),
-    numero_nota: getNumeroNota(nota)
+    id_tecnospeed: String(getIdTecnospeed(nota) || ""),
+    protocolo: String(nota?.protocolo || ""),
+    numero_nfse: String(nota?.numero_nfse || nota?.numero || nota?.id || ""),
+    status: String(nota?.status || ""),
+    situacao_prefeitura: String(nota?.situacao_prefeitura || "")
   };
+
+  const flat = flattenForExcel(nota);
+
+  return { ...flat, ...base };
 }
 
 export default function Consultas() {
@@ -835,16 +875,15 @@ export default function Consultas() {
                   numero_nfse: nota.numero_nfse,
                   status: nota.status,
                   situacao_prefeitura: nota.situacao_prefeitura,
-                  pdf_url_final: nota.pdf_url_final,
+
                   valor_servico: nota.valor_servico,
                   prestador: nota.prestador,
                   tomador: nota.tomador,
                   datas: nota.datas,
                   motivo_erro: nota.motivo_erro,
                   motivo_rejeicao: nota.motivo_rejeicao,
-                  motivo: nota.motivo,
                   erros: nota.erros,
-                  logs: nota.logs
+
                 }))
               }
             ]);
@@ -882,16 +921,16 @@ export default function Consultas() {
               fatura: res.nfse.fatura,
               status: res.nfse.status,
               situacao_prefeitura: res.nfse.situacao_prefeitura,
-              pdf_url_final: res.nfse.pdf_url_final,
+             
               valor_servico: res.nfse.valor_servico,
               prestador: res.nfse.prestador,
               tomador: res.nfse.tomador,
               emitente: res.nfse.prestador,
-              logs: res.nfse.logs,
+             
               erros: res.nfse.erros,
               motivo_erro: res.nfse.motivo_erro,
               motivo_rejeicao: res.nfse.motivo_rejeicao,
-              motivo: res.nfse.motivo,
+             
               datas: res.nfse.datas
             };
 
@@ -987,7 +1026,8 @@ export default function Consultas() {
             status: String(n?.status || ""),
             situacao_prefeitura: String(n?.situacao_prefeitura || ""),
             motivo: extractRejectionReason(n),
-            logs: flattenLogs(n)
+            
+      
           });
         }
       }
@@ -1008,7 +1048,7 @@ export default function Consultas() {
         status: String(baseNota?.status || ""),
         situacao_prefeitura: String(baseNota?.situacao_prefeitura || ""),
         motivo: extractRejectionReason(baseNota),
-        logs: flattenLogs(baseNota)
+        
       });
     }
 
@@ -1083,34 +1123,73 @@ export default function Consultas() {
         return;
       }
 
-      const notasAll = [];
+      const rowsNotasRaw = [];
       const faturasAll = toArray(faturas);
 
-      for (const fat of faturasAll) {
-        for (const n of toArray(fat?.notas)) {
-          if (!n) continue;
-          if (isNotaCancelada(n)) continue;
-          notasAll.push(n);
-        }
-      }
+      if (faturasAll.length) {
+        for (const fat of faturasAll) {
+          const faturaNumero = String(fat?.numero || fat?.id || "");
+          for (const n of toArray(fat?.notas)) {
+            if (!n) continue;
+            if (isNotaCancelada(n)) continue;
 
-      if (!notasAll.length) {
+            rowsNotasRaw.push(
+              normalizeForExcelRow(n, {
+                fatura_numero: faturaNumero
+              })
+            );
+          }
+        }
+      } else {
         for (const n of toArray(dados)) {
           if (!n) continue;
           if (isNotaCancelada(n)) continue;
-          notasAll.push(n);
+
+          rowsNotasRaw.push(
+            normalizeForExcelRow(n, {
+              fatura_numero: String(n?.fatura || n?.faturamento || "")
+            })
+          );
         }
       }
 
-      if (!notasAll.length) {
+      if (!rowsNotasRaw.length) {
         enqueueSnackbar("Sem notas para exportar.", { variant: "info" });
         return;
       }
 
-      const rowsNotas = notasAll.map((nota) => normalizeForExcelRow(nota));
+      const allKeysSet = new Set();
+      for (const r of rowsNotasRaw) {
+        Object.keys(r || {}).forEach((k) => allKeysSet.add(k));
+      }
+
+      const preferred = [
+        "fatura_numero",
+        "id_integracao",
+        "id_tecnospeed",
+        "protocolo",
+        "numero_nfse",
+        "status",
+        "situacao_prefeitura"
+      ];
+
+      const allKeys = Array.from(allKeysSet);
+
+      const headers = [
+        ...preferred.filter((k) => allKeysSet.has(k)),
+        ...allKeys
+          .filter((k) => !preferred.includes(k))
+          .sort((a, b) => a.localeCompare(b))
+      ];
+
+      const rowsNotas = rowsNotasRaw.map((r) => {
+        const row = {};
+        for (const h of headers) row[h] = r?.[h] ?? "";
+        return row;
+      });
 
       const wb = XLSX.utils.book_new();
-      const wsNotas = XLSX.utils.json_to_sheet(rowsNotas);
+      const wsNotas = XLSX.utils.json_to_sheet(rowsNotas, { header: headers });
       XLSX.utils.book_append_sheet(wb, wsNotas, "Notas");
 
       const now = new Date();
@@ -1399,9 +1478,8 @@ export default function Consultas() {
                 {resumoNotas.rejeitadas > 0 && (
                   <button
                     type="button"
-                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${
-                      filtroResumo === "rejeitadas" ? "is-active" : ""
-                    }`}
+                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${filtroResumo === "rejeitadas" ? "is-active" : ""
+                      }`}
                     onClick={() => toggleFiltro("rejeitadas")}
                     title="Mostrar somente rejeitadas"
                   >
