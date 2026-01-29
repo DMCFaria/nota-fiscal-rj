@@ -1,6 +1,10 @@
 import { useState, useCallback, useMemo } from "react";
 import {
-  FiSearch, FiChevronRight, FiChevronDown, FiXCircle, FiRefreshCw, FiDownload,
+  FiSearch,
+  FiChevronRight,
+  FiChevronDown,
+  FiRefreshCw,
+  FiDownload,
   FiTrash2,
   FiAlertTriangle
 } from "react-icons/fi";
@@ -27,18 +31,6 @@ function getIdIntegracao(nota) {
 
 function getIdTecnospeed(nota) {
   return nota?.id_tecnospeed || nota?.idTecnospeed || nota?.id || null;
-}
-
-function getNotaRef(nota) {
-  return (
-    nota?.id_integracao ||
-    nota?.idIntegracao ||
-    nota?.id ||
-    nota?.protocolo ||
-    nota?.numero_nfse ||
-    nota?.numero ||
-    null
-  );
 }
 
 function normalizeStr(v) {
@@ -91,7 +83,6 @@ function isNotaConcluida(nota) {
 function isNotaBaixavel(nota) {
   const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
   const st = normalizeStr(nota?.status).toLowerCase();
-
   const cancelada = sit === "cancelada" || st === "cancelada";
   return !!getIdIntegracao(nota) && isNotaConcluida(nota) && !cancelada;
 }
@@ -111,7 +102,10 @@ function isNotaRejeitada(nota) {
     st.includes("inval");
 
   const rejectedBySituacao =
-    sit.includes("rejeit") || sit.includes("recus") || sit.includes("deneg") || sit.includes("inval");
+    sit.includes("rejeit") ||
+    sit.includes("recus") ||
+    sit.includes("deneg") ||
+    sit.includes("inval");
 
   const hasExplicitReason =
     !!nota?.motivo ||
@@ -220,7 +214,10 @@ function simplifyDescricao(desc) {
   }
 
   if (lower.includes(" ou ")) {
-    const parts = s.split(/\s+ou\s+/i).map((p) => p.trim()).filter(Boolean);
+    const parts = s
+      .split(/\s+ou\s+/i)
+      .map((p) => p.trim())
+      .filter(Boolean);
     const prefer = parts.find((p) => p.toLowerCase().includes("pertence ao município"));
     if (prefer) return simplifyDescricao(prefer);
   }
@@ -324,29 +321,13 @@ function extractRejectionReason(nota) {
   const logs = toArray(nota?.logs || nota?.log);
   if (logs.length) {
     const last = logs[logs.length - 1];
-    const formatted = formatTecnospeedError(last?.motivo_erro || last?.mensagem || last?.message || last?.erro || last);
+    const formatted = formatTecnospeedError(
+      last?.motivo_erro || last?.mensagem || last?.message || last?.erro || last
+    );
     if (formatted && formatted !== "—") return formatted;
   }
 
   return "—";
-}
-
-function flattenLogs(nota) {
-  const logs = toArray(nota?.logs || nota?.log);
-  if (!logs.length) return "—";
-
-  return logs
-    .map((l) => {
-      if (typeof l === "string") return l;
-      const when = l?.quando || l?.data || l?.created_at || l?.timestamp;
-      const msg = l?.mensagem || l?.message || l?.erro || l?.descricao || "";
-      const st = l?.status || "";
-      const parts = [when ? `[${when}]` : "", st ? `(${st})` : "", msg].filter(Boolean);
-      return parts.join(" ");
-    })
-    .filter(Boolean)
-    .slice(0, 250)
-    .join(" | ");
 }
 
 function getCepFromNota(nota) {
@@ -370,36 +351,70 @@ function formatCep(cepDigits) {
   return `${d.slice(0, 5)}-${d.slice(5)}`;
 }
 
-function getEmitenteNomeFromNota(n) {
-  return (
-    n?.emitente?.razao_social ||
-    n?.emitente?.razaoSocial ||
-    n?.prestador?.razao_social ||
-    n?.prestador?.razaoSocial ||
-    n?.prestador?.nome ||
-    n?.emitente_nome ||
-    n?.emitenteNome ||
-    ""
-  );
+function getFilenameFromContentDisposition(cd) {
+  if (!cd) return null;
+
+  const m1 = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+  if (m1?.[1]) return decodeURIComponent(m1[1].replace(/["']/g, ""));
+
+  const m2 = /filename="?([^"]+)"?/i.exec(cd);
+  if (m2?.[1]) return m2[1];
+
+  return null;
 }
 
-function getEmitenteNomeFromFatura(item) {
-  const direct =
-    item?.emitente?.razao_social ||
-    item?.prestador?.razao_social ||
-    item?.emitente_nome ||
-    item?.emitenteNome ||
-    "";
+function extFromContentType(ct) {
+  const t = String(ct || "").toLowerCase();
+  if (t.includes("pdf")) return "pdf";
+  if (t.includes("zip")) return "zip";
+  return "";
+}
 
-  if (direct) return direct;
+async function tryReadBlobAsText(blob) {
+  try {
+    return await blob.text();
+  } catch {
+    return "";
+  }
+}
 
-  const notas = toArray(item?.notas).filter(Boolean);
-  for (const n of notas) {
-    const nome = getEmitenteNomeFromNota(n);
-    if (nome) return nome;
+async function parseBlobError(e) {
+  const status = e?.response?.status;
+  const data = e?.response?.data;
+
+  if (data instanceof Blob) {
+    const txt = await tryReadBlobAsText(data);
+    const json = (() => {
+      try {
+        return JSON.parse(txt);
+      } catch {
+        return null;
+      }
+    })();
+
+    const msg =
+      json?.error?.message ||
+      json?.error?.mensagem ||
+      json?.message ||
+      json?.mensagem ||
+      txt ||
+      "Erro inesperado.";
+
+    return { status, message: msg };
   }
 
-  return "";
+  return { status, message: getFriendlyApiErrorMessage(e) };
+}
+
+function forceDownloadBlob({ blob, filename }) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || "download";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 function ModalConfirm({
@@ -538,7 +553,9 @@ function LinhaFatura({
           <span className="fatura-resumo-text">
             {qtdNotas} nota(s) ativa(s)
             {qtdRejeitadas > 0 && (
-              <span style={{ marginLeft: 10, fontWeight: 600, color: "#b45309" }}>• {qtdRejeitadas} rejeitada(s)</span>
+              <span style={{ marginLeft: 10, fontWeight: 600, color: "#b45309" }}>
+                • {qtdRejeitadas} rejeitada(s)
+              </span>
             )}
           </span>
         </td>
@@ -549,7 +566,7 @@ function LinhaFatura({
             className="btn btn-xs secondary"
             onClick={onBaixarTodas}
             disabled={!qtdBaixaveis || baixandoAll}
-            title={!qtdBaixaveis ? "Nenhuma nota concluída para baixar" : "Baixar PDFs das notas concluídas"}
+            title={!qtdBaixaveis ? "Nenhuma nota concluída para baixar" : "Baixar PDFs/ZIP das notas concluídas"}
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
             <FiDownload />
@@ -637,7 +654,7 @@ function LinhaFatura({
                                   className="icon-btn"
                                   onClick={() => onBaixarUma(n)}
                                   disabled={!isNotaBaixavel(n)}
-                                  title="Baixar PDF da nota"
+                                  title="Baixar PDF/ZIP"
                                 >
                                   <FiDownload />
                                 </button>
@@ -742,8 +759,7 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
 }
 
 function toExcelValue(v) {
-  if (v === undefined) return "";
-  if (v === null) return "";
+  if (v === undefined || v === null) return "";
   if (typeof v === "number") return v;
   if (typeof v === "boolean") return v ? "true" : "false";
 
@@ -848,7 +864,6 @@ export default function Consultas() {
   const [reemitindo, setReemitindo] = useState(false);
 
   const [sincronizando, setSincronizando] = useState(false);
-
   const [filtroResumo, setFiltroResumo] = useState("todas");
 
   const [baixandoExcelNotas, setBaixandoExcelNotas] = useState(false);
@@ -886,7 +901,7 @@ export default function Consultas() {
         const res = await getNotaPorFatura(termo);
 
         const notasOrdenadas =
-          res.tipo === "multiplas" && Array.isArray(res.notas)
+          res?.tipo === "multiplas" && Array.isArray(res?.notas)
             ? [...res.notas].sort((a, b) => new Date(b?.datas?.criacao || 0) - new Date(a?.datas?.criacao || 0))
             : [];
 
@@ -1020,11 +1035,7 @@ export default function Consultas() {
         origem: "portal_nacional"
       });
 
-      const msg =
-        res?.message ||
-        res?.mensagem ||
-        `Sincronização solicitada.`;
-
+      const msg = res?.message || res?.mensagem || "Sincronização solicitada.";
       enqueueSnackbar(msg, { variant: "success" });
 
       await realizarBusca();
@@ -1201,12 +1212,9 @@ export default function Consultas() {
       ];
 
       const allKeys = Array.from(allKeysSet);
-
       const headers = [
         ...preferred.filter((k) => allKeysSet.has(k)),
-        ...allKeys
-          .filter((k) => !preferred.includes(k))
-          .sort((a, b) => a.localeCompare(b))
+        ...allKeys.filter((k) => !preferred.includes(k)).sort((a, b) => a.localeCompare(b))
       ];
 
       const rowsNotas = rowsNotasRaw.map((r) => {
@@ -1238,7 +1246,7 @@ export default function Consultas() {
     }
   }, [baixandoExcelNotas, loading, hasSearched, faturas, dados, textoDigitado, enqueueSnackbar]);
 
-  const handleDownload = async (item, tipo) => {
+    const handleDownload = async (item, tipo) => {
     const isFatura = tipo === "fatura";
     const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
 
@@ -1255,22 +1263,15 @@ export default function Consultas() {
         }
 
         const faturaNumero = String(item?.numero || item?.fatura || item?.numero_fatura || "");
-        const emitenteNome = getEmitenteNomeFromFatura(item);
 
-        if (!emitenteNome) {
-          enqueueSnackbar("Não consegui identificar o emitente dessa fatura para baixar o PDF.", { variant: "error" });
-          console.warn("[download fatura] emitenteNome vazio", { faturaNumero, item });
-          return;
-        }
+        const emitenteNome =
+          item?.emitente?.razao_social ||
+          item?.prestador?.razao_social ||
+          baixaveis.find((n) => n?.emitente?.razao_social)?.emitente?.razao_social ||
+          baixaveis.find((n) => n?.prestador?.razao_social)?.prestador?.razao_social ||
+          "emitente";
 
-        console.log("[download fatura] payload", {
-          tipo: "fatura",
-          fatura: faturaNumero,
-          emitente: emitenteNome,
-          nfs_emitidas: String(baixaveis.length)
-        });
-
-        await downloadPdfNota({
+        const resp = await downloadPdfNota({
           tipo: "fatura",
           idIntegracao: "",
           fatura: faturaNumero,
@@ -1278,11 +1279,34 @@ export default function Consultas() {
           nfs_emitidas: String(baixaveis.length)
         });
 
-        enqueueSnackbar(`Download da fatura iniciado (${baixaveis.length} nota(s))!`, { variant: "success" });
+        const ct = resp?.headers?.["content-type"] || resp?.headers?.["Content-Type"];
+        const cd = resp?.headers?.["content-disposition"] || resp?.headers?.["Content-Disposition"];
+
+        const fromHeader = getFilenameFromContentDisposition(cd);
+        const ext = extFromContentType(ct);
+
+        const safeEmit = String(emitenteNome || "emitente").replace(/[^\w.-]+/g, "_").slice(0, 40);
+        const safeFat = String(faturaNumero || "fatura").replace(/[^\w.-]+/g, "_").slice(0, 30);
+
+        const fallbackName =
+          ext === "zip"
+            ? `fatura_${safeFat}_${safeEmit}.zip`
+            : `fatura_${safeFat}_${safeEmit}.pdf`;
+
+        const filename = fromHeader || fallbackName;
+
+        forceDownloadBlob({ blob: resp.data, filename });
+
+        if (ext === "zip" || String(filename).toLowerCase().endsWith(".zip")) {
+          enqueueSnackbar(`Download em ZIP iniciado (${baixaveis.length} nota(s)).`, { variant: "warning" });
+        } else {
+          enqueueSnackbar(`Download da fatura iniciado (${baixaveis.length} nota(s))!`, { variant: "success" });
+        }
+
         return;
       }
 
-      if (isNotaCancelada(item)) {
+            if (isNotaCancelada(item)) {
         enqueueSnackbar("Nota cancelada (não disponível).", { variant: "info" });
         return;
       }
@@ -1301,9 +1325,9 @@ export default function Consultas() {
       const emitenteNome =
         item?.emitente?.razao_social ||
         item?.prestador?.razao_social ||
-        "CONDOCORP SERVICOS DE INTERMEDIACAO";
+        "emitente";
 
-      await downloadPdfNota({
+      const resp = await downloadPdfNota({
         tipo: "individual",
         idIntegracao,
         fatura: String(item?.fatura || item?.numero_fatura || item?.numero || ""),
@@ -1311,9 +1335,21 @@ export default function Consultas() {
         nfs_emitidas: "1"
       });
 
+      const ct = resp?.headers?.["content-type"] || resp?.headers?.["Content-Type"];
+      const cd = resp?.headers?.["content-disposition"] || resp?.headers?.["Content-Disposition"];
+
+      const fromHeader = getFilenameFromContentDisposition(cd);
+      const ext = extFromContentType(ct) || "pdf";
+
+      const safeId = String(idIntegracao).replace(/[^\w.-]+/g, "_").slice(0, 40);
+      const filename = fromHeader || `nfse_${safeId}.${ext}`;
+
+      forceDownloadBlob({ blob: resp.data, filename });
       enqueueSnackbar("Download iniciado!", { variant: "success" });
     } catch (e) {
-      enqueueSnackbar(getFriendlyApiErrorMessage(e), { variant: "error" });
+      console.error("[download] erro:", e);
+      const parsed = await parseBlobError(e);
+      enqueueSnackbar(parsed.message, { variant: "error" });
     } finally {
       if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: false }));
     }
@@ -1636,7 +1672,9 @@ export default function Consultas() {
           onChange={(e) => setModal({ ...modal, sistema: e.target.value })}
           disabled={modal.opcoes?.length === 1}
         >
-          <option value="">{modal.opcoes?.length === 1 ? "Sistema selecionado" : "Selecione o sistema..."}</option>
+          <option value="">
+            {modal.opcoes?.length === 1 ? "Sistema selecionado" : "Selecione o sistema..."}
+          </option>
           {modal.opcoes.map((o) => (
             <option key={o} value={o}>
               {o}
@@ -1666,7 +1704,9 @@ export default function Consultas() {
         confirmDisabled={String(tratarModal.cep || "").replace(/\D/g, "").length !== 8}
       >
         <div style={{ marginTop: 12 }}>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>CEP do tomador</label>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+            CEP do tomador
+          </label>
           <input
             className="select"
             value={tratarModal.cep}
