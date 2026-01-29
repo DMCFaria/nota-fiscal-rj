@@ -330,25 +330,132 @@ function extractRejectionReason(nota) {
   return "—";
 }
 
-function getCepFromNota(nota) {
-  const t = nota?.tomador || {};
-  const endereco = t?.endereco || t?.endereco_tomador || {};
-  const raw =
-    endereco?.cep ||
-    endereco?.CEP ||
-    t?.cep ||
-    t?.CEP ||
-    nota?.cep_tomador ||
-    nota?.cep ||
-    "";
-
-  return String(raw || "").replace(/\D/g, "").slice(0, 8);
+function normalizeCepDigits(v) {
+  return String(v || "").replace(/\D/g, "").slice(0, 8);
 }
 
 function formatCep(cepDigits) {
-  const d = String(cepDigits || "").replace(/\D/g, "").slice(0, 8);
+  const d = normalizeCepDigits(cepDigits);
   if (d.length <= 5) return d;
   return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
+function getEmitenteRazao(nota) {
+  return (
+    nota?.emitente?.razao_social ||
+    nota?.prestador?.razao_social ||
+    nota?.prestador?.nome ||
+    nota?.dados?.prestador?.razao_social ||
+    nota?.nfse?.prestador?.razao_social ||
+    ""
+  );
+}
+
+function isEmitenteCondocorp(nota) {
+  const nome = String(getEmitenteRazao(nota) || "").toLowerCase();
+  return nome.includes("condocorp");
+}
+
+function extractCepFromText(text) {
+  const s = String(text || "");
+  const m = s.match(/\b(\d{5})-?(\d{3})\b/);
+  if (!m) return "";
+  return `${m[1]}${m[2]}`;
+}
+
+function extractCepFromNotaErrors(nota) {
+  const candidates = [
+    nota?.motivo_erro,
+    nota?.motivo_rejeicao,
+    nota?.motivo,
+    nota?.mensagem,
+    nota?.erro,
+    nota?.error,
+    nota?.situacao_prefeitura
+  ];
+
+  for (const c of candidates) {
+    if (!c) continue;
+    const cep = extractCepFromText(typeof c === "string" ? c : JSON.stringify(c));
+    if (cep) return cep;
+  }
+
+  const erros = toArray(nota?.erros);
+  for (const e of erros) {
+    const cep = extractCepFromText(typeof e === "string" ? e : JSON.stringify(e));
+    if (cep) return cep;
+  }
+
+  const logs = toArray(nota?.logs || nota?.log);
+  for (const l of logs) {
+    const cep = extractCepFromText(typeof l === "string" ? l : JSON.stringify(l));
+    if (cep) return cep;
+  }
+
+  return "";
+}
+
+function pickFirstCepFromPaths(nota, paths) {
+  for (const getter of paths) {
+    try {
+      const v = getter(nota);
+      const digits = normalizeCepDigits(v);
+      if (digits.length === 8) return digits;
+    } catch {
+      // ignore
+    }
+  }
+  return "";
+}
+
+function getCepFromNota(nota) {
+  if (!nota) return "";
+
+  const isCondocorp = isEmitenteCondocorp(nota);
+
+  const commonPaths = [
+    (n) => n?.tomador?.endereco?.cep,
+    (n) => n?.tomador?.endereco?.CEP,
+    (n) => n?.tomador?.endereco_tomador?.cep,
+    (n) => n?.tomador?.endereco_tomador?.CEP,
+    (n) => n?.tomador?.enderecoTomador?.cep,
+    (n) => n?.tomador?.enderecoTomador?.CEP,
+    (n) => n?.tomador?.endereco_tomador?.Cep,
+    (n) => n?.tomador?.endereco?.Cep,
+    (n) => n?.tomador?.cep,
+    (n) => n?.tomador?.CEP,
+    (n) => n?.cep_tomador,
+    (n) => n?.tomador_cep,
+    (n) => n?.tomadorCep,
+    (n) => n?.cep
+  ];
+
+  const extraPathsNonCondocorp = [
+    (n) => n?.dados?.tomador?.endereco?.cep,
+    (n) => n?.dados?.tomador?.endereco?.CEP,
+    (n) => n?.dados?.tomador?.endereco_tomador?.cep,
+    (n) => n?.dados?.tomador?.enderecoTomador?.cep,
+    (n) => n?.dados?.tomador?.cep,
+    (n) => n?.nfse?.dados?.tomador?.endereco?.cep,
+    (n) => n?.nfse?.dados?.tomador?.enderecoTomador?.cep,
+    (n) => n?.nfse?.tomador?.endereco?.cep,
+    (n) => n?.nfse?.tomador?.enderecoTomador?.cep,
+    (n) => n?.payload?.tomador?.endereco?.cep,
+    (n) => n?.payload?.tomador?.enderecoTomador?.cep
+  ];
+
+  const candidates = isCondocorp
+    ? commonPaths
+    : [...commonPaths, ...extraPathsNonCondocorp];
+
+  let cep = pickFirstCepFromPaths(nota, candidates);
+
+  if (!cep) {
+    const fromError = extractCepFromNotaErrors(nota);
+    if (fromError.length === 8) cep = fromError;
+  }
+
+  return cep; 
 }
 
 function getFilenameFromContentDisposition(cd) {
@@ -367,6 +474,8 @@ function extFromContentType(ct) {
   const t = String(ct || "").toLowerCase();
   if (t.includes("pdf")) return "pdf";
   if (t.includes("zip")) return "zip";
+  if (t.includes("x-zip-compressed")) return "zip";
+  if (t.includes("octet-stream")) return "zip";
   return "";
 }
 
@@ -1246,7 +1355,7 @@ export default function Consultas() {
     }
   }, [baixandoExcelNotas, loading, hasSearched, faturas, dados, textoDigitado, enqueueSnackbar]);
 
-    const handleDownload = async (item, tipo) => {
+  const handleDownload = async (item, tipo) => {
     const isFatura = tipo === "fatura";
     const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
 
@@ -1306,7 +1415,7 @@ export default function Consultas() {
         return;
       }
 
-            if (isNotaCancelada(item)) {
+      if (isNotaCancelada(item)) {
         enqueueSnackbar("Nota cancelada (não disponível).", { variant: "info" });
         return;
       }
@@ -1418,11 +1527,20 @@ export default function Consultas() {
   };
 
   const openTratarErro = (nota) => {
-    const cepDigits = getCepFromNota(nota);
+    const cepDigits = getCepFromNota(nota); 
+    const cepFmt = formatCep(cepDigits);
+
+    if (!cepDigits) {
+      enqueueSnackbar(
+        "Não encontrei o CEP automaticamente para esta nota. Informe manualmente para reemitir.",
+        { variant: "warning" }
+      );
+    }
+
     setTratarModal({
       open: true,
       nota,
-      cep: formatCep(cepDigits)
+      cep: cepFmt
     });
   };
 
@@ -1431,7 +1549,7 @@ export default function Consultas() {
     if (!nota) return;
 
     const id_tecnospeed = String(getIdTecnospeed(nota) || "");
-    const cepDigits = String(tratarModal.cep || "").replace(/\D/g, "").slice(0, 8);
+    const cepDigits = normalizeCepDigits(tratarModal.cep);
 
     if (!id_tecnospeed) {
       enqueueSnackbar("Não encontrei o id_tecnospeed dessa nota.", { variant: "error" });
@@ -1701,7 +1819,7 @@ export default function Consultas() {
         loading={reemitindo}
         onConfirm={onConfirmReemitir}
         onClose={() => !reemitindo && setTratarModal({ open: false, nota: null, cep: "" })}
-        confirmDisabled={String(tratarModal.cep || "").replace(/\D/g, "").length !== 8}
+        confirmDisabled={normalizeCepDigits(tratarModal.cep).length !== 8}
       >
         <div style={{ marginTop: 12 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
@@ -1719,6 +1837,9 @@ export default function Consultas() {
             placeholder="00000-000"
             inputMode="numeric"
           />
+          <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+            Emitente: <strong>{fixBrokenLatin(getEmitenteRazao(tratarModal.nota)) || "—"}</strong>
+          </div>
         </div>
       </ModalConfirm>
     </div>
