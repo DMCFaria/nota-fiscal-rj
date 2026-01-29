@@ -370,6 +370,38 @@ function formatCep(cepDigits) {
   return `${d.slice(0, 5)}-${d.slice(5)}`;
 }
 
+function getEmitenteNomeFromNota(n) {
+  return (
+    n?.emitente?.razao_social ||
+    n?.emitente?.razaoSocial ||
+    n?.prestador?.razao_social ||
+    n?.prestador?.razaoSocial ||
+    n?.prestador?.nome ||
+    n?.emitente_nome ||
+    n?.emitenteNome ||
+    ""
+  );
+}
+
+function getEmitenteNomeFromFatura(item) {
+  const direct =
+    item?.emitente?.razao_social ||
+    item?.prestador?.razao_social ||
+    item?.emitente_nome ||
+    item?.emitenteNome ||
+    "";
+
+  if (direct) return direct;
+
+  const notas = toArray(item?.notas).filter(Boolean);
+  for (const n of notas) {
+    const nome = getEmitenteNomeFromNota(n);
+    if (nome) return nome;
+  }
+
+  return "";
+}
+
 function ModalConfirm({
   open,
   title,
@@ -709,7 +741,6 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
   );
 }
 
-
 function toExcelValue(v) {
   if (v === undefined) return "";
   if (v === null) return "";
@@ -882,8 +913,7 @@ export default function Consultas() {
                   datas: nota.datas,
                   motivo_erro: nota.motivo_erro,
                   motivo_rejeicao: nota.motivo_rejeicao,
-                  erros: nota.erros,
-
+                  erros: nota.erros
                 }))
               }
             ]);
@@ -921,16 +951,16 @@ export default function Consultas() {
               fatura: res.nfse.fatura,
               status: res.nfse.status,
               situacao_prefeitura: res.nfse.situacao_prefeitura,
-             
+
               valor_servico: res.nfse.valor_servico,
               prestador: res.nfse.prestador,
               tomador: res.nfse.tomador,
               emitente: res.nfse.prestador,
-             
+
               erros: res.nfse.erros,
               motivo_erro: res.nfse.motivo_erro,
               motivo_rejeicao: res.nfse.motivo_rejeicao,
-             
+
               datas: res.nfse.datas
             };
 
@@ -1025,9 +1055,7 @@ export default function Consultas() {
             valor_servico: n?.valor_servico ?? "",
             status: String(n?.status || ""),
             situacao_prefeitura: String(n?.situacao_prefeitura || ""),
-            motivo: extractRejectionReason(n),
-            
-      
+            motivo: extractRejectionReason(n)
           });
         }
       }
@@ -1047,8 +1075,7 @@ export default function Consultas() {
         valor_servico: baseNota?.valor_servico ?? "",
         status: String(baseNota?.status || ""),
         situacao_prefeitura: String(baseNota?.situacao_prefeitura || ""),
-        motivo: extractRejectionReason(baseNota),
-        
+        motivo: extractRejectionReason(baseNota)
       });
     }
 
@@ -1228,10 +1255,20 @@ export default function Consultas() {
         }
 
         const faturaNumero = String(item?.numero || item?.fatura || item?.numero_fatura || "");
-        const emitenteNome =
-          baixaveis[0]?.emitente?.razao_social ||
-          baixaveis[0]?.prestador?.razao_social ||
-          "CONDOCORP SERVICOS DE INTERMEDIACAO";
+        const emitenteNome = getEmitenteNomeFromFatura(item);
+
+        if (!emitenteNome) {
+          enqueueSnackbar("Não consegui identificar o emitente dessa fatura para baixar o PDF.", { variant: "error" });
+          console.warn("[download fatura] emitenteNome vazio", { faturaNumero, item });
+          return;
+        }
+
+        console.log("[download fatura] payload", {
+          tipo: "fatura",
+          fatura: faturaNumero,
+          emitente: emitenteNome,
+          nfs_emitidas: String(baixaveis.length)
+        });
 
         await downloadPdfNota({
           tipo: "fatura",
@@ -1478,8 +1515,9 @@ export default function Consultas() {
                 {resumoNotas.rejeitadas > 0 && (
                   <button
                     type="button"
-                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${filtroResumo === "rejeitadas" ? "is-active" : ""
-                      }`}
+                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${
+                      filtroResumo === "rejeitadas" ? "is-active" : ""
+                    }`}
                     onClick={() => toggleFiltro("rejeitadas")}
                     title="Mostrar somente rejeitadas"
                   >
