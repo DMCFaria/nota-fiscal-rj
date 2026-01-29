@@ -1,4 +1,3 @@
-// src/services/notas.js
 import axios from "axios";
 import api from "./api";
 import n8n from "./n8n";
@@ -13,7 +12,6 @@ export const getNotaPorIdOuProtocolo = async (idNota) => {
   }
 };
 
-// Notas
 export const getNotaPorFatura = async (numero_fatura) => {
   try {
     const response = await api.get(
@@ -40,8 +38,9 @@ export const getNotaPorID = async (id_tecnospeed) => {
 
 export const getNotaPorIDIntegracao = async (id_integracao) => {
   try {
-    // const response = await axios.get(`http://localhost:8000/api/consultas/nfse/consulta-nota-por-id/${id_integracao}/`);
-    const response = await api.get(`/api/consultas/nfse/consulta-nota-por-integracao/${id_integracao}/`);
+    const response = await api.get(
+      `/api/consultas/nfse/consulta-nota-por-integracao/${id_integracao}/`
+    );
     return response.data;
   } catch (error) {
     console.error("ENDPOINT - Erro ao buscar nota:", error);
@@ -49,7 +48,6 @@ export const getNotaPorIDIntegracao = async (id_integracao) => {
   }
 };
 
-// Sincronizar Notas
 export const sincronizarNotas = async (notasArray) => {
   const payload = Array.isArray(notasArray)
     ? { notas: notasArray }
@@ -63,7 +61,6 @@ export const sincronizarNotas = async (notasArray) => {
   return response.data;
 };
 
-// Histórico
 export const getHistoricoFatura = async (numero_fatura) => {
   try {
     const response = await api.get(
@@ -88,7 +85,6 @@ export const getHistoricoNota = async (notaId) => {
   }
 };
 
-// Outras funções que você pode estar usando
 export const transmitirNota = async (payload) => {
   try {
     const { data } = await api.post("/api/consultar-faturas/", payload);
@@ -99,40 +95,17 @@ export const transmitirNota = async (payload) => {
   }
 };
 
+
 export const downloadPdfNota = async (payload) => {
   try {
     const response = await n8n.post("webhook/baixar-pdf-nfse/", payload, {
-      responseType: "arraybuffer",
+      responseType: "blob",
       headers: {
-        Accept: "application/pdf",
+        Accept: "application/pdf, application/zip, application/x-zip-compressed, application/octet-stream",
       },
     });
 
-    const blob = new Blob([response.data], { type: "application/pdf" });
-
-    // console.log("Tamanho do Blob gerado:", blob.size);
-
-    if (blob.size < 1000) {
-      throw new Error("Arquivo PDF parece estar vazio ou inválido.");
-    }
-
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-
-    const fileName =
-      payload.tipo === "fatura"
-        ? `NFSE_FATURA_${payload.fatura}.pdf`
-        : `NFSE_${payload.idIntegracao}.pdf`;
-
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-
-    setTimeout(() => {
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    }, 200);
+    return response; 
   } catch (error) {
     console.error("Erro no download:", error);
     throw error;
@@ -149,16 +122,12 @@ export const cancelarNota = async (notasArray) => {
   return await n8n.post("webhook/cancelar-nf", payload);
 };
 
-// função: reemitir nota (usada no "Tratar erro")
 export const reemitirNota = async (payload) => {
   try {
     const response = await n8n.post("webhook/reemitir-nfse", {
       id_integracao: payload?.id_integracao ?? payload?.idIntegracao ?? "",
-      id_tecnospeed:
-        payload?.id_tecnospeed ?? payload?.idTecnospeed ?? payload?.id ?? "",
-      cep: String(payload?.cep || "")
-        .replace(/\D/g, "")
-        .slice(0, 8),
+      id_tecnospeed: payload?.id_tecnospeed ?? payload?.idTecnospeed ?? payload?.id ?? "",
+      cep: String(payload?.cep || "").replace(/\D/g, "").slice(0, 8),
     });
 
     return response.data;
