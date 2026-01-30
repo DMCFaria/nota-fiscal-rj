@@ -11,8 +11,6 @@ export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
   const [fatura, setFatura] = useState("");
 
-  // ✅ substitui o checkbox por seletor
-  // valores: "normal" | "parcelada" | "vr"
   const [tipoFatura, setTipoFatura] = useState("normal");
 
   const [observacao, setObservacao] = useState("");
@@ -122,7 +120,6 @@ export default function EmissaoPorFatura() {
         parcela: 1,
         codigo: codigoServico,
 
-        // ✅ compatível + explícito
         parcelada: isParcelada,
         vr: isVr,
         tipo_fatura: tipoFatura
@@ -193,7 +190,6 @@ export default function EmissaoPorFatura() {
       ...nota,
       fatura_numero: fatura,
 
-      // ✅ manda junto no lote também (se o back quiser usar)
       parcelada: isParcelada,
       vr: isVr,
       tipo_fatura: tipoFatura
@@ -211,7 +207,7 @@ export default function EmissaoPorFatura() {
 
         setTimeout(() => {
           setFatura("");
-          setTipoFatura("normal"); // ✅ reseta o seletor
+          setTipoFatura("normal"); 
           setObservacao("");
           setPreview(null);
           setProgresso(0);
@@ -314,7 +310,6 @@ export default function EmissaoPorFatura() {
                 />
               </div>
 
-              {/* ✅ AQUI: seletor no lugar do checkbox */}
               <div className="fc-input-group fc-input-group--narrow">
                 <label className="fc-input-label">Tipo de Fatura</label>
                 <select
