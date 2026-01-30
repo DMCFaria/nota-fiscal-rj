@@ -63,6 +63,34 @@ function getTomadorRazao(nota) {
   );
 }
 
+/**
+ * ✅ Normaliza o shape do tomador no STATE
+ * - Se o back mandar `tomador_cpf_cnpj` no root, injeta também em `tomador.cpfCnpj`
+ * - Mantém `tomador_cpf_cnpj` no root para o Excel achar por qualquer caminho
+ */
+function normalizeTomadorForState(nota) {
+  const cpfCnpj = getTomadorCpfCnpj(nota);
+
+  const tomadorObj =
+    nota?.tomador && typeof nota.tomador === "object" ? nota.tomador : {};
+
+  const mergedTomador = {
+    ...tomadorObj,
+    cpfCnpj:
+      tomadorObj?.cpfCnpj ||
+      tomadorObj?.cpf_cnpj ||
+      tomadorObj?.cnpj ||
+      tomadorObj?.cpf ||
+      cpfCnpj ||
+      ""
+  };
+
+  return {
+    ...nota,
+    tomador_cpf_cnpj: cpfCnpj || nota?.tomador_cpf_cnpj || "",
+    tomador: mergedTomador
+  };
+}
 
 function normalizeStr(v) {
   return String(v ?? "").trim();
@@ -149,7 +177,11 @@ function isNotaRejeitada(nota) {
     toArray(nota?.logs).length > 0 ||
     toArray(nota?.log).length > 0;
 
-  return rejectedByStatus || rejectedBySituacao || (hasExplicitReason && (st === "erro" || st.includes("erro")));
+  return (
+    rejectedByStatus ||
+    rejectedBySituacao ||
+    (hasExplicitReason && (st === "erro" || st.includes("erro")))
+  );
 }
 
 function isNotaPendente(nota) {
@@ -249,14 +281,17 @@ function simplifyDescricao(desc) {
       .split(/\s+ou\s+/i)
       .map((p) => p.trim())
       .filter(Boolean);
-    const prefer = parts.find((p) => p.toLowerCase().includes("pertence ao município"));
+    const prefer = parts.find((p) =>
+      p.toLowerCase().includes("pertence ao município")
+    );
     if (prefer) return simplifyDescricao(prefer);
   }
 
   const m = s.match(/^.{0,170}?[.!?](\s|$)/);
   const firstSentence = (m?.[0] || s).trim();
 
-  if (firstSentence.length > 120) return firstSentence.slice(0, 120).trim() + "…";
+  if (firstSentence.length > 120)
+    return firstSentence.slice(0, 120).trim() + "…";
   return firstSentence;
 }
 
@@ -294,7 +329,9 @@ function formatTecnospeedError(err) {
 
     if (nested) return simplifyDescricao(nested);
 
-    const anyString = Object.values(err).find((v) => typeof v === "string" && v.trim());
+    const anyString = Object.values(err).find(
+      (v) => typeof v === "string" && v.trim()
+    );
     if (anyString) return simplifyDescricao(anyString);
 
     return "—";
@@ -314,7 +351,8 @@ function getFriendlyApiErrorMessage(e) {
     data?.mensagem ||
     null;
 
-  const msgFromStringData = typeof data === "string" ? formatTecnospeedError(data) : null;
+  const msgFromStringData =
+    typeof data === "string" ? formatTecnospeedError(data) : null;
   const msgFromMessage = e?.message ? formatTecnospeedError(e.message) : null;
 
   const msg = msgFromData || msgFromStringData || msgFromMessage || "Erro inesperado.";
@@ -475,9 +513,7 @@ function getCepFromNota(nota) {
     (n) => n?.payload?.tomador?.enderecoTomador?.cep
   ];
 
-  const candidates = isCondocorp
-    ? commonPaths
-    : [...commonPaths, ...extraPathsNonCondocorp];
+  const candidates = isCondocorp ? commonPaths : [...commonPaths, ...extraPathsNonCondocorp];
 
   let cep = pickFirstCepFromPaths(nota, candidates);
 
@@ -584,7 +620,12 @@ function ModalConfirm({
         {children}
 
         <div className="modal-actions">
-          <button type="button" className="btn secondary" onClick={onClose} disabled={loading}>
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={onClose}
+            disabled={loading}
+          >
             {cancelLabel}
           </button>
 
@@ -644,7 +685,11 @@ function buildNotasPayloadFromTela({ tipoBusca, faturas, dados }) {
         });
       }
     }
-    return { notas: notas.filter((x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero) };
+    return {
+      notas: notas.filter(
+        (x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero
+      )
+    };
   }
 
   const notas = toArray(dados).map((n) => ({
@@ -655,7 +700,11 @@ function buildNotasPayloadFromTela({ tipoBusca, faturas, dados }) {
     fatura: n?.fatura || n?.faturamento
   }));
 
-  return { notas: notas.filter((x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero) };
+  return {
+    notas: notas.filter(
+      (x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero
+    )
+  };
 }
 
 function LinhaFatura({
@@ -684,7 +733,9 @@ function LinhaFatura({
       <tr className={`accordion-row ${isOpen ? "open" : ""}`}>
         <td className="mono">
           <button type="button" className="accordion-toggle" onClick={onToggle}>
-            <span className="chev">{isOpen ? <FiChevronDown /> : <FiChevronRight />}</span>
+            <span className="chev">
+              {isOpen ? <FiChevronDown /> : <FiChevronRight />}
+            </span>
             {fatura.numero}
           </button>
         </td>
@@ -693,20 +744,29 @@ function LinhaFatura({
           <span className="fatura-resumo-text">
             {qtdNotas} nota(s) ativa(s)
             {qtdRejeitadas > 0 && (
-              <span style={{ marginLeft: 10, fontWeight: 600, color: "#b45309" }}>
+              <span
+                style={{ marginLeft: 10, fontWeight: 600, color: "#b45309" }}
+              >
                 • {qtdRejeitadas} rejeitada(s)
               </span>
             )}
           </span>
         </td>
 
-        <td className="acoes-col" style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+        <td
+          className="acoes-col"
+          style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}
+        >
           <button
             type="button"
             className="btn btn-xs secondary"
             onClick={onBaixarTodas}
             disabled={!qtdBaixaveis || baixandoAll}
-            title={!qtdBaixaveis ? "Nenhuma nota concluída para baixar" : "Baixar PDFs/ZIP das notas concluídas"}
+            title={
+              !qtdBaixaveis
+                ? "Nenhuma nota concluída para baixar"
+                : "Baixar PDFs/ZIP das notas concluídas"
+            }
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
             <FiDownload />
@@ -737,7 +797,7 @@ function LinhaFatura({
                     <tr>
                       <th style={{ width: 130 }}>Nº DA NOTA</th>
                       <th style={{ width: 4000 }}>TOMADOR</th>
-                      <th>DATA</th>
+                      <th style={{ width: 180 }} >CNPJ</th>
                       <th style={{ width: 1500, textAlign: "right" }}>VALOR</th>
                       <th style={{ width: 160 }}>STATUS</th>
                       <th style={{ width: 260, textAlign: "right" }}>AÇÕES</th>
@@ -751,27 +811,44 @@ function LinhaFatura({
                       return (
                         <tr
                           key={n.id ?? idx}
-                          style={rejeitada ? { background: "rgba(245, 158, 11, 0.08)" } : undefined}
+                          style={
+                            rejeitada
+                              ? { background: "rgba(245, 158, 11, 0.08)" }
+                              : undefined
+                          }
                         >
                           <td className="mono">{n.id || n.numero || "—"}</td>
 
                           <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
 
-                          <td>{formatDataHoraBR(n.datas?.criacao)}</td>
+                          <td className="mono">{getTomadorCpfCnpj(n) || "—"}</td>
+
 
                           <td style={{ textAlign: "right" }}>
                             {n.valor_servico
-                              ? `R$ ${parseFloat(n.valor_servico).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                              ? `R$ ${parseFloat(n.valor_servico).toLocaleString(
+                                "pt-BR",
+                                { minimumFractionDigits: 2 }
+                              )}`
                               : "—"}
                           </td>
 
                           <td>
-                            <span className={`status-badge status-${n.status?.toLowerCase() || "unknown"}`}>
+                            <span
+                              className={`status-badge status-${n.status?.toLowerCase() || "unknown"
+                                }`}
+                            >
                               {n.status || "—"}
                             </span>
 
                             {rejeitada && (
-                              <div style={{ marginTop: 6, fontSize: 12, color: "#92400e" }}>
+                              <div
+                                style={{
+                                  marginTop: 6,
+                                  fontSize: 12,
+                                  color: "#92400e"
+                                }}
+                              >
                                 Motivo: {extractRejectionReason(n)}
                               </div>
                             )}
@@ -817,7 +894,10 @@ function LinhaFatura({
 
                     {!qtdNotas && (
                       <tr>
-                        <td colSpan={5} style={{ padding: 14, color: "var(--text-soft,#525a6a)" }}>
+                        <td
+                          colSpan={5}
+                          style={{ padding: 14, color: "var(--text-soft,#525a6a)" }}
+                        >
                           Nenhuma nota ativa vinculada nessa fatura.
                         </td>
                       </tr>
@@ -836,14 +916,22 @@ function LinhaFatura({
 function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
   const isOpen = expanded.has(item.id);
   const sistemas = toArray(item.sistemas);
-  const hasElegivel = sistemas.some((s) => s.status === "sucesso" && s.protocolo && !s.cancelada);
+  const hasElegivel = sistemas.some(
+    (s) => s.status === "sucesso" && s.protocolo && !s.cancelada
+  );
 
   return (
     <>
       <tr className={`accordion-row ${isOpen ? "open" : ""}`}>
         <td className="mono">
-          <button type="button" className="accordion-toggle" onClick={() => onToggle(item.id)}>
-            <span className="chev">{isOpen ? <FiChevronDown /> : <FiChevronRight />}</span>
+          <button
+            type="button"
+            className="accordion-toggle"
+            onClick={() => onToggle(item.id)}
+          >
+            <span className="chev">
+              {isOpen ? <FiChevronDown /> : <FiChevronRight />}
+            </span>
             {item.faturamento ?? item.fatura ?? item.numero ?? "—"}
           </button>
         </td>
@@ -887,7 +975,11 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
                     </div>
                   </div>
 
-                  {s.motivo && <div className="sist-erro-msg">Motivo: {formatTecnospeedError(s.motivo)}</div>}
+                  {s.motivo && (
+                    <div className="sist-erro-msg">
+                      Motivo: {formatTecnospeedError(s.motivo)}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1044,7 +1136,10 @@ export default function Consultas() {
 
         const notasOrdenadas =
           res?.tipo === "multiplas" && Array.isArray(res?.notas)
-            ? [...res.notas].sort((a, b) => new Date(b?.datas?.criacao || 0) - new Date(a?.datas?.criacao || 0))
+            ? [...res.notas].sort(
+              (a, b) =>
+                new Date(b?.datas?.criacao || 0) - new Date(a?.datas?.criacao || 0)
+            )
             : [];
 
         if (res && res.status === "success") {
@@ -1054,33 +1149,41 @@ export default function Consultas() {
                 id: String(res.fatura || termo),
                 numero: String(res.fatura || termo),
                 quando: notasOrdenadas[0]?.datas?.criacao || null,
-                notas: notasOrdenadas.map((nota) => ({
-                  ...nota,
-                  id: nota.id || nota.id_tecnospeed,
-                  id_tecnospeed: nota.id_tecnospeed || nota.id || nota.idTecnospeed,
-                  id_integracao: nota.id_integracao,
-                  fatura: nota.fatura,
-                  numero_nfse: nota.numero_nfse,
-                  status: nota.status,
-                  situacao_prefeitura: nota.situacao_prefeitura,
+                // ✅ normaliza o tomador para salvar no state
+                notas: notasOrdenadas.map((nota) => {
+                  const nn = normalizeTomadorForState(nota);
 
-                  valor_servico: nota.valor_servico,
-                  prestador: nota.prestador,
-                  tomador: nota.tomador,
-                  datas: nota.datas,
-                  motivo_erro: nota.motivo_erro,
-                  motivo_rejeicao: nota.motivo_rejeicao,
-                  erros: nota.erros
-                }))
+                  return {
+                    ...nn,
+                    id: nn.id || nn.id_tecnospeed,
+                    id_tecnospeed: nn.id_tecnospeed || nn.id || nn.idTecnospeed,
+                    id_integracao: nn.id_integracao,
+                    fatura: nn.fatura,
+                    numero_nfse: nn.numero_nfse,
+                    status: nn.status,
+                    situacao_prefeitura: nn.situacao_prefeitura,
+
+                    valor_servico: nn.valor_servico,
+                    prestador: nn.prestador,
+                    tomador: nn.tomador,
+                    datas: nn.datas,
+                    motivo_erro: nn.motivo_erro,
+                    motivo_rejeicao: nn.motivo_rejeicao,
+                    erros: nn.erros
+                  };
+                })
               }
             ]);
           } else if (res.nfse) {
+            // ✅ também normaliza o tomador aqui
+            const nfseNorm = normalizeTomadorForState(res.nfse);
+
             setFaturas([
               {
-                id: String(res.nfse.fatura || termo),
-                numero: String(res.nfse.fatura || termo),
-                quando: res.nfse.datas?.criacao || null,
-                notas: [res.nfse]
+                id: String(nfseNorm.fatura || termo),
+                numero: String(nfseNorm.fatura || termo),
+                quando: nfseNorm.datas?.criacao || null,
+                notas: [nfseNorm]
               }
             ]);
           }
@@ -1099,26 +1202,29 @@ export default function Consultas() {
             setDados([]);
             enqueueSnackbar("Nota cancelada (não exibida).", { variant: "info" });
           } else {
+            // ✅ normaliza antes de montar o objeto final
+            const nfseBase = normalizeTomadorForState(res.nfse);
+
             const nfse = {
-              ...res.nfse,
-              id: res.nfse.id || termo,
-              id_tecnospeed: res.nfse.id_tecnospeed || res.nfse.id || termo,
-              id_integracao: res.nfse.id_integracao,
-              numero_nfse: res.nfse.numero_nfse,
-              fatura: res.nfse.fatura,
-              status: res.nfse.status,
-              situacao_prefeitura: res.nfse.situacao_prefeitura,
+              ...nfseBase,
+              id: nfseBase.id || termo,
+              id_tecnospeed: nfseBase.id_tecnospeed || nfseBase.id || termo,
+              id_integracao: nfseBase.id_integracao,
+              numero_nfse: nfseBase.numero_nfse,
+              fatura: nfseBase.fatura,
+              status: nfseBase.status,
+              situacao_prefeitura: nfseBase.situacao_prefeitura,
 
-              valor_servico: res.nfse.valor_servico,
-              prestador: res.nfse.prestador,
-              tomador: res.nfse.tomador,
-              emitente: res.nfse.prestador,
+              valor_servico: nfseBase.valor_servico,
+              prestador: nfseBase.prestador,
+              tomador: nfseBase.tomador,
+              emitente: nfseBase.prestador,
 
-              erros: res.nfse.erros,
-              motivo_erro: res.nfse.motivo_erro,
-              motivo_rejeicao: res.nfse.motivo_rejeicao,
+              erros: nfseBase.erros,
+              motivo_erro: nfseBase.motivo_erro,
+              motivo_rejeicao: nfseBase.motivo_rejeicao,
 
-              datas: res.nfse.datas
+              datas: nfseBase.datas
             };
 
             const faturaNumero = String(nfse.fatura || "—");
@@ -1205,11 +1311,13 @@ export default function Consultas() {
             idIntegracao: String(getIdIntegracao(n) || ""),
             numero_nfse: String(n?.numero_nfse || n?.numero || ""),
             tomador: fixBrokenLatin(n?.tomador?.razao_social) || "—",
+            tomador_cpf_cnpj: getTomadorCpfCnpj(n) || "",
             valor_servico: n?.valor_servico ?? "",
             status: String(n?.status || ""),
             situacao_prefeitura: String(n?.situacao_prefeitura || ""),
             motivo: extractRejectionReason(n)
           });
+
         }
       }
       return rows;
@@ -1225,11 +1333,13 @@ export default function Consultas() {
         idIntegracao: String(getIdIntegracao(baseNota) || ""),
         numero_nfse: String(baseNota?.numero || ""),
         tomador: fixBrokenLatin(baseNota?.tomador?.razao_social) || "—",
+        tomador_cpf_cnpj: getTomadorCpfCnpj(baseNota) || "",
         valor_servico: baseNota?.valor_servico ?? "",
         status: String(baseNota?.status || ""),
         situacao_prefeitura: String(baseNota?.situacao_prefeitura || ""),
         motivo: extractRejectionReason(baseNota)
       });
+
     }
 
     return rows;
@@ -1274,10 +1384,13 @@ export default function Consultas() {
       XLSX.utils.book_append_sheet(wb, ws, "Rejeitadas");
 
       const now = new Date();
-      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
         2,
         "0"
-      )}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+      )}-${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(
+        2,
+        "0"
+      )}${String(now.getMinutes()).padStart(2, "0")}`;
 
       const nameBase = tipoBusca === "fatura" ? "relatorio_rejeitadas_fatura" : "relatorio_rejeitadas_nota";
       const fileName = `${nameBase}_${stamp}.xlsx`;
@@ -1372,10 +1485,13 @@ export default function Consultas() {
       XLSX.utils.book_append_sheet(wb, wsNotas, "Notas");
 
       const now = new Date();
-      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
         2,
         "0"
-      )}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+      )}-${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(
+        2,
+        "0"
+      )}${String(now.getMinutes()).padStart(2, "0")}`;
 
       const termo = textoDigitado.trim().replace(/[^\w.-]+/g, "_").slice(0, 40) || "resultado";
       const fileName = `notas_${termo}_${stamp}.xlsx`;
@@ -1466,10 +1582,7 @@ export default function Consultas() {
         return;
       }
 
-      const emitenteNome =
-        item?.emitente?.razao_social ||
-        item?.prestador?.razao_social ||
-        "emitente";
+      const emitenteNome = item?.emitente?.razao_social || item?.prestador?.razao_social || "emitente";
 
       const resp = await downloadPdfNota({
         tipo: "individual",
