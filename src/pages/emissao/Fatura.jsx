@@ -1,10 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
-import {
-  getNfsePreview,
-  iniciarEmissao, iniciarEmissao2
-} from "../../services/nfseService";
+import { getNfsePreview, iniciarEmissao, iniciarEmissao2 } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from "notistack";
 import { getEmpresas } from "../../services/empresas";
@@ -13,7 +10,11 @@ import { fixBrokenLatin } from "../../utils/normalizacao_textual";
 export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
   const [fatura, setFatura] = useState("");
-  const [parcelada, setParcelada] = useState(false); 
+
+  // ✅ substitui o checkbox por seletor
+  // valores: "normal" | "parcelada" | "vr"
+  const [tipoFatura, setTipoFatura] = useState("normal");
+
   const [observacao, setObservacao] = useState("");
   const [codigoServico, setCodigoServico] = useState("170901");
 
@@ -26,18 +27,8 @@ export default function EmissaoPorFatura() {
 
   const { enqueueSnackbar } = useSnackbar();
 
-  // Precisa ter empresa, fatura E observação para gerar
-  // const podeGerar = useMemo(() => {
-  //   return !!empresa &&
-  //          !!fatura.trim() &&
-  //          !!observacao.trim() && observacao.trim().length >= 10 &&
-  //          fatura.trim().length >= 6; // Valida que tem pelo menos 6 dígitos
-  // }, [empresa, fatura, observacao]);
-
   const podeGerar = useMemo(() => {
-    return !!empresa &&
-      !!fatura.trim() &&
-      fatura.trim().length >= 6;
+    return !!empresa && !!fatura.trim() && fatura.trim().length >= 6;
   }, [empresa, fatura]);
 
   const podeEmitir = useMemo(
@@ -49,12 +40,10 @@ export default function EmissaoPorFatura() {
     const timestamp = new Date().toLocaleTimeString();
     const tipoPrefix =
       tipo === "erro" ? "❌ ERRO" :
-        tipo === "sucesso" ? "✅ SUCESSO" :
-          tipo === "alerta" ? "⚠️ ALERTA" : "ℹ️ INFO";
+      tipo === "sucesso" ? "✅ SUCESSO" :
+      tipo === "alerta" ? "⚠️ ALERTA" : "ℹ️ INFO";
 
-    setLogs((prev) =>
-      [...prev, `[${timestamp}] ${tipoPrefix}: ${msg}`].slice(-200)
-    );
+    setLogs((prev) => [...prev, `[${timestamp}] ${tipoPrefix}: ${msg}`].slice(-200));
   }, []);
 
   const mostrarErro = useCallback((mensagem, detalhes = null) => {
@@ -68,12 +57,8 @@ export default function EmissaoPorFatura() {
 
     if (detalhes) {
       console.error("Detalhes do erro:", detalhes);
-      // Se houver mais detalhes, adiciona como log secundário
-      if (typeof detalhes === "object") {
-        pushLog(`Detalhes: ${JSON.stringify(detalhes)}`, "erro");
-      } else {
-        pushLog(`Detalhes: ${detalhes}`, "erro");
-      }
+      if (typeof detalhes === "object") pushLog(`Detalhes: ${JSON.stringify(detalhes)}`, "erro");
+      else pushLog(`Detalhes: ${detalhes}`, "erro");
     }
   }, [enqueueSnackbar, pushLog]);
 
@@ -95,183 +80,171 @@ export default function EmissaoPorFatura() {
     pushLog(mensagem, "info");
   }, [enqueueSnackbar, pushLog]);
 
-  const handleGerar = useCallback(
-    async (e) => {
-      e?.preventDefault();
+  const handleGerar = useCallback(async (e) => {
+    e?.preventDefault();
 
-      // Validações detalhadas
-      if (!empresa) {
-        mostrarErro("Selecione uma empresa para continuar");
-        return;
-      }
+    if (!empresa) {
+      mostrarErro("Selecione uma empresa para continuar");
+      return;
+    }
 
-      if (!fatura.trim()) {
-        mostrarErro("Informe o número da fatura");
-        return;
-      }
+    if (!fatura.trim()) {
+      mostrarErro("Informe o número da fatura");
+      return;
+    }
 
-      if (fatura.trim().length < 6) {
-        mostrarErro("O número da fatura deve ter pelo menos 6 dígitos");
-        return;
-      }
+    if (fatura.trim().length < 6) {
+      mostrarErro("O número da fatura deve ter pelo menos 6 dígitos");
+      return;
+    }
 
-      // if (!observacao.trim()) {
-      //   mostrarErro('A observação da nota é obrigatória');
-      //   return;
-      // }
+    if (!empresa.CNPJ || !empresa.CEDENTE) {
+      mostrarErro("Dados da empresa incompletos. Selecione novamente.");
+      return;
+    }
 
-      // if (observacao.trim().length < 10) {
-      //   mostrarErro('A observação deve ter pelo menos 10 caracteres');
-      //   return;
-      // }
+    setLoadingGerar(true);
+    setPreview(null);
+    setProgresso(0);
 
-      if (!empresa.CNPJ || !empresa.CEDENTE) {
-        mostrarErro("Dados da empresa incompletos. Selecione novamente.");
-        return;
-      }
+    mostrarInfo(`Consultando dados da fatura #${fatura}...`);
 
-      setLoadingGerar(true);
-      setPreview(null);
-      setProgresso(0);
+    try {
+      const isParcelada = tipoFatura === "parcelada";
+      const isVr = tipoFatura === "vr";
 
-      mostrarInfo(`Consultando dados da fatura #${fatura}...`);
+      const payload = {
+        protocolo_id: "NFSe_FAT_" + Date.now(),
+        fatura_numero: fatura,
+        prestador_cnpj: empresa.CNPJ,
+        razaoSocial: empresa.CEDENTE,
+        observacao: observacao.trim(),
+        parcela: 1,
+        codigo: codigoServico,
 
-      try {
-        const payload = {
-          protocolo_id: "NFSe_FAT_" + Date.now(),
-          fatura_numero: fatura,
-          prestador_cnpj: empresa.CNPJ,
-          razaoSocial: empresa.CEDENTE,
-          observacao: observacao.trim(),
-          parcela: 1,
-          codigo: codigoServico,
+        // ✅ compatível + explícito
+        parcelada: isParcelada,
+        vr: isVr,
+        tipo_fatura: tipoFatura
+      };
 
-          parcelada: !!parcelada
-        };
+      const response = await getNfsePreview(payload);
 
-        const response = await getNfsePreview(payload);
+      if (response.sucesso) {
+        setPreview(response.data);
+        mostrarSucesso("Dados carregados com sucesso! Verifique abaixo antes de emitir.");
 
-        // console.log("PREVIEW GERADO", response.data);
-
-        if (response.sucesso) {
-          setPreview(response.data);
-          mostrarSucesso("Dados carregados com sucesso! Verifique abaixo antes de emitir.");
-
-          pushLog(`Prévia gerada: ${response.data.length} nota(s) fiscal(is) encontrada(s)`, "sucesso");
-          const valorTotal = response.data.reduce(
-            (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
-            0
-          );
-          pushLog(`Valor total: R$ ${valorTotal.toFixed(2)}`, "sucesso");
-
-        } else {
-          const erroMsg = response?.erro || "Falha ao obter prévia da nota.";
-
-          // Tratamento específico para erros comuns
-          if (erroMsg.includes("fatura") && erroMsg.includes("não encontrada")) {
-            mostrarErro(`Fatura ${fatura} não encontrada no sistema`);
-          } else if (erroMsg.includes("CNPJ") || erroMsg.includes("prestador")) {
-            mostrarErro("Problema com os dados do prestador. Verifique a empresa selecionada.");
-          } else if (erroMsg.includes("serviço") || erroMsg.includes("código")) {
-            mostrarErro("Código de serviço inválido ou não configurado para esta empresa");
-          } else {
-            mostrarErro("Erro ao gerar prévia", erroMsg);
-          }
-        }
-      } catch (err) {
-        let mensagemErro = "Erro ao conectar com o serviço";
-
-        if (err.message?.includes("Network Error") || err.message?.includes("timeout")) {
-          mensagemErro = "Falha na conexão com o servidor. Verifique sua internet e tente novamente.";
-        } else if (err.response?.status === 500) {
-          mensagemErro = "Erro interno do servidor. Tente novamente mais tarde.";
-        } else if (err.response?.status === 404) {
-          mensagemErro = "Serviço temporariamente indisponível";
-        }
-
-        mostrarErro(mensagemErro, err.message);
-      } finally {
-        setLoadingGerar(false);
-      }
-    },
-    [empresa, fatura, observacao, codigoServico, parcelada, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]
-  );
-
-const handleEmitir = useCallback(async () => {
-  if (!preview) {
-    mostrarErro("Gere a prévia antes de emitir.");
-    return;
-  }
-
-  if (preview.length === 0) {
-    mostrarErro("Não há notas para emitir.");
-    return;
-  }
-
-  setLoadingEmitir(true);
-  setProgresso(10);
-
-  mostrarInfo("Iniciando emissão da nota fiscal...");
-
-  const notaFinal = preview.map(nota => ({
-    ...nota,
-    fatura_numero: fatura
-  }))
-
-  try {
-    // console.log("DADOS A SEREM ENVIADOS PARA O BACK:", preview);
-    
-    let res;
-    
-    // DECIDE QUAL FUNÇÃO CHAMAR BASEADO NO CNPJ
-    res = await iniciarEmissao2(notaFinal);
-
-    // console.log("RESPOSTA SUCESSO >>>", res);
-
-    if (res.status === "sucesso") {
-      setProgresso(100);
-      mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
-      pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, "sucesso");
-      pushLog(`ID do lote: ${res.protocolo_id || "N/A"}`, "info");
-
-      setTimeout(() => {
-        setFatura("");
-        setParcelada(false);
-        setObservacao("");
-        setPreview(null);
-        setProgresso(0);
-      }, 2000);
-    } else {
-      // SE NÃO FOR SUCESSO, TRATA O ERRO
-      const erroMsg = res?.erro || res?.error || "Erro desconhecido ao enviar lote.";
-
-      // Tratamento específico para erros de emissão
-      if (erroMsg.includes("valid")) {
-        mostrarErro("Erro de validação nos dados da nota. Verifique a prévia.");
-      } else if (erroMsg.includes("conexão") || erroMsg.includes("API") || erroMsg.includes("conectar")) {
-        mostrarErro("Erro na conexão com o serviço de emissão. Tente novamente.");
-      } else if (erroMsg.includes("limite") || erroMsg.includes("quota")) {
-        mostrarErro("Limite de emissões atingido. Tente novamente mais tarde.");
+        pushLog(`Prévia gerada: ${response.data.length} nota(s) fiscal(is) encontrada(s)`, "sucesso");
+        const valorTotal = response.data.reduce(
+          (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
+          0
+        );
+        pushLog(`Valor total: R$ ${valorTotal.toFixed(2)}`, "sucesso");
       } else {
-        mostrarErro("Falha ao enviar lote para emissão", erroMsg);
+        const erroMsg = response?.erro || "Falha ao obter prévia da nota.";
+
+        if (erroMsg.includes("fatura") && erroMsg.includes("não encontrada")) {
+          mostrarErro(`Fatura ${fatura} não encontrada no sistema`);
+        } else if (erroMsg.includes("CNPJ") || erroMsg.includes("prestador")) {
+          mostrarErro("Problema com os dados do prestador. Verifique a empresa selecionada.");
+        } else if (erroMsg.includes("serviço") || erroMsg.includes("código")) {
+          mostrarErro("Código de serviço inválido ou não configurado para esta empresa");
+        } else {
+          mostrarErro("Erro ao gerar prévia", erroMsg);
+        }
       }
-    }
-  } catch (err) {
-    let mensagemErro = "Erro ao processar emissão";
+    } catch (err) {
+      let mensagemErro = "Erro ao conectar com o serviço";
 
-    if (err.message?.includes("Network Error")) {
-      mensagemErro = "Falha na conexão. Verifique sua internet e tente novamente.";
-    } else if (err.response?.status === 429) {
-      mensagemErro = "Muitas requisições. Aguarde um momento antes de tentar novamente.";
-    } else if (err.response?.status === 503) {
-      mensagemErro = "Serviço de emissão temporariamente indisponível.";
+      if (err.message?.includes("Network Error") || err.message?.includes("timeout")) {
+        mensagemErro = "Falha na conexão com o servidor. Verifique sua internet e tente novamente.";
+      } else if (err.response?.status === 500) {
+        mensagemErro = "Erro interno do servidor. Tente novamente mais tarde.";
+      } else if (err.response?.status === 404) {
+        mensagemErro = "Serviço temporariamente indisponível";
+      }
+
+      mostrarErro(mensagemErro, err.message);
+    } finally {
+      setLoadingGerar(false);
+    }
+  }, [empresa, fatura, observacao, codigoServico, tipoFatura, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
+
+  const handleEmitir = useCallback(async () => {
+    if (!preview) {
+      mostrarErro("Gere a prévia antes de emitir.");
+      return;
     }
 
-    mostrarErro(mensagemErro, err.message);
-  } finally {
-    setLoadingEmitir(false);
-  }
-}, [preview, fatura, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
+    if (preview.length === 0) {
+      mostrarErro("Não há notas para emitir.");
+      return;
+    }
+
+    setLoadingEmitir(true);
+    setProgresso(10);
+
+    mostrarInfo("Iniciando emissão da nota fiscal...");
+
+    const isParcelada = tipoFatura === "parcelada";
+    const isVr = tipoFatura === "vr";
+
+    const notaFinal = preview.map((nota) => ({
+      ...nota,
+      fatura_numero: fatura,
+
+      // ✅ manda junto no lote também (se o back quiser usar)
+      parcelada: isParcelada,
+      vr: isVr,
+      tipo_fatura: tipoFatura
+    }));
+
+    try {
+      let res;
+      res = await iniciarEmissao2(notaFinal);
+
+      if (res.status === "sucesso") {
+        setProgresso(100);
+        mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
+        pushLog(`Lote enviado: ${preview.length} nota(s) encaminhada(s) para processamento`, "sucesso");
+        pushLog(`ID do lote: ${res.protocolo_id || "N/A"}`, "info");
+
+        setTimeout(() => {
+          setFatura("");
+          setTipoFatura("normal"); // ✅ reseta o seletor
+          setObservacao("");
+          setPreview(null);
+          setProgresso(0);
+        }, 2000);
+      } else {
+        const erroMsg = res?.erro || res?.error || "Erro desconhecido ao enviar lote.";
+
+        if (erroMsg.includes("valid")) {
+          mostrarErro("Erro de validação nos dados da nota. Verifique a prévia.");
+        } else if (erroMsg.includes("conexão") || erroMsg.includes("API") || erroMsg.includes("conectar")) {
+          mostrarErro("Erro na conexão com o serviço de emissão. Tente novamente.");
+        } else if (erroMsg.includes("limite") || erroMsg.includes("quota")) {
+          mostrarErro("Limite de emissões atingido. Tente novamente mais tarde.");
+        } else {
+          mostrarErro("Falha ao enviar lote para emissão", erroMsg);
+        }
+      }
+    } catch (err) {
+      let mensagemErro = "Erro ao processar emissão";
+
+      if (err.message?.includes("Network Error")) {
+        mensagemErro = "Falha na conexão. Verifique sua internet e tente novamente.";
+      } else if (err.response?.status === 429) {
+        mensagemErro = "Muitas requisições. Aguarde um momento antes de tentar novamente.";
+      } else if (err.response?.status === 503) {
+        mensagemErro = "Serviço de emissão temporariamente indisponível.";
+      }
+
+      mostrarErro(mensagemErro, err.message);
+    } finally {
+      setLoadingEmitir(false);
+    }
+  }, [preview, fatura, tipoFatura, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
 
   useEffect(() => {
     const carregarEmpresas = async () => {
@@ -341,20 +314,19 @@ const handleEmitir = useCallback(async () => {
                 />
               </div>
 
+              {/* ✅ AQUI: seletor no lugar do checkbox */}
               <div className="fc-input-group fc-input-group--narrow">
-                <label className="fc-input-label"> </label>
-                <div className="fc-row fc-row--flag">
-                  <label className="fc-flag">
-                    <input
-                      className="fc-checkbox"
-                      type="checkbox"
-                      checked={parcelada}
-                      onChange={(e) => setParcelada(e.target.checked)}
-                      disabled={loadingGerar || loadingEmitir}
-                    />
-                    <span className="fc-flag-text">Fatura parcelada</span>
-                  </label>
-                </div>
+                <label className="fc-input-label">Tipo de Fatura</label>
+                <select
+                  className="fc-input fc-select"
+                  value={tipoFatura}
+                  onChange={(e) => setTipoFatura(e.target.value)}
+                  disabled={loadingGerar || loadingEmitir}
+                >
+                  <option value="normal">Fatura normal</option>
+                  <option value="parcelada">Fatura parcelada</option>
+                  <option value="vr">Fatura VR</option>
+                </select>
               </div>
 
               {isCondomed && (
@@ -374,12 +346,6 @@ const handleEmitir = useCallback(async () => {
             </div>
 
             <div className="fc-input-group">
-              {/* <label className="fc-input-label">
-                Observação da Nota *
-                {observacao && observacao.length < 10 && (
-                  <span className="fc-input-error"> (mínimo 10 caracteres)</span>
-                )}
-              </label> */}
               <textarea
                 className="fc-input fc-textarea"
                 placeholder="Ex: Programa de Gestão de Segurança do Trabalho para empresa XYZ..."
@@ -387,12 +353,9 @@ const handleEmitir = useCallback(async () => {
                 value={observacao}
                 required
                 onChange={(e) => setObservacao(e.target.value)}
-                // minLength={10}
                 maxLength={500}
               />
-              <div className="fc-input-help">
-                {observacao.length}/500 caracteres
-              </div>
+              <div className="fc-input-help">{observacao.length}/500 caracteres</div>
             </div>
 
             <button
@@ -408,12 +371,6 @@ const handleEmitir = useCallback(async () => {
                 </>
               ) : "GERAR PRÉVIA"}
             </button>
-
-            {/* {!podeGerar && (
-              <div className="fc-validation-hint">
-                ⓘ Preencha: Empresa, Fatura (6+ dígitos) e Observação (10+ caracteres)
-              </div>
-            )} */}
           </div>
         </form>
 
@@ -435,7 +392,6 @@ const handleEmitir = useCallback(async () => {
             <div className="fc-preview">
               <div className="fc-preview-header">
                 <h2 className="fc-preview-title">Conferência de Dados</h2>
-              
               </div>
 
               <div className="fc-grid">
@@ -478,7 +434,9 @@ const handleEmitir = useCallback(async () => {
                   <div className="fc-grid-span" />
 
                   <span className="fc-label">Discriminação do Serviço:</span>
-                  <p className="fc-discriminacao">{fixBrokenLatin(preview[0]?.servico[0]?.discriminacao)}</p>
+                  <p className="fc-discriminacao">
+                    {fixBrokenLatin(preview[0]?.servico[0]?.discriminacao)}
+                  </p>
                 </div>
               </div>
             </div>
