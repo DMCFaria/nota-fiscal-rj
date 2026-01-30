@@ -33,6 +33,37 @@ function getIdTecnospeed(nota) {
   return nota?.id_tecnospeed || nota?.idTecnospeed || nota?.id || null;
 }
 
+function getTomadorCpfCnpj(nota) {
+  const v =
+    nota?.tomador_cpf_cnpj ||
+    nota?.tomadorCpfCnpj ||
+    nota?.tomador_cnpj ||
+    nota?.tomadorCnpj ||
+    nota?.tomador?.cpfCnpj ||
+    nota?.tomador?.cpf_cnpj ||
+    nota?.tomador?.cnpj ||
+    nota?.tomador?.cpf ||
+    nota?.dados?.tomador_cpf_cnpj ||
+    nota?.dados?.tomador?.cpfCnpj ||
+    nota?.nfse?.tomador_cpf_cnpj ||
+    nota?.nfse?.tomador?.cpfCnpj;
+
+  return String(v ?? "").trim();
+}
+
+function getTomadorRazao(nota) {
+  return (
+    nota?.tomador?.razao_social ||
+    nota?.tomador?.razaoSocial ||
+    nota?.tomador_razao_social ||
+    nota?.tomadorRazaoSocial ||
+    nota?.dados?.tomador?.razao_social ||
+    nota?.nfse?.tomador?.razao_social ||
+    ""
+  );
+}
+
+
 function normalizeStr(v) {
   return String(v ?? "").trim();
 }
@@ -455,7 +486,7 @@ function getCepFromNota(nota) {
     if (fromError.length === 8) cep = fromError;
   }
 
-  return cep; 
+  return cep;
 }
 
 function getFilenameFromContentDisposition(cd) {
@@ -925,6 +956,8 @@ function flattenForExcel(input, prefix = "", out = {}) {
 function normalizeForExcelRow(nota, extras = {}) {
   const base = {
     ...extras,
+    tomador_razao_social: String(fixBrokenLatin(getTomadorRazao(nota) || "")),
+    tomador_cpf_cnpj: String(getTomadorCpfCnpj(nota) || ""),
     id_integracao: String(getIdIntegracao(nota) || ""),
     id_tecnospeed: String(getIdTecnospeed(nota) || ""),
     protocolo: String(nota?.protocolo || ""),
@@ -1316,6 +1349,8 @@ export default function Consultas() {
         "id_tecnospeed",
         "protocolo",
         "numero_nfse",
+        "tomador_razao_social",
+        "tomador_cpf_cnpj",
         "status",
         "situacao_prefeitura"
       ];
@@ -1527,7 +1562,7 @@ export default function Consultas() {
   };
 
   const openTratarErro = (nota) => {
-    const cepDigits = getCepFromNota(nota); 
+    const cepDigits = getCepFromNota(nota);
     const cepFmt = formatCep(cepDigits);
 
     if (!cepDigits) {
@@ -1669,9 +1704,8 @@ export default function Consultas() {
                 {resumoNotas.rejeitadas > 0 && (
                   <button
                     type="button"
-                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${
-                      filtroResumo === "rejeitadas" ? "is-active" : ""
-                    }`}
+                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${filtroResumo === "rejeitadas" ? "is-active" : ""
+                      }`}
                     onClick={() => toggleFiltro("rejeitadas")}
                     title="Mostrar somente rejeitadas"
                   >
