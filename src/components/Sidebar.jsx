@@ -10,7 +10,11 @@ function Sidebar() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(true);
 
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  console.log("user", user)
+
+  const nivelAcesso = user?.tipo;
 
   const isActive = (path) => (location.pathname === path ? "active" : "");
 
@@ -68,9 +72,11 @@ function Sidebar() {
           <FiSearch className="icon" /> Consultar
         </Link>
               
-        {/* <Link to="/historico" className={isActive("/historico")}>
-          <FiClock className="icon" /> Histórico
-        </Link> */}
+        {["adm", "dev"].includes(nivelAcesso) && (
+          <Link to="/historico" className={isActive("/historico")}>
+            <FiClock className="icon" /> Histórico
+          </Link>
+        )}
 
         {/* <Link to="/configuracoes" className={isActive("/configuracoes")}>
           <FiSettings className="icon" /> Configurações

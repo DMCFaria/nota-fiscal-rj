@@ -3,7 +3,8 @@ import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
 import {
   getNfsePreview,
-  iniciarEmissao, iniciarEmissao2
+  iniciarEmissao, iniciarEmissao2,
+  iniciarProcessamentoNota
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from "notistack";
@@ -224,6 +225,8 @@ const handleEmitir = useCallback(async () => {
     let res;
     
     // DECIDE QUAL FUNÇÃO CHAMAR BASEADO NO CNPJ
+    
+    // res = await iniciarProcessamentoNota(notaFinal);
     res = await iniciarEmissao2(notaFinal);
 
     // console.log("RESPOSTA SUCESSO >>>", res);

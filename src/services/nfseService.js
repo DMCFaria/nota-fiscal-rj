@@ -31,6 +31,15 @@ export const iniciarEmissao2 = async (notas) => {
   }
 };
 
+export const iniciarProcessamentoNota = async (notas) => {
+  try{
+    const response = await api.post("/api/nfse/processamento-hibrido/", { notas });
+    return response.data
+  } catch (error){
+     console.error("Falha ao emitir nota", error)
+  }
+};
+
 export const processarArquivoRPSNfse = async (formData) => {
   try {
     const response = await api.post('/api/nfse/rps/', formData, {

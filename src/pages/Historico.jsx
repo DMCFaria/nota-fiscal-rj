@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { 
   FiClock, 
   FiSearch, 
-  FiUser, 
   FiAlertCircle,
   FiEye,
   FiEyeOff,
@@ -13,11 +12,13 @@ import {
   FiAlertTriangle,
   FiInfo,
   FiPackage,
-  FiSend
+  FiSend,
 } from "react-icons/fi";
 import "../styles/historico.css";
-import { getHistoricoFatura, getHistoricoNota } from "../services/historico";
+import { exportarDadosNota, getHistoricoFatura, getHistoricoNota } from "../services/historico";
 import { authService } from "../services/authService";
+import { useNavigate } from "react-router-dom";
+import { FiArrowRight, FiFileText, FiMapPin, FiCopy, FiMail,FiHash, FiUser,FiCalendar   } from "react-icons/fi";
 
 // Mapeamento de cores para tipos
 const tipoConfig = {
@@ -63,15 +64,42 @@ function BadgeOrigem({ origem }) {
   );
 }
 
-// Componente para exibir detalhes formatados
 function DetalhesFormatados({ detalhes }) {
+  const navigate = useNavigate();
+  
   if (!detalhes || Object.keys(detalhes).length === 0) {
     return <div className="sem-detalhes">Sem detalhes adicionais</div>;
   }
   
+  // Função para navegar para o detalhe
+  const handleVerDetalhe = (idIntegracao) => {
+    navigate(`/historico-detalhe/${idIntegracao}`);
+  };
+  
+  // Função para copiar ID
+  const handleCopiarId = (idIntegracao, e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(idIntegracao);
+    
+    // Feedback visual temporário
+    const elemento = e.currentTarget;
+    const originalHTML = elemento.innerHTML;
+    elemento.innerHTML = '<FiCheckCircle size={12} /> Copiado!';
+    elemento.style.backgroundColor = '#10B981';
+    elemento.style.borderColor = '#10B981';
+    elemento.style.color = 'white';
+    
+    setTimeout(() => {
+      elemento.innerHTML = originalHTML;
+      elemento.style.backgroundColor = '';
+      elemento.style.borderColor = '';
+      elemento.style.color = '';
+    }, 1500);
+  };
+  
   // Se for o detalhe do preview
   if (detalhes.distribuicao_estado) {
-    const { fatura, total_itens, distribuicao_estado } = detalhes;
+    const { fatura, distribuicao_estado } = detalhes;
     
     // Filtra apenas estados com itens
     const estadosComItens = Object.entries(distribuicao_estado).filter(([_, dados]) => dados.total > 0);
@@ -80,16 +108,66 @@ function DetalhesFormatados({ detalhes }) {
       <div className="detalhes-preview">
         <div className="preview-summary">
           <div className="preview-stat">
-            <FiPackage size={16} />
-            <span><strong>Fatura:</strong> <code className="mono-highlight">{fatura}</code></span>
-          </div>
-          <div className="preview-stat">
-            <span><strong>Itens:</strong> <strong className="valor-destaque">{total_itens}</strong></span>
+            {fatura && (
+              <>
+                <FiPackage size={16} />
+                <span><strong>Fatura:</strong> <code className="mono-highlight">{fatura}</code></span>
+              </>
+            )}
           </div>
         </div>
+        
+        {/* Lista de IDs de Integração */}
+        {estadosComItens.length > 0 && (
+          <div className="ids-integracao-container">
+            <div className="ids-integracao-header">
+              <h4>
+                <FiPackage size={16} />
+                IDs de Integração
+                <span className="ids-count">
+                  {estadosComItens.flatMap(([_, dados]) => dados.payloads || []).length}
+                </span>
+              </h4>
+              <span className="ids-subtitle">Clique para ver detalhes da nota</span>
+            </div>
+            
+            <div className="ids-integracao-grid">
+              {estadosComItens.flatMap(([estado, dados]) => 
+                dados.payloads?.map((payload, index) => (
+                  <div key={index} className="id-integracao-card">
+                    <div 
+                      className="id-integracao-link"
+                      onClick={() => handleVerDetalhe(payload.idIntegracao)}
+                    >
+                      <div className="id-header">
+                        <div className="id-icon">
+                          <FiFileText size={14} />
+                        </div>
+                        <div className="id-content">
+                          <span className="id-text">{payload.idIntegracao}</span>
+                          <span className="id-estado">
+                            <FiMapPin size={10} /> {estado}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="id-actions">
+                        <span className="id-arrow">
+                          <FiArrowRight size={14} />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        
         {estadosComItens.length > 0 && (
           <div className="distribuicao-estados">
-            <span className="distribuicao-titulo">Estados:</span>
+            <span className="distribuicao-titulo">
+              <FiMapPin size={14} /> Distribuição por Estados:
+            </span>
             <div className="estados-grid">
               {estadosComItens.map(([estado, dados]) => (
                 <div key={estado} className="estado-item">
@@ -104,26 +182,220 @@ function DetalhesFormatados({ detalhes }) {
     );
   }
   
+  // Se tiver IDs de integração na emissão
+  const extrairIdsIntegracao = (detalhesObj) => {
+    const ids = [];
+    
+    if (detalhesObj.ids_integracao && Array.isArray(detalhesObj.ids_integracao)) {
+      return detalhesObj.ids_integracao.map(id => ({
+        id,
+        estado: detalhesObj.estado || 'N/I'
+      }));
+    }
+    
+    if (detalhesObj.notificacoes_emitidas && Array.isArray(detalhesObj.notificacoes_emitidas)) {
+      detalhesObj.notificacoes_emitidas.forEach(item => {
+        if (item.idIntegracao) {
+          ids.push({
+            id: item.idIntegracao,
+            estado: item.estado || detalhesObj.estado || 'N/I'
+          });
+        }
+      });
+    }
+    
+    if (Array.isArray(detalhesObj)) {
+      detalhesObj.forEach(item => {
+        if (item.idIntegracao) {
+          ids.push({
+            id: item.idIntegracao,
+            estado: item.estado || 'N/I'
+          });
+        } else if (typeof item === 'string' && item.includes('RPS_')) {
+          ids.push({
+            id: item,
+            estado: 'N/I'
+          });
+        }
+      });
+    }
+    
+    if (typeof detalhesObj === 'string' && detalhesObj.includes('idIntegracao')) {
+      try {
+        const parsed = JSON.parse(detalhesObj);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(item => {
+            if (item.idIntegracao) {
+              ids.push({
+                id: item.idIntegracao,
+                estado: item.estado || 'N/I'
+              });
+            }
+          });
+        } else if (parsed.idIntegracao) {
+          ids.push({
+            id: parsed.idIntegracao,
+            estado: parsed.estado || 'N/I'
+          });
+        }
+      } catch (e) {
+        // Não é JSON válido
+      }
+    }
+    
+    return ids;
+  };
+  
+  // Extrai todos os IDs de integração dos detalhes
+  const idsIntegracao = extrairIdsIntegracao(detalhes);
+  
   // Para outros detalhes
   return (
     <div className="detalhes-simples">
+      {/* Mostra IDs de integração primeiro, se existirem */}
+      {idsIntegracao.length > 0 && (
+        <div className="ids-integracao-container">
+          <div className="ids-integracao-header">
+            <h4>
+              <FiFileText size={16} />
+              IDs de Integração
+              <span className="ids-count">{idsIntegracao.length}</span>
+            </h4>
+            <span className="ids-subtitle">Clique para ver detalhes da nota</span>
+          </div>
+          
+          <div className="ids-integracao-grid">
+            {idsIntegracao.map((item, index) => (
+              <div key={index} className="id-integracao-card">
+                <div 
+                  className="id-integracao-link"
+                  onClick={() => handleVerDetalhe(item.id)}
+                >
+                  <div className="id-header">
+                    <div className="id-icon">
+                      <FiFileText size={14} />
+                    </div>
+                    <div className="id-content">
+                      <span className="id-text">{item.id}</span>
+                      <span className="id-estado">
+                        <FiMapPin size={10} /> {item.estado}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="id-actions">
+                    
+                    <span className="id-arrow">
+                      <FiArrowRight size={14} />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Mostra os outros detalhes */}
       {Object.entries(detalhes).map(([chave, valor]) => {
+        // Pula se for um array de IDs que já mostramos
+        if (chave === 'ids_integracao' || chave === 'notificacoes_emitidas') {
+          return null;
+        }
+        
         // Formata valores especiais
         let valorFormatado = valor;
         
         if (chave === 'fatura' || chave === 'nota_id' || chave === 'protocolo') {
-          valorFormatado = <code className="mono-highlight">{valor}</code>;
+          valorFormatado = (
+            <div className="detalhe-valor-especial">
+              <code className="mono-highlight">{valor}</code>
+            </div>
+          );
         } else if (chave === 'total_notas' || chave === 'total_itens') {
-          valorFormatado = <strong className="valor-destaque">{valor}</strong>;
+          valorFormatado = (
+            <div className="detalhe-valor-especial">
+              <span className="valor-destaque">{valor}</span>
+            </div>
+          );
         } else if (chave === 'erro' || chave === 'error') {
-          valorFormatado = <span className="texto-erro">{valor}</span>;
+          valorFormatado = (
+            <div className="detalhe-valor-especial">
+              <span className="texto-erro">
+                <FiAlertCircle size={12} /> {valor}
+              </span>
+            </div>
+          );
         } else if (typeof valor === 'object') {
-          valorFormatado = JSON.stringify(valor, null, 2);
+          // Verifica se é um objeto que pode conter IDs
+          const subIds = extrairIdsIntegracao(valor);
+          if (subIds.length > 0) {
+            valorFormatado = (
+              <div className="sub-ids-container">
+                <div className="ids-integracao-grid" style={{ marginTop: '8px' }}>
+                  {subIds.map((item, idx) => (
+                    <div key={idx} className="id-integracao-card">
+                      <div 
+                        className="id-integracao-link compact"
+                        onClick={() => handleVerDetalhe(item.id)}
+                      >
+                        <div className="id-header">
+                          <div className="id-icon">
+                            <FiFileText size={12} />
+                          </div>
+                          <div className="id-content">
+                            <span className="id-text">{item.id}</span>
+                          </div>
+                        </div>
+                        <div className="id-actions">
+                          <button 
+                            className="btn-id-action btn-copy"
+                            onClick={(e) => handleCopiarId(item.id, e)}
+                            title="Copiar ID"
+                          >
+                            <FiCopy size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          } else {
+            valorFormatado = (
+              <div className="json-view">
+                <pre>{JSON.stringify(valor, null, 2)}</pre>
+              </div>
+            );
+          }
         }
+        
+        // Adiciona ícones baseados na chave
+        const getIconForChave = (chave) => {
+          const iconMap = {
+            'fatura': FiPackage,
+            'nota_id': FiFileText,
+            'protocolo': FiHash,
+            'data': FiCalendar,
+            'total': FiHash,
+            'erro': FiAlertCircle,
+            'error': FiAlertCircle,
+            'sucesso': FiCheckCircle,
+            'status': FiInfo,
+            'usuario': FiUser,
+            'email': FiMail
+          };
+          
+          const Icon = iconMap[chave] || FiInfo;
+          return <Icon size={12} />;
+        };
         
         return (
           <div key={chave} className="detalhe-item">
-            <span className="detalhe-chave">{chave.replace('_', ' ')}:</span>
+            <span className="detalhe-chave">
+              {getIconForChave(chave)}
+              {chave.replace('_', ' ')}:
+            </span>
             <span className="detalhe-valor">{valorFormatado}</span>
           </div>
         );
@@ -133,13 +405,33 @@ function DetalhesFormatados({ detalhes }) {
 }
 
 function LinhaHistorico({ item }) {
+  const navigate = useNavigate();
   const [detalhesExpandidos, setDetalhesExpandidos] = useState(false);
   
   const hasDetalhes = item.detalhes && Object.keys(item.detalhes).length > 0;
   const fatura = item.detalhes?.fatura || "";
   const configTipo = tipoConfig[item.tipo] || tipoConfig.INFO;
+  const isPreviewSucesso = item.acao === "PREVIEW_SUCESSO" && item.detalhes?.distribuicao_estado;
   
-  const IconTipo = configTipo.icon;
+  // Extrai todos os IDs de integração do preview
+  const idsIntegracao = useMemo(() => {
+    if (!isPreviewSucesso) return [];
+    
+    const estados = item.detalhes.distribuicao_estado;
+    const ids = [];
+    
+    Object.values(estados).forEach(dados => {
+      if (dados.payloads) {
+        dados.payloads.forEach(payload => {
+          if (payload.idIntegracao) {
+            ids.push(payload.idIntegracao);
+          }
+        });
+      }
+    });
+    
+    return ids;
+  }, [isPreviewSucesso, item.detalhes]);
   
   // Formata a mensagem da ação
   const formatarAcao = (acao) => {
@@ -163,14 +455,14 @@ function LinhaHistorico({ item }) {
     
     return mensagem;
   };
-
+  
   return (
     <>
       <tr className="tabela-linha">
         {/* TIPO */}
-        <td className="tabela-cell">
+        {/* <td className="tabela-cell">
           <BadgeTipo tipo={item.tipo} />
-        </td>
+        </td> */}
         
         {/* ORIGEM */}
         <td className="tabela-cell">
@@ -184,20 +476,22 @@ function LinhaHistorico({ item }) {
           </div>
         </td>
         
-        {/* MENSAGEM */}
+        {/* MENSAGEM COM LINK SE FOR PREVIEW_SUCESSO */}
         <td className="tabela-cell mensagem-cell">
-          <div className="mensagem-texto">
-            {formatarMensagem(item.mensagem, fatura)}
+          <div className="mensagem-container">
+            <div className="mensagem-texto">
+              {formatarMensagem(item.mensagem, fatura)}
+            </div>
           </div>
         </td>
         
         {/* USUÁRIO */}
-        <td className="tabela-cell">
+        {/* <td className="tabela-cell">
           <div className="cell-content">
             <FiUser className="icon-inline" />
             <span className="usuario-nome">{item.usuario}</span>
           </div>
-        </td>
+        </td> */}
         
         {/* DATA */}
         <td className="tabela-cell">
@@ -248,7 +542,6 @@ function LinhaHistorico({ item }) {
     </>
   );
 }
-
 // Componente de Resumo Estatístico SIMPLIFICADO
 function ResumoEstatistico({ itens, termoBusca, modoBusca, usuario }) {
   if (!itens.length) return null;
@@ -330,7 +623,7 @@ export default function Historico() {
         dados = await getHistoricoNota(termo);
       }
 
-      // console.log("dados", dados)
+      console.log("DADOS DA BUSCA DE HISTORICO", dados)
       
       if (dados.sucesso) {
         // Ordena por data (mais recente primeiro)
@@ -530,21 +823,16 @@ export default function Historico() {
               </div>
               
               <div className="toolbar-stats">
-                <span className="results-count">
-                  {filtrados.length} {filtrados.length === 1 ? 'registro' : 'registros'}
-                  {filtro && itens.length > filtrados.length && ` (de ${itens.length})`}
-                </span>
                 
                 <button 
                   className="btn btn-sm btn-outline"
-                  onClick={() => {
-                    const dataStr = JSON.stringify(itens, null, 2);
-                    const blob = new Blob([dataStr], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `historico-${termoBusca}-${new Date().toISOString().slice(0,10)}.json`;
-                    a.click();
+                  onClick={async () => {
+                    try{
+                      await exportarDadosNota(itens);
+                    } catch(error){
+                      console.error("Erro ao exportar:", error);
+                      alert(`Erro ao exportar: ${error.message}`);
+                    }
                   }}
                   disabled={loading}
                 >
@@ -559,11 +847,11 @@ export default function Historico() {
                 <table className="tabela">
                   <thead>
                     <tr>
-                      <th style={{ width: '80px' }}>Tipo</th>
+                      {/* <th style={{ width: '80px' }}>Tipo</th> */}
                       <th style={{ width: '100px' }}>Origem</th>
                       <th style={{ width: '100px' }}>Ação</th>
                       <th>Mensagem</th>
-                      <th style={{ width: '120px' }}>Usuário</th>
+                      {/* <th style={{ width: '120px' }}>Usuário</th> */}
                       <th style={{ width: '140px' }}>Data/Hora</th>
                       <th style={{ width: '50px' }}></th>
                     </tr>
@@ -579,6 +867,7 @@ export default function Historico() {
           </>
         )}
       </div>
+      
     </div>
   );
 }
