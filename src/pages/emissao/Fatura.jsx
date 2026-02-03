@@ -3,7 +3,8 @@ import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
 import {
   getNfsePreview,
-  iniciarEmissao, iniciarEmissao2
+  iniciarEmissao2,
+  iniciarProcessamentoNota
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from "notistack";
@@ -197,7 +198,9 @@ export default function EmissaoPorFatura() {
     let res;
     
     // DECIDE QUAL FUNÇÃO CHAMAR BASEADO NO CNPJ
+    
     res = await iniciarEmissao2(notaFinal);
+    // res = await iniciarProcessamentoNota(notaFinal);
 
     // console.log("RESPOSTA SUCESSO >>>", res);
 
