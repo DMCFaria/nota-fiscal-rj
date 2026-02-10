@@ -623,7 +623,7 @@ export default function Historico() {
         dados = await getHistoricoNota(termo);
       }
 
-      console.log("DADOS DA BUSCA DE HISTORICO", dados)
+      // console.log("DADOS DA BUSCA DE HISTORICO", dados)
       
       if (dados.sucesso) {
         // Ordena por data (mais recente primeiro)

@@ -12,7 +12,7 @@ function Sidebar() {
 
   const { user, logout } = useAuth();
 
-  console.log("user", user)
+  // console.log("user", user)
 
   const nivelAcesso = user?.tipo;
 
