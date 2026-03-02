@@ -99,7 +99,7 @@ export const downloadPdfNota = async (payload) => {
   console.log(payload.emitente)
   if (payload.emitente == "FEDCORP ADMINISTRADORA DE BENEFICIOS LTDA") {
      try {
-      const response = await api.post("api/nfse/download-pdf/nfse", payload, {
+      const response = await api.post("api/nfse/download-pdf/nfse/", payload, {
         responseType: "blob",
         headers: {
           Accept:
