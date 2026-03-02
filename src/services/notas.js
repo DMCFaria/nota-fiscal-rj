@@ -15,7 +15,7 @@ export const getNotaPorIdOuProtocolo = async (idNota) => {
 export const getNotaPorFatura = async (numero_fatura) => {
   try {
     const response = await api.get(
-      `/api/consultas/nfse/consulta-nota-por-fatura/${numero_fatura}/`
+      `/api/consultas/nfse/consulta-nota-por-fatura/${numero_fatura}/`,
     );
     return response.data;
   } catch (error) {
@@ -27,7 +27,7 @@ export const getNotaPorFatura = async (numero_fatura) => {
 export const getNotaPorID = async (id_tecnospeed) => {
   try {
     const response = await api.get(
-      `/api/consultas/nfse/consulta-nota-por-id/${id_tecnospeed}/`
+      `/api/consultas/nfse/consulta-nota-por-id/${id_tecnospeed}/`,
     );
     return response.data;
   } catch (error) {
@@ -39,7 +39,7 @@ export const getNotaPorID = async (id_tecnospeed) => {
 export const getNotaPorIDIntegracao = async (id_integracao) => {
   try {
     const response = await api.get(
-      `/api/consultas/nfse/consulta-nota-por-integracao/${id_integracao}/`
+      `/api/consultas/nfse/consulta-nota-por-integracao/${id_integracao}/`,
     );
     return response.data;
   } catch (error) {
@@ -64,7 +64,7 @@ export const sincronizarNotas = async (notasArray) => {
 export const getHistoricoFatura = async (numero_fatura) => {
   try {
     const response = await api.get(
-      `/api/consultas/historico/consulta-por-fatura/${numero_fatura}`
+      `/api/consultas/historico/consulta-por-fatura/${numero_fatura}`,
     );
     return response.data;
   } catch (error) {
@@ -76,7 +76,7 @@ export const getHistoricoFatura = async (numero_fatura) => {
 export const getHistoricoNota = async (notaId) => {
   try {
     const response = await api.get(
-      `/api/consultas/historico/consulta-por-id/${notaId}`
+      `/api/consultas/historico/consulta-por-id/${notaId}`,
     );
     return response.data;
   } catch (error) {
@@ -95,20 +95,36 @@ export const transmitirNota = async (payload) => {
   }
 };
 
-
 export const downloadPdfNota = async (payload) => {
-  try {
-    const response = await n8n.post("webhook/baixar-pdf-nfse/", payload, {
-      responseType: "blob",
-      headers: {
-        Accept: "application/pdf, application/zip, application/x-zip-compressed, application/octet-stream",
-      },
-    });
+  if (payload.emitente == "FEDCORP ADMINISTRADORA DE BENEFICIOS LTDA") {
+     try {
+      const response = await api.post("api/nfse/download-pdf/nfse", payload, {
+        responseType: "blob",
+        headers: {
+          Accept:
+            "application/pdf, application/zip, application/x-zip-compressed, application/octet-stream",
+        },
+      });
+      return response;
+    } catch (error) {
+      console.error("Erro no download:", error);
+      throw error;
+    }
+  } else {
+    try {
+      const response = await n8n.post("webhook/baixar-pdf-nfse/", payload, {
+        responseType: "blob",
+        headers: {
+          Accept:
+            "application/pdf, application/zip, application/x-zip-compressed, application/octet-stream",
+        },
+      });
 
-    return response; 
-  } catch (error) {
-    console.error("Erro no download:", error);
-    throw error;
+      return response;
+    } catch (error) {
+      console.error("Erro no download:", error);
+      throw error;
+    }
   }
 };
 
@@ -126,8 +142,11 @@ export const reemitirNota = async (payload) => {
   try {
     const response = await n8n.post("webhook/reemitir-nfse", {
       id_integracao: payload?.id_integracao ?? payload?.idIntegracao ?? "",
-      id_tecnospeed: payload?.id_tecnospeed ?? payload?.idTecnospeed ?? payload?.id ?? "",
-      cep: String(payload?.cep || "").replace(/\D/g, "").slice(0, 8),
+      id_tecnospeed:
+        payload?.id_tecnospeed ?? payload?.idTecnospeed ?? payload?.id ?? "",
+      cep: String(payload?.cep || "")
+        .replace(/\D/g, "")
+        .slice(0, 8),
     });
 
     return response.data;
