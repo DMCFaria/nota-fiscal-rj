@@ -63,11 +63,6 @@ function getTomadorRazao(nota) {
   );
 }
 
-/**
- * ✅ Normaliza o shape do tomador no STATE
- * - Se o back mandar `tomador_cpf_cnpj` no root, injeta também em `tomador.cpfCnpj`
- * - Mantém `tomador_cpf_cnpj` no root para o Excel achar por qualquer caminho
- */
 function normalizeTomadorForState(nota) {
   const cpfCnpj = getTomadorCpfCnpj(nota);
 
@@ -355,7 +350,8 @@ function getFriendlyApiErrorMessage(e) {
     typeof data === "string" ? formatTecnospeedError(data) : null;
   const msgFromMessage = e?.message ? formatTecnospeedError(e.message) : null;
 
-  const msg = msgFromData || msgFromStringData || msgFromMessage || "Erro inesperado.";
+  const msg =
+    msgFromData || msgFromStringData || msgFromMessage || "Erro inesperado.";
 
   if (status === 409) {
     if (String(msg).toLowerCase().includes("já existe")) return msg;
@@ -471,7 +467,7 @@ function pickFirstCepFromPaths(nota, paths) {
       const digits = normalizeCepDigits(v);
       if (digits.length === 8) return digits;
     } catch {
-      // ignore
+
     }
   }
   return "";
@@ -707,6 +703,22 @@ function buildNotasPayloadFromTela({ tipoBusca, faturas, dados }) {
   };
 }
 
+function buildCancelRef(nota) {
+  const id_tecnospeed = getIdTecnospeed(nota);
+  const id_integracao = getIdIntegracao(nota);
+
+  const protocolo = nota?.protocolo || nota?.nfse?.protocolo || "";
+  const numero = nota?.numero_nfse || nota?.numero || nota?.id || "";
+
+  const ref = {};
+  if (id_tecnospeed) ref.id_tecnospeed = String(id_tecnospeed);
+  if (id_integracao) ref.id_integracao = String(id_integracao);
+  if (protocolo) ref.protocolo = String(protocolo);
+  if (numero) ref.numero = String(numero);
+
+  return Object.keys(ref).length ? ref : null;
+}
+
 function LinhaFatura({
   fatura,
   isOpen,
@@ -797,7 +809,7 @@ function LinhaFatura({
                     <tr>
                       <th style={{ width: 130 }}>Nº DA NOTA</th>
                       <th style={{ width: 4000 }}>TOMADOR</th>
-                      <th style={{ width: 180 }} >CNPJ</th>
+                      <th style={{ width: 180 }}>CNPJ</th>
                       <th style={{ width: 1500, textAlign: "right" }}>VALOR</th>
                       <th style={{ width: 160 }}>STATUS</th>
                       <th style={{ width: 260, textAlign: "right" }}>AÇÕES</th>
@@ -822,7 +834,6 @@ function LinhaFatura({
                           <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
 
                           <td className="mono">{getTomadorCpfCnpj(n) || "—"}</td>
-
 
                           <td style={{ textAlign: "right" }}>
                             {n.valor_servico
@@ -941,7 +952,8 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
         <td className="resultados-compactos">
           {sistemas.map((s) => (
             <span key={s.nome} className="sist-chip">
-              <strong>{s.nome}</strong> — <Badge status={s.status} substituida={s.substituida} />
+              <strong>{s.nome}</strong> —{" "}
+              <Badge status={s.status} substituida={s.substituida} />
             </span>
           ))}
         </td>
@@ -1149,7 +1161,7 @@ export default function Consultas() {
                 id: String(res.fatura || termo),
                 numero: String(res.fatura || termo),
                 quando: notasOrdenadas[0]?.datas?.criacao || null,
-                // ✅ normaliza o tomador para salvar no state
+                
                 notas: notasOrdenadas.map((nota) => {
                   const nn = normalizeTomadorForState(nota);
 
@@ -1175,7 +1187,7 @@ export default function Consultas() {
               }
             ]);
           } else if (res.nfse) {
-            // ✅ também normaliza o tomador aqui
+            
             const nfseNorm = normalizeTomadorForState(res.nfse);
 
             setFaturas([
@@ -1202,7 +1214,7 @@ export default function Consultas() {
             setDados([]);
             enqueueSnackbar("Nota cancelada (não exibida).", { variant: "info" });
           } else {
-            // ✅ normaliza antes de montar o objeto final
+            
             const nfseBase = normalizeTomadorForState(res.nfse);
 
             const nfse = {
@@ -1317,7 +1329,6 @@ export default function Consultas() {
             situacao_prefeitura: String(n?.situacao_prefeitura || ""),
             motivo: extractRejectionReason(n)
           });
-
         }
       }
       return rows;
@@ -1339,7 +1350,6 @@ export default function Consultas() {
         situacao_prefeitura: String(baseNota?.situacao_prefeitura || ""),
         motivo: extractRejectionReason(baseNota)
       });
-
     }
 
     return rows;
@@ -1392,7 +1402,8 @@ export default function Consultas() {
         "0"
       )}${String(now.getMinutes()).padStart(2, "0")}`;
 
-      const nameBase = tipoBusca === "fatura" ? "relatorio_rejeitadas_fatura" : "relatorio_rejeitadas_nota";
+      const nameBase =
+        tipoBusca === "fatura" ? "relatorio_rejeitadas_fatura" : "relatorio_rejeitadas_nota";
       const fileName = `${nameBase}_${stamp}.xlsx`;
 
       XLSX.writeFile(wb, fileName);
@@ -1623,9 +1634,13 @@ export default function Consultas() {
     const safeOpcoes = opcoes.length ? opcoes : ["prefeitura"];
 
     const notasPayload = nfs
-      .map((n) => getIdTecnospeed(n))
-      .filter(Boolean)
-      .map((id) => ({ id_tecnospeed: String(id) }));
+      .map(buildCancelRef)
+      .filter(Boolean);
+
+    console.log("[cancel] nota selecionada:", nfs[0]);
+    console.log("[cancel] id_tecnospeed:", getIdTecnospeed(nfs[0]));
+    console.log("[cancel] id_integracao:", getIdIntegracao(nfs[0]));
+    console.log("[cancel] payload notas:", notasPayload);
 
     setModal({
       open: true,
