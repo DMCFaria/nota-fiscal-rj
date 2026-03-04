@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Login from "./login/Login";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -15,24 +15,14 @@ import "./styles/global.css";
 import Consultas from "./pages/Consultas";
 import Navbar from "./components/Navbar";
 
+// O Layout agora usa o <Outlet /> para renderizar as rotas filhas
 function AppLayout() {
   return (
     <div className="app-container">
       <Sidebar />
-      <Navbar/>
+      <Navbar />
       <main className="content">
-        <Routes>
-          {/* Redireciona a raiz do layout para a página inicial desejada */}
-          <Route index element={<Navigate to="/emissao/fatura" replace />} />
-          <Route path="home" element={<Navigate to="/emissao/fatura" replace />} />
-          <Route path="emissao/fatura" element={<Fatura />} />
-          <Route path="emissao/rps" element={<Rps />} />
-          <Route path="emissao/individual" element={<Individual />} />
-          <Route path="consultas" element={<Consultas />} />
-          <Route path="historico" element={<Historico />} />
-          {/* <Route path="configuracoes" element={<Configuracoes />} /> */}
-          <Route path="*" element={<Navigate to="/emissao/fatura" replace />} />
-        </Routes>
+        <Outlet /> 
       </main>
     </div>
   );
@@ -41,16 +31,31 @@ function AppLayout() {
 export default function App() {
   return (
     <Routes>
+      {/* Rotas Públicas */}
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
       </Route>
 
+      {/* Rotas Protegidas */}
       <Route element={<ProtectedRoute />}>
-        {/* Captura a raiz e todas as sub-rotas protegidas */}
-        <Route path="/*" element={<AppLayout />} />
+        <Route element={<AppLayout />}>
+          {/* Redireciona a raiz "/" para a fatura */}
+          <Route index element={<Navigate to="/emissao/fatura" replace />} />
+          
+          <Route path="home" element={<Navigate to="/emissao/fatura" replace />} />
+          
+          {/* Agrupamento de emissão para clareza, ou rotas diretas */}
+          <Route path="emissao/fatura" element={<Fatura />} />
+          <Route path="emissao/rps" element={<Rps />} />
+          <Route path="emissao/individual" element={<Individual />} />
+          
+          <Route path="consultas" element={<Consultas />} />
+          <Route path="historico" element={<Historico />} />
+          {/* <Route path="configuracoes" element={<Configuracoes />} /> */}
+        </Route>
       </Route>
 
-      {/* Fallback global para login caso a rota não exista */}
+      {/* Fallback global: Se não estiver em nenhuma rota acima, volta pro login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
