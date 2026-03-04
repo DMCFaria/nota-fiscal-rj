@@ -22,14 +22,16 @@ function AppLayout() {
       <Navbar/>
       <main className="content">
         <Routes>
-          <Route path="/home" element={<Navigate to="/emissao/fatura" replace />} />
-          <Route path="/emissao/fatura" element={<Fatura />} />
-          <Route path="/emissao/rps" element={<Rps />} />
-          <Route path="/emissao/individual" element={<Individual />} />
-          <Route path="/consultas" element={<Consultas />} />
-          <Route path="/historico" element={<Historico />} />
-          {/* <Route path="/configuracoes" element={<Configuracoes />} /> */}
-          <Route path="*" element={<Navigate to ='/'/>} />
+          {/* Redireciona a raiz do layout para a página inicial desejada */}
+          <Route index element={<Navigate to="/emissao/fatura" replace />} />
+          <Route path="home" element={<Navigate to="/emissao/fatura" replace />} />
+          <Route path="emissao/fatura" element={<Fatura />} />
+          <Route path="emissao/rps" element={<Rps />} />
+          <Route path="emissao/individual" element={<Individual />} />
+          <Route path="consultas" element={<Consultas />} />
+          <Route path="historico" element={<Historico />} />
+          {/* <Route path="configuracoes" element={<Configuracoes />} /> */}
+          <Route path="*" element={<Navigate to="/emissao/fatura" replace />} />
         </Routes>
       </main>
     </div>
@@ -39,16 +41,16 @@ function AppLayout() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/emissao/fatura" replace />} />
-
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>
+        {/* Captura a raiz e todas as sub-rotas protegidas */}
         <Route path="/*" element={<AppLayout />} />
       </Route>
 
+      {/* Fallback global para login caso a rota não exista */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
