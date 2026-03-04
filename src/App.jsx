@@ -31,31 +31,25 @@ function AppLayout() {
 export default function App() {
   return (
     <Routes>
-      {/* Rotas Públicas */}
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
       </Route>
 
-      {/* Rotas Protegidas */}
       <Route element={<ProtectedRoute />}>
-        <Route element={<AppLayout />}>
-          {/* Redireciona a raiz "/" para a fatura */}
+        <Route path="/*" element={<AppLayout />}> {/* Adicionado /* explicitamente aqui */}
           <Route index element={<Navigate to="/emissao/fatura" replace />} />
-          
           <Route path="home" element={<Navigate to="/emissao/fatura" replace />} />
-          
-          {/* Agrupamento de emissão para clareza, ou rotas diretas */}
           <Route path="emissao/fatura" element={<Fatura />} />
           <Route path="emissao/rps" element={<Rps />} />
           <Route path="emissao/individual" element={<Individual />} />
-          
           <Route path="consultas" element={<Consultas />} />
           <Route path="historico" element={<Historico />} />
-          {/* <Route path="configuracoes" element={<Configuracoes />} /> */}
+          {/* Fallback interno para dentro do layout */}
+          <Route path="*" element={<Navigate to="/emissao/fatura" replace />} />
         </Route>
       </Route>
 
-      {/* Fallback global: Se não estiver em nenhuma rota acima, volta pro login */}
+      {/* Se o cara não cair em nada (nem logado nem deslogado), login nele */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
