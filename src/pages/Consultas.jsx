@@ -1714,10 +1714,10 @@ export default function Consultas() {
     const id_tecnospeed = String(getIdTecnospeed(nota) || "");
     const cepDigits = normalizeCepDigits(tratarModal.cep);
 
-    if (!id_tecnospeed) {
-      enqueueSnackbar("Não encontrei o id_tecnospeed dessa nota.", { variant: "error" });
-      return;
-    }
+    //if (!id_tecnospeed) {
+     // enqueueSnackbar("Não encontrei o id_tecnospeed dessa nota.", { variant: "error" });
+     // return;
+    //}
 
     if (cepDigits.length !== 8) {
       enqueueSnackbar("Informe um CEP válido (8 dígitos).", { variant: "warning" });
