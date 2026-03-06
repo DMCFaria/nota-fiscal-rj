@@ -126,8 +126,6 @@ export const reemitirNota = async (payload) => {
   try {
     const response = await n8n.post("webhook/reemitir-nfse", {
       id_integracao: payload?.id_integracao ?? payload?.idIntegracao ?? "",
-      id_tecnospeed:
-        payload?.id_tecnospeed ?? payload?.idTecnospeed ?? payload?.id ?? "",
       cep: String(payload?.cep || "")
         .replace(/\D/g, "")
         .slice(0, 8),

@@ -1728,7 +1728,7 @@ export default function Consultas() {
     try {
       await reemitirNota({
         id_integracao: getIdIntegracao(nota),
-        id_tecnospeed: getIdTecnospeed(nota),
+        //id_tecnospeed: getIdTecnospeed(nota),
         cep: cepDigits
       });
 
