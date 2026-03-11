@@ -243,7 +243,7 @@
 
 /* Responsividade */
 @media (max-width: 768px) {
-  .navbar{
+  .breadcrumb{
     display: none
   }
 

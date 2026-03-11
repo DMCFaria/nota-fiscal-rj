@@ -1,36 +1,30 @@
-// components/Navbar.jsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  FiUser, 
+  FiMenu,
   FiChevronDown, 
   FiLogOut, 
-  FiSettings, 
-  FiHelpCircle,
-  FiBell,
-  FiSearch,
   FiHome,
   FiChevronRight
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
-import '../styles/navbar.css';
+import '../styles/breadcrumb.css';
 
-function Navbar() {
+function Breadcrumb({ onMenuClick, sidebarOpen, isMobile }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
 
   // Mapeamento de rotas para nomes amigáveis
   const routeNames = {
-    '/emissao/fatura': 'Fatura',
-    '/emissao/rps': 'RPS',
-    '/emissao/individual': 'Individual',
+    '/': 'Home',
+    '/emitir': 'Opções de Emissão',
+    '/emitir/fatura': 'Fatura',
+    '/emitir/rps': 'RPS',
+    '/emitir/individual': 'Individual',
     '/consultas': 'Consultas',
     '/historico': 'Histórico',
-    '/historico-detalhe': 'Detalhe da Nota',
-    '/configuracoes': 'Configurações',
   };
 
   // Função para gerar o breadcrumb
@@ -40,32 +34,23 @@ function Navbar() {
     let breadcrumbItems = [];
     let currentPath = '';
     
-    // Adiciona "Home" como primeiro item
-    breadcrumbItems.push({
-      label: 'Home',
-      icon: <FiHome size={14} />,
-      path: '/emissao/fatura'
-    });
+    // Adiciona "Home" como primeiro item se não estiver na raiz
+    if (location.pathname !== '/') {
+      breadcrumbItems.push({
+        label: 'Home',
+        icon: <FiHome size={14} />,
+        path: '/'
+      });
+    }
     
     // Para cada segmento da rota
     pathSegments.forEach((segment, index) => {
       currentPath += `/${segment}`;
       
-      // Verifica se é um ID (ex: em historico-detalhe/:id)
-      if (segment.match(/^[0-9a-fA-F-]+$/) && index > 0) {
-        // É um ID, mantém o nome da rota anterior
-        const prevSegment = pathSegments[index - 1];
-        breadcrumbItems.push({
-          label: routeNames[`/${prevSegment}`] || formatSegment(prevSegment),
-          path: currentPath
-        });
-      } else {
-        // É uma rota normal
-        breadcrumbItems.push({
-          label: routeNames[currentPath] || formatSegment(segment),
-          path: currentPath
-        });
-      }
+      breadcrumbItems.push({
+        label: routeNames[currentPath] || formatSegment(segment),
+        path: currentPath
+      });
     });
     
     return breadcrumbItems;
@@ -75,8 +60,7 @@ function Navbar() {
   const formatSegment = (segment) => {
     return segment
       .replace(/-/g, ' ')
-      .replace(/^\w/, c => c.toUpperCase())
-      .replace(/\b\w/g, l => l.toUpperCase());
+      .replace(/^\w/, c => c.toUpperCase());
   };
 
   const handleLogout = () => {
@@ -85,20 +69,19 @@ function Navbar() {
     setShowUserMenu(false);
   };
 
-  const notifications = [
-    { id: 1, text: 'Nova nota emitida com sucesso', time: '5 min atrás', read: false },
-    { id: 2, text: '3 notas pendentes de envio', time: '1 hora atrás', read: true },
-    { id: 3, text: 'Sistema atualizado para versão 2.1', time: 'Ontem', read: true },
-  ];
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-
   const breadcrumbItems = getBreadcrumb();
 
   return (
-    <nav className="navbar">
-      <div className="navbar-left">
-        {/* Breadcrumb */}
+    <nav className="breadcrumb">
+      <div className="breadcrumb-left">
+        {/* Botão de menu hambúrguer */}
+        {isMobile && (
+          <button className="menu-button" onClick={onMenuClick} aria-label="Menu">
+            <FiMenu size={20} />
+          </button>
+        )}
+
+        {/* Breadcrumb - aparece em todas as telas, mas com ajustes */}
         <div className="breadcrumb">
           {breadcrumbItems.map((item, index) => (
             <div key={index} className="breadcrumb-item">
@@ -120,20 +103,7 @@ function Navbar() {
         </div>
       </div>
 
-      <div className="navbar-right">
-        {/* Notificações (opcional) */}
-        {/* <div className="notifications-container">
-          <button 
-            className="notifications-btn"
-            onClick={() => setShowNotifications(!showNotifications)}
-          >
-            <FiBell />
-            {unreadCount > 0 && (
-              <span className="notification-badge">{unreadCount}</span>
-            )}
-          </button>
-        </div> */}
-
+      <div className="breadcrumb-right">
         {/* Usuário */}
         <div className="user-container">
           <button 
@@ -143,14 +113,16 @@ function Navbar() {
             <div className="user-avatar">
               {user?.nome?.charAt(0) || user?.username?.charAt(0) || 'U'}
             </div>
-            <div className="user-info">
-              <span className="user-name">
-                {user?.nome || user?.username || 'Usuário'}
-              </span>
-              <span className="user-role">
-                {user?.empresa || 'FedCorp'}
-              </span>
-            </div>
+            {!isMobile && (
+              <div className="user-info">
+                <span className="user-name">
+                  {user?.nome || user?.username || 'Usuário'}
+                </span>
+                <span className="user-role">
+                  {user?.empresa || 'FedCorp'}
+                </span>
+              </div>
+            )}
             <FiChevronDown className={`dropdown-arrow ${showUserMenu ? 'rotated' : ''}`} />
           </button>
 
@@ -170,22 +142,6 @@ function Navbar() {
               
               <div className="dropdown-divider"></div>
               
-              {/* <button 
-                className="dropdown-item"
-                onClick={() => {
-                  navigate('/configuracoes');
-                  setShowUserMenu(false);
-                }}
-              >
-                <FiSettings /> Configurações
-              </button>
-              
-              <button className="dropdown-item">
-                <FiHelpCircle /> Ajuda
-              </button> */}
-              
-              <div className="dropdown-divider"></div>
-              
               <button 
                 className="dropdown-item logout"
                 onClick={handleLogout}
@@ -198,17 +154,14 @@ function Navbar() {
       </div>
 
       {/* Overlay para fechar menus ao clicar fora */}
-      {(showUserMenu || showNotifications) && (
+      {showUserMenu && (
         <div 
           className="menu-overlay"
-          onClick={() => {
-            setShowUserMenu(false);
-            setShowNotifications(false);
-          }}
+          onClick={() => setShowUserMenu(false)}
         />
       )}
     </nav>
   );
 }
 
-export default Navbar;
+export default Breadcrumb;

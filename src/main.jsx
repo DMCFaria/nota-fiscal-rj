@@ -1,13 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import App from "./App";
+import { BrowserRouter as Router } from "react-router-dom";
+import { App } from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { SnackbarProvider } from 'notistack';
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <Router>
       <AuthProvider>
         <SnackbarProvider
           maxSnack={3}
@@ -16,6 +16,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <App />
         </SnackbarProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </Router>
   </React.StrictMode>
 );

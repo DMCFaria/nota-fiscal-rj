@@ -6,6 +6,8 @@ import "../../styles/emissao.css";
 import { useSnackbar } from 'notistack';
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
+import PageTemplate from "../../components/PageTemplate";
+import { TbFileInvoice } from "react-icons/tb";
 
 export default function EmissaoIndividual() {
   const [empresa, setEmpresa] = useState("");
@@ -423,357 +425,364 @@ export default function EmissaoIndividual() {
   }, [podeEmitir, loadingEmitir]);
 
   return (
-    <div className="fc-page">
-      <div className="fc-card">
-        <header className="fc-header">
-          <h2 className="fc-title">Emissão · Individual</h2>
-          <div className="fc-subtitle">
-            Preencha os dados do tomador e do serviço para emitir a nota fiscal
-          </div>
-        </header>
-
-        <section className="fc-section">
-          <EmpresaSelect
-            value={empresa}
-            onChange={setEmpresa}
-            empresas={empresaData}
-            label="Empresa *"
-            required
-          />
-        </section>
-
-        <form onSubmit={handleGerar} className="fc-form">
-          <h3 className="fc-form-title">Dados do Tomador</h3>
-
-          <div className="fc-form-content">
-            <div className="fc-row fc-row--inputs">
-              <div className="fc-input-group">
-                <label className="fc-input-label">CPF/CNPJ *</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="Ex: 123.456.789-00 ou 12.345.678/0001-90"
-                  value={tomador.documento}
-                  onChange={handleChange('documento')}
-                />
-              </div>
-
-              <div className="fc-input-group">
-                <label className="fc-input-label">Nome/Razão Social *</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="Nome completo ou Razão Social"
-                  value={tomador.nome}
-                  onChange={handleChange('nome')}
-                />
-              </div>
+    <PageTemplate
+      title="Emissão · Individual"
+      subtitle="Preencha os dados do tomador e do serviço para emitir a nota fiscal"
+      icon={<TbFileInvoice />}
+      className="consulta-comercial-page"
+      >
+      <div className="fc-page">
+        <div className="fc-card">
+          {/* <header className="fc-header">
+            <h2 className="fc-title">Emissão · Individual</h2>
+            <div className="fc-subtitle">
+              Preencha os dados do tomador e do serviço para emitir a nota fiscal
             </div>
+          </header> */}
 
-            <div className="fc-row fc-row--inputs">
-              <div className="fc-input-group">
-                <label className="fc-input-label">E-mail</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="email@exemplo.com"
-                  value={tomador.email}
-                  onChange={handleChange('email')}
-                />
-              </div>
+          <section className="fc-section">
+            <EmpresaSelect
+              value={empresa}
+              onChange={setEmpresa}
+              empresas={empresaData}
+              label="Empresa *"
+              required
+            />
+          </section>
 
-              <div className="fc-input-group">
-                <label className="fc-input-label">CEP</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="00000-000"
-                  value={tomador.cep}
-                  onChange={handleChange('cep')}
-                />
-              </div>
-            </div>
+          <form onSubmit={handleGerar} className="fc-form">
+            <h3 className="fc-form-title">Dados do Tomador</h3>
 
-            <div className="fc-row fc-row--inputs">
-              <div className="fc-input-group">
-                <label className="fc-input-label">Logradouro</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="Rua, Avenida, etc."
-                  value={tomador.logradouro}
-                  onChange={handleChange('logradouro')}
-                />
-              </div>
-
-              <div className="fc-input-group">
-                <label className="fc-input-label">Número</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="Nº"
-                  value={tomador.numero}
-                  onChange={handleChange('numero')}
-                />
-              </div>
-            </div>
-
-            <div className="fc-row fc-row--inputs">
-              <div className="fc-input-group">
-                <label className="fc-input-label">Bairro</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="Bairro"
-                  value={tomador.bairro}
-                  onChange={handleChange('bairro')}
-                />
-              </div>
-
-              <div className="fc-input-group">
-                <label className="fc-input-label">Cidade</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="Cidade"
-                  value={tomador.cidade}
-                  onChange={handleChange('cidade')}
-                />
-              </div>
-
-              <div className="fc-input-group">
-                <label className="fc-input-label">UF</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="UF"
-                  maxLength={2}
-                  value={tomador.uf}
-                  onChange={handleChange('uf')}
-                />
-              </div>
-            </div>
-
-            <h3 className="fc-form-title" style={{ marginTop: '2rem' }}>Discriminação do Serviço</h3>
-            
-            <div className="fc-input-group">
-              <label className="fc-input-label">
-                Descrição do Serviço *
-                {servico && servico.length < 10 && (
-                  <span className="fc-input-error"> (mínimo 10 caracteres)</span>
-                )}
-              </label>
-              <textarea
-                className="fc-input fc-textarea"
-                placeholder="Descreva detalhadamente os serviços prestados..."
-                rows={4}
-                value={servico}
-                required
-                onChange={(e) => setServico(e.target.value)}
-                minLength={10}
-                maxLength={1000}
-              />
-              <div className="fc-input-help">
-                {servico.length}/1000 caracteres
-              </div>
-            </div>
-
-            {/* <h3 className="fc-form-title" style={{ marginTop: '2rem' }}>Valores da Nota</h3>
-            
-            <div className="fc-row fc-row--inputs">
-              <div className="fc-input-group">
-                <label className="fc-input-label">Valor Total (R$) *</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="0,00"
-                  value={valores.valorNota}
-                  onChange={handleMoneyChange("valorNota")}
-                  onBlur={handleMoneyBlur("valorNota")}
-                  onFocus={handleMoneyFocus}
-                  required
-                />
-              </div>
-
-              <div className="fc-input-group">
-                <label className="fc-input-label">Deduções (R$)</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="0,00"
-                  value={valores.deducoes}
-                  onChange={handleMoneyChange("deducoes")}
-                  onBlur={handleMoneyBlur("deducoes")}
-                  onFocus={handleMoneyFocus}
-                />
-              </div>
-
-              <div className="fc-input-group">
-                <label className="fc-input-label">Descontos (R$)</label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="0,00"
-                  value={valores.descontos}
-                  onChange={handleMoneyChange("descontos")}
-                  onBlur={handleMoneyBlur("descontos")}
-                  onFocus={handleMoneyFocus}
-                />
-              </div>
-            </div> */}
-
-            <div className="fc-row fc-row--inputs">
-              {isCondomed && (
+            <div className="fc-form-content">
+              <div className="fc-row fc-row--inputs">
                 <div className="fc-input-group">
-                  <label className="fc-input-label">Código de Serviço</label>
-                  <select
-                    className="fc-input fc-select"
-                    value={codigoServico}
-                    onChange={(e) => setCodigoServico(e.target.value)}
-                  >
-                    <option value="170901">Cód. 170901</option>
-                    <option value="170902">Cód. 170902</option>
-                    <option value="040301">Cód. 040301</option>
-                  </select>
+                  <label className="fc-input-label">CPF/CNPJ *</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="Ex: 123.456.789-00 ou 12.345.678/0001-90"
+                    value={tomador.documento}
+                    onChange={handleChange('documento')}
+                  />
+                </div>
+
+                <div className="fc-input-group">
+                  <label className="fc-input-label">Nome/Razão Social *</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="Nome completo ou Razão Social"
+                    value={tomador.nome}
+                    onChange={handleChange('nome')}
+                  />
+                </div>
+              </div>
+
+              <div className="fc-row fc-row--inputs">
+                <div className="fc-input-group">
+                  <label className="fc-input-label">E-mail</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="email@exemplo.com"
+                    value={tomador.email}
+                    onChange={handleChange('email')}
+                  />
+                </div>
+
+                <div className="fc-input-group">
+                  <label className="fc-input-label">CEP</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="00000-000"
+                    value={tomador.cep}
+                    onChange={handleChange('cep')}
+                  />
+                </div>
+              </div>
+
+              <div className="fc-row fc-row--inputs">
+                <div className="fc-input-group">
+                  <label className="fc-input-label">Logradouro</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="Rua, Avenida, etc."
+                    value={tomador.logradouro}
+                    onChange={handleChange('logradouro')}
+                  />
+                </div>
+
+                <div className="fc-input-group">
+                  <label className="fc-input-label">Número</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="Nº"
+                    value={tomador.numero}
+                    onChange={handleChange('numero')}
+                  />
+                </div>
+              </div>
+
+              <div className="fc-row fc-row--inputs">
+                <div className="fc-input-group">
+                  <label className="fc-input-label">Bairro</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="Bairro"
+                    value={tomador.bairro}
+                    onChange={handleChange('bairro')}
+                  />
+                </div>
+
+                <div className="fc-input-group">
+                  <label className="fc-input-label">Cidade</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="Cidade"
+                    value={tomador.cidade}
+                    onChange={handleChange('cidade')}
+                  />
+                </div>
+
+                <div className="fc-input-group">
+                  <label className="fc-input-label">UF</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="UF"
+                    maxLength={2}
+                    value={tomador.uf}
+                    onChange={handleChange('uf')}
+                  />
+                </div>
+              </div>
+
+              <h3 className="fc-form-title" style={{ marginTop: '2rem' }}>Discriminação do Serviço</h3>
+              
+              <div className="fc-input-group">
+                <label className="fc-input-label">
+                  Descrição do Serviço *
+                  {servico && servico.length < 10 && (
+                    <span className="fc-input-error"> (mínimo 10 caracteres)</span>
+                  )}
+                </label>
+                <textarea
+                  className="fc-input fc-textarea"
+                  placeholder="Descreva detalhadamente os serviços prestados..."
+                  rows={4}
+                  value={servico}
+                  required
+                  onChange={(e) => setServico(e.target.value)}
+                  minLength={10}
+                  maxLength={1000}
+                />
+                <div className="fc-input-help">
+                  {servico.length}/1000 caracteres
+                </div>
+              </div>
+
+              {/* <h3 className="fc-form-title" style={{ marginTop: '2rem' }}>Valores da Nota</h3>
+              
+              <div className="fc-row fc-row--inputs">
+                <div className="fc-input-group">
+                  <label className="fc-input-label">Valor Total (R$) *</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="0,00"
+                    value={valores.valorNota}
+                    onChange={handleMoneyChange("valorNota")}
+                    onBlur={handleMoneyBlur("valorNota")}
+                    onFocus={handleMoneyFocus}
+                    required
+                  />
+                </div>
+
+                <div className="fc-input-group">
+                  <label className="fc-input-label">Deduções (R$)</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="0,00"
+                    value={valores.deducoes}
+                    onChange={handleMoneyChange("deducoes")}
+                    onBlur={handleMoneyBlur("deducoes")}
+                    onFocus={handleMoneyFocus}
+                  />
+                </div>
+
+                <div className="fc-input-group">
+                  <label className="fc-input-label">Descontos (R$)</label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="0,00"
+                    value={valores.descontos}
+                    onChange={handleMoneyChange("descontos")}
+                    onBlur={handleMoneyBlur("descontos")}
+                    onFocus={handleMoneyFocus}
+                  />
+                </div>
+              </div> */}
+
+              <div className="fc-row fc-row--inputs">
+                {isCondomed && (
+                  <div className="fc-input-group">
+                    <label className="fc-input-label">Código de Serviço</label>
+                    <select
+                      className="fc-input fc-select"
+                      value={codigoServico}
+                      onChange={(e) => setCodigoServico(e.target.value)}
+                    >
+                      <option value="170901">Cód. 170901</option>
+                      <option value="170902">Cód. 170902</option>
+                      <option value="040301">Cód. 040301</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="fc-input-group">
+                  <label className="fc-input-label">ISS Retido?</label>
+                  <div className="fc-radio-group">
+                    <label className="fc-radio">
+                      <input
+                        type="radio"
+                        name="issRetido"
+                        value="sim"
+                        checked={valores.issRetido === "sim"}
+                        onChange={(e) => setValores(prev => ({ ...prev, issRetido: e.target.value }))}
+                      />
+                      <span>Sim</span>
+                    </label>
+                    <label className="fc-radio">
+                      <input
+                        type="radio"
+                        name="issRetido"
+                        value="nao"
+                        checked={valores.issRetido === "nao"}
+                        onChange={(e) => setValores(prev => ({ ...prev, issRetido: e.target.value }))}
+                      />
+                      <span>Não</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                className={gerarBtnClass}
+                type="submit"
+                disabled={!podeGerar || loadingGerar || loadingEmitir}
+                title={!podeGerar ? "Preencha todos os campos obrigatórios" : ""}
+              >
+                {loadingGerar ? (
+                  <>
+                    <span className="fc-spinner"></span>
+                    GERANDO PRÉVIA...
+                  </>
+                ) : "GERAR PRÉVIA"}
+              </button>
+
+              {!podeGerar && (
+                <div className="fc-validation-hint">
+                  ⓘ Preencha: Empresa, CPF/CNPJ, Nome, Descrição do Serviço e Valor Total
                 </div>
               )}
-
-              <div className="fc-input-group">
-                <label className="fc-input-label">ISS Retido?</label>
-                <div className="fc-radio-group">
-                  <label className="fc-radio">
-                    <input
-                      type="radio"
-                      name="issRetido"
-                      value="sim"
-                      checked={valores.issRetido === "sim"}
-                      onChange={(e) => setValores(prev => ({ ...prev, issRetido: e.target.value }))}
-                    />
-                    <span>Sim</span>
-                  </label>
-                  <label className="fc-radio">
-                    <input
-                      type="radio"
-                      name="issRetido"
-                      value="nao"
-                      checked={valores.issRetido === "nao"}
-                      onChange={(e) => setValores(prev => ({ ...prev, issRetido: e.target.value }))}
-                    />
-                    <span>Não</span>
-                  </label>
-                </div>
-              </div>
             </div>
+          </form>
 
-            <button
-              className={gerarBtnClass}
-              type="submit"
-              disabled={!podeGerar || loadingGerar || loadingEmitir}
-              title={!podeGerar ? "Preencha todos os campos obrigatórios" : ""}
-            >
-              {loadingGerar ? (
-                <>
-                  <span className="fc-spinner"></span>
-                  GERANDO PRÉVIA...
-                </>
-              ) : "GERAR PRÉVIA"}
-            </button>
+          <section className="fc-section">
+            <LogEmissao entries={logs} maxHeight={120} />
 
-            {!podeGerar && (
-              <div className="fc-validation-hint">
-                ⓘ Preencha: Empresa, CPF/CNPJ, Nome, Descrição do Serviço e Valor Total
+            {loadingEmitir && (
+              <div className="fc-progress-wrapper">
+                <div className="fc-progress">
+                  <div className="fc-progress-bar" style={{ width: `${progresso}%` }} />
+                </div>
+                <div className="fc-progress-label">{progresso}% processado</div>
               </div>
             )}
-          </div>
-        </form>
+          </section>
 
-        <section className="fc-section">
-          <LogEmissao entries={logs} maxHeight={120} />
-
-          {loadingEmitir && (
-            <div className="fc-progress-wrapper">
-              <div className="fc-progress">
-                <div className="fc-progress-bar" style={{ width: `${progresso}%` }} />
-              </div>
-              <div className="fc-progress-label">{progresso}% processado</div>
-            </div>
-          )}
-        </section>
-
-        <section className="fc-section">
-          {preview ? (
-            <div className="fc-preview">
-              <div className="fc-preview-header">
-                <h2 className="fc-preview-title">Conferência de Dados</h2>
-                <div className="fc-preview-badge">
-                  {preview.length} {preview.length === 1 ? 'NOTA' : 'NOTAS'}
-                </div>
-              </div>
-
-              <div className="fc-grid">
-                <div className="fc-metric">
-                  <span className="fc-label">Valor Total:</span>
-                  <p className="fc-value">
-                    {preview
-                      .reduce(
-                        (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
-                        0
-                      )
-                      .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </p>
+          <section className="fc-section">
+            {preview ? (
+              <div className="fc-preview">
+                <div className="fc-preview-header">
+                  <h2 className="fc-preview-title">Conferência de Dados</h2>
+                  <div className="fc-preview-badge">
+                    {preview.length} {preview.length === 1 ? 'NOTA' : 'NOTAS'}
+                  </div>
                 </div>
 
-                <div className="fc-metric">
-                  <span className="fc-label">Código de Serviço</span>
-                  <p className="fc-value">{preview[0]?.servico?.[0]?.codigo || "170901"}</p>
-                </div>
-
-                <div className="fc-grid-span" />
-
-                <div className="fc-metric">
-                  <span className="fc-label">Nº Notas Fiscais</span>
-                  <p className="fc-value">{preview.length}</p>
-                </div>
-
-                <div className="fc-block fc-grid-span">
+                <div className="fc-grid">
                   <div className="fc-metric">
-                    <span className="fc-label">Emissor:</span>
+                    <span className="fc-label">Valor Total:</span>
                     <p className="fc-value">
-                      {fixBrokenLatin(preview[0]?.prestador?.razaoSocial || "")
-                        .split(" ")
-                        .slice(0, 2)
-                        .join(" ")}{" "}
-                      - {preview[0]?.prestador?.cpfCnpj || ""}
+                      {preview
+                        .reduce(
+                          (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
+                          0
+                        )
+                        .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </p>
                   </div>
 
                   <div className="fc-metric">
-                    <span className="fc-label">Tomador:</span>
-                    <p className="fc-value">
-                      {fixBrokenLatin(preview[0]?.tomador?.razaoSocial || "")}
-                      {" "}- {preview[0]?.tomador?.cpfCnpj || ""}
-                    </p>
+                    <span className="fc-label">Código de Serviço</span>
+                    <p className="fc-value">{preview[0]?.servico?.[0]?.codigo || "170901"}</p>
                   </div>
 
                   <div className="fc-grid-span" />
 
-                  <span className="fc-label">Discriminação do Serviço:</span>
-                  <p className="fc-discriminacao">{fixBrokenLatin(preview[0]?.servico?.[0]?.discriminacao || "")}</p>
+                  <div className="fc-metric">
+                    <span className="fc-label">Nº Notas Fiscais</span>
+                    <p className="fc-value">{preview.length}</p>
+                  </div>
+
+                  <div className="fc-block fc-grid-span">
+                    <div className="fc-metric">
+                      <span className="fc-label">Emissor:</span>
+                      <p className="fc-value">
+                        {fixBrokenLatin(preview[0]?.prestador?.razaoSocial || "")
+                          .split(" ")
+                          .slice(0, 2)
+                          .join(" ")}{" "}
+                        - {preview[0]?.prestador?.cpfCnpj || ""}
+                      </p>
+                    </div>
+
+                    <div className="fc-metric">
+                      <span className="fc-label">Tomador:</span>
+                      <p className="fc-value">
+                        {fixBrokenLatin(preview[0]?.tomador?.razaoSocial || "")}
+                        {" "}- {preview[0]?.tomador?.cpfCnpj || ""}
+                      </p>
+                    </div>
+
+                    <div className="fc-grid-span" />
+
+                    <span className="fc-label">Discriminação do Serviço:</span>
+                    <p className="fc-discriminacao">{fixBrokenLatin(preview[0]?.servico?.[0]?.discriminacao || "")}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="fc-placeholder">
-              <p>Aguardando dados da nota...</p>
-              <small>Preencha os campos acima e clique em "Gerar Prévia"</small>
-            </div>
-          )}
-        </section>
-      </div>
+            ) : (
+              <div className="fc-placeholder">
+                <p>Aguardando dados da nota...</p>
+                <small>Preencha os campos acima e clique em "Gerar Prévia"</small>
+              </div>
+            )}
+          </section>
+        </div>
 
-      <footer className="fc-footer">
-        <button
-          className={emitirBtnClass}
-          onClick={handleEmitir}
-          disabled={!podeEmitir || loadingEmitir}
-          title={!podeEmitir ? "Gere a prévia primeiro" : ""}
-        >
-          {loadingEmitir ? (
-            <>
-              <span className="fc-spinner"></span>
-              PROCESSANDO ({progresso}%)
-            </>
-          ) : "EMITIR NOTA FISCAL"}
-        </button>
-      </footer>
-    </div>
+        <footer className="fc-footer">
+          <button
+            className={emitirBtnClass}
+            onClick={handleEmitir}
+            disabled={!podeEmitir || loadingEmitir}
+            title={!podeEmitir ? "Gere a prévia primeiro" : ""}
+          >
+            {loadingEmitir ? (
+              <>
+                <span className="fc-spinner"></span>
+                PROCESSANDO ({progresso}%)
+              </>
+            ) : "EMITIR NOTA FISCAL"}
+          </button>
+        </footer>
+      </div>
+    </PageTemplate>
   );
 }

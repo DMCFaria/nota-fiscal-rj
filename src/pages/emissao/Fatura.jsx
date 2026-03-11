@@ -4,12 +4,14 @@ import LogEmissao from "../../components/LogEmissao";
 import {
   getNfsePreview,
   iniciarEmissao2,
-  iniciarProcessamentoNota
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from "notistack";
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
+import PageTemplate from "../../components/PageTemplate";
+import { LuActivity } from "react-icons/lu";
+import { FaFileInvoiceDollar } from "react-icons/fa";
 
 export default function EmissaoPorFatura() {
   const [empresa, setEmpresa] = useState("");
@@ -275,195 +277,202 @@ export default function EmissaoPorFatura() {
   }, [podeEmitir, loadingEmitir]);
 
   return (
-    <div className="fc-page">
-      <div className="fc-card">
-        <header className="fc-header">
-          <h2 className="fc-title">Emissão · Por Fatura</h2>
-          <div className="fc-subtitle">
-            Preencha todos os campos obrigatórios para gerar a prévia da nota fiscal
-          </div>
-        </header>
+    <PageTemplate
+      title="Emissão · Por Fatura"
+      subtitle="Preencha todos os campos obrigatórios para gerar a prévia da nota fiscal"
+      icon={<FaFileInvoiceDollar />}
+      className="consulta-comercial-page"
+      >
+      <div className="fc-page">
+        <div className="fc-card">
+          {/* <header className="fc-header">
+            <h2 className="fc-title">Emissão · Por Fatura</h2>
+            <div className="fc-subtitle">
+              Preencha todos os campos obrigatórios para gerar a prévia da nota fiscal
+            </div>
+          </header> */}
 
-        <section className="fc-section">
-          <EmpresaSelect
-            value={empresa}
-            onChange={setEmpresa}
-            empresas={empresaData}
-            label="Empresa *"
-            required
-          />
-        </section>
+          <section className="fc-section">
+            <EmpresaSelect
+              value={empresa}
+              onChange={setEmpresa}
+              empresas={empresaData}
+              label="Empresa *"
+              required
+            />
+          </section>
 
-        <form onSubmit={handleGerar} className="fc-form">
-          <h3 className="fc-form-title">Dados de Importação</h3>
+          <form onSubmit={handleGerar} className="fc-form">
+            <h3 className="fc-form-title">Dados de Importação</h3>
 
-          <div className="fc-form-content">
-            <div className="fc-row fc-row--inputs">
-              <div className="fc-input-group">
-                <label className="fc-input-label">
-                  Número da Fatura *
-                  {fatura && fatura.length < 6 && (
-                    <span className="fc-input-error"> (mínimo 6 dígitos)</span>
-                  )}
-                </label>
-                <input
-                  className="fc-input fc-input--grow"
-                  placeholder="Ex: 161034"
-                  value={fatura}
-                  onChange={(e) => setFatura(e.target.value.replace(/[^\d]/g, ""))}
-                  maxLength={10}
-                />
-              </div>
-
-              <div className="fc-input-group fc-input-group--narrow">
-                <label className="fc-input-label">Tipo de Fatura</label>
-                <select
-                  className="fc-input fc-select"
-                  value={tipoFatura}
-                  onChange={(e) => setTipoFatura(e.target.value)}
-                  disabled={loadingGerar || loadingEmitir}
-                >
-                  <option value="normal">Fatura normal</option>
-                  <option value="parcelada">Fatura parcelada</option>
-                  <option value="vr">Fatura VR</option>
-                </select>
-              </div>
-
-              {isCondomed && (
+            <div className="fc-form-content">
+              <div className="fc-row fc-row--inputs">
                 <div className="fc-input-group">
-                  <label className="fc-input-label">Código de Serviço</label>
+                  <label className="fc-input-label">
+                    Número da Fatura *
+                    {fatura && fatura.length < 6 && (
+                      <span className="fc-input-error"> (mínimo 6 dígitos)</span>
+                    )}
+                  </label>
+                  <input
+                    className="fc-input fc-input--grow"
+                    placeholder="Ex: 161034"
+                    value={fatura}
+                    onChange={(e) => setFatura(e.target.value.replace(/[^\d]/g, ""))}
+                    maxLength={10}
+                  />
+                </div>
+
+                <div className="fc-input-group fc-input-group--narrow">
+                  <label className="fc-input-label">Tipo de Fatura</label>
                   <select
                     className="fc-input fc-select"
-                    value={codigoServico}
-                    onChange={(e) => setCodigoServico(e.target.value)}
+                    value={tipoFatura}
+                    onChange={(e) => setTipoFatura(e.target.value)}
+                    disabled={loadingGerar || loadingEmitir}
                   >
-                    <option value="170901">Cód. 170901</option>
-                    <option value="170902">Cód. 170902</option>
-                    <option value="040301">Cód. 040301</option>
+                    <option value="normal">Fatura normal</option>
+                    <option value="parcelada">Fatura parcelada</option>
+                    <option value="vr">Fatura VR</option>
                   </select>
                 </div>
-              )}
-            </div>
 
-            <div className="fc-input-group">
-              <textarea
-                className="fc-input fc-textarea"
-                placeholder="Ex: Programa de Gestão de Segurança do Trabalho para empresa XYZ..."
-                rows={3}
-                value={observacao}
-                required
-                onChange={(e) => setObservacao(e.target.value)}
-                maxLength={500}
-              />
-              <div className="fc-input-help">{observacao.length}/500 caracteres</div>
-            </div>
-
-            <button
-              className={gerarBtnClass}
-              type="submit"
-              disabled={!podeGerar || loadingGerar || loadingEmitir}
-              title={!podeGerar ? "Preencha todos os campos obrigatórios" : ""}
-            >
-              {loadingGerar ? (
-                <>
-                  <span className="fc-spinner"></span>
-                  GERANDO PRÉVIA...
-                </>
-              ) : "GERAR PRÉVIA"}
-            </button>
-          </div>
-        </form>
-
-        <section className="fc-section">
-          <LogEmissao entries={logs} maxHeight={120} />
-
-          {loadingEmitir && (
-            <div className="fc-progress-wrapper">
-              <div className="fc-progress">
-                <div className="fc-progress-bar" style={{ width: `${progresso}%` }} />
-              </div>
-              <div className="fc-progress-label">{progresso}% processado</div>
-            </div>
-          )}
-        </section>
-
-        <section className="fc-section">
-          {preview ? (
-            <div className="fc-preview">
-              <div className="fc-preview-header">
-                <h2 className="fc-preview-title">Conferência de Dados</h2>
+                {isCondomed && (
+                  <div className="fc-input-group">
+                    <label className="fc-input-label">Código de Serviço</label>
+                    <select
+                      className="fc-input fc-select"
+                      value={codigoServico}
+                      onChange={(e) => setCodigoServico(e.target.value)}
+                    >
+                      <option value="170901">Cód. 170901</option>
+                      <option value="170902">Cód. 170902</option>
+                      <option value="040301">Cód. 040301</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
-              <div className="fc-grid">
-                <div className="fc-metric">
-                  <span className="fc-label">Valor Total:</span>
-                  <p className="fc-value">
-                    {preview
-                      .reduce(
-                        (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
-                        0
-                      )
-                      .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </p>
+              <div className="fc-input-group">
+                <textarea
+                  className="fc-input fc-textarea"
+                  placeholder="Ex: Programa de Gestão de Segurança do Trabalho para empresa XYZ..."
+                  rows={3}
+                  value={observacao}
+                  required
+                  onChange={(e) => setObservacao(e.target.value)}
+                  maxLength={500}
+                />
+                <div className="fc-input-help">{observacao.length}/500 caracteres</div>
+              </div>
+
+              <button
+                className={gerarBtnClass}
+                type="submit"
+                disabled={!podeGerar || loadingGerar || loadingEmitir}
+                title={!podeGerar ? "Preencha todos os campos obrigatórios" : ""}
+              >
+                {loadingGerar ? (
+                  <>
+                    <span className="fc-spinner"></span>
+                    GERANDO PRÉVIA...
+                  </>
+                ) : "GERAR PRÉVIA"}
+              </button>
+            </div>
+          </form>
+
+          <section className="fc-section">
+            <LogEmissao entries={logs} maxHeight={120} />
+
+            {loadingEmitir && (
+              <div className="fc-progress-wrapper">
+                <div className="fc-progress">
+                  <div className="fc-progress-bar" style={{ width: `${progresso}%` }} />
+                </div>
+                <div className="fc-progress-label">{progresso}% processado</div>
+              </div>
+            )}
+          </section>
+
+          <section className="fc-section">
+            {preview ? (
+              <div className="fc-preview">
+                <div className="fc-preview-header">
+                  <h2 className="fc-preview-title">Conferência de Dados</h2>
                 </div>
 
-                <div className="fc-metric">
-                  <span className="fc-label">Código de Serviço</span>
-                  <p className="fc-value">{preview[0].servico[0].codigo}</p>
-                </div>
-
-                <div className="fc-grid-span" />
-
-                <div className="fc-metric">
-                  <span className="fc-label">Nº Notas Fiscais</span>
-                  <p className="fc-value">{preview.length}</p>
-                </div>
-
-                <div className="fc-block fc-grid-span">
+                <div className="fc-grid">
                   <div className="fc-metric">
-                    <span className="fc-label">Emissor:</span>
+                    <span className="fc-label">Valor Total:</span>
                     <p className="fc-value">
-                      {fixBrokenLatin(preview[0]?.prestador?.razaoSocial)
-                        .split(" ")
-                        .slice(0, 2)
-                        .join(" ")}{" "}
-                      - {preview[0]?.prestador?.cpfCnpj}
+                      {preview
+                        .reduce(
+                          (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
+                          0
+                        )
+                        .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </p>
+                  </div>
+
+                  <div className="fc-metric">
+                    <span className="fc-label">Código de Serviço</span>
+                    <p className="fc-value">{preview[0].servico[0].codigo}</p>
                   </div>
 
                   <div className="fc-grid-span" />
 
-                  <span className="fc-label">Discriminação do Serviço:</span>
-                  <p className="fc-discriminacao">
-                    {fixBrokenLatin(preview[0]?.servico[0]?.discriminacao)}
-                  </p>
+                  <div className="fc-metric">
+                    <span className="fc-label">Nº Notas Fiscais</span>
+                    <p className="fc-value">{preview.length}</p>
+                  </div>
+
+                  <div className="fc-block fc-grid-span">
+                    <div className="fc-metric">
+                      <span className="fc-label">Emissor:</span>
+                      <p className="fc-value">
+                        {fixBrokenLatin(preview[0]?.prestador?.razaoSocial)
+                          .split(" ")
+                          .slice(0, 2)
+                          .join(" ")}{" "}
+                        - {preview[0]?.prestador?.cpfCnpj}
+                      </p>
+                    </div>
+
+                    <div className="fc-grid-span" />
+
+                    <span className="fc-label">Discriminação do Serviço:</span>
+                    <p className="fc-discriminacao">
+                      {fixBrokenLatin(preview[0]?.servico[0]?.discriminacao)}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="fc-placeholder">
-              <p>Aguardando importação de dados da fatura...</p>
-              <small>Preencha os campos acima e clique em "Gerar Prévia"</small>
-            </div>
-          )}
-        </section>
-      </div>
+            ) : (
+              <div className="fc-placeholder">
+                <p>Aguardando importação de dados da fatura...</p>
+                <small>Preencha os campos acima e clique em "Gerar Prévia"</small>
+              </div>
+            )}
+          </section>
+        </div>
 
-      <footer className="fc-footer">
-        <button
-          className={emitirBtnClass}
-          onClick={handleEmitir}
-          disabled={!podeEmitir || loadingEmitir}
-          title={!podeEmitir ? "Gere a prévia primeiro" : ""}
-        >
-          {loadingEmitir ? (
-            <>
-              <span className="fc-spinner"></span>
-              PROCESSANDO ({progresso}%)
-            </>
-          ) : "EMITIR NOTA FISCAL"}
-        </button>
-      </footer>
-    </div>
+        <footer className="fc-footer">
+          <button
+            className={emitirBtnClass}
+            onClick={handleEmitir}
+            disabled={!podeEmitir || loadingEmitir}
+            title={!podeEmitir ? "Gere a prévia primeiro" : ""}
+          >
+            {loadingEmitir ? (
+              <>
+                <span className="fc-spinner"></span>
+                PROCESSANDO ({progresso}%)
+              </>
+            ) : "EMITIR NOTA FISCAL"}
+          </button>
+        </footer>
+      </div>
+    </PageTemplate>
   );
 }

@@ -19,6 +19,8 @@ import { exportarDadosNota, getHistoricoFatura, getHistoricoNota } from "../serv
 import { authService } from "../services/authService";
 import { useNavigate } from "react-router-dom";
 import { FiArrowRight, FiFileText, FiMapPin, FiCopy, FiMail,FiHash, FiUser,FiCalendar   } from "react-icons/fi";
+import PageTemplate from "../components/PageTemplate";
+import { LuActivity } from "react-icons/lu";
 
 // Mapeamento de cores para tipos
 const tipoConfig = {
@@ -675,199 +677,194 @@ export default function Historico() {
   };
 
   return (
-    <div className="historico-container">
-      
-      <div className="historico-header">
-        <div className="header-content">
-          <h1 className="titulo">
-            Histórico de Atividades
-          </h1>
-          <p className="subtitulo">
-            Acompanhe suas ações realizadas no sistema
-          </p>
-        </div>
-      </div>
-
-      {/* Painel de Busca */}
-      <div className="card busca-card">
-        <form onSubmit={handleSubmit} className="form-busca-historico">
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="modoBusca">
-                <FiSearch /> Buscar por:
-              </label>
-              <select 
-                id="modoBusca"
-                value={modoBusca}
-                onChange={(e) => setModoBusca(e.target.value)}
-                className="select-busca"
-                disabled={loading}
-              >
-                <option value="fatura">Número da Fatura</option>
-                <option value="nota">ID da Nota</option>
-              </select>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="termoBusca">
-                {modoBusca === "fatura" ? "Número da Fatura:" : "ID/Integração:"}
-              </label>
-              <div className="input-with-button">
-                <input
-                  id="termoBusca"
-                  type="text"
-                  placeholder={modoBusca === "fatura" ? "Ex: 158356" : "Ex: RPS_12345_..."}
-                  value={termoBusca}
-                  onChange={(e) => setTermoBusca(e.target.value)}
-                  className="input-busca"
+    <PageTemplate
+      title="Histórico de Atividades"
+      // subtitle="Consulte informações"
+      icon={<LuActivity />}
+      className="consulta-comercial-page"
+      >
+      <div className="historico-container">
+        {/* Painel de Busca */}
+        <div className="card busca-card">
+          <form onSubmit={handleSubmit} className="form-busca-historico">
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="modoBusca">
+                  <FiSearch /> Buscar por:
+                </label>
+                <select 
+                  id="modoBusca"
+                  value={modoBusca}
+                  onChange={(e) => setModoBusca(e.target.value)}
+                  className="select-busca"
                   disabled={loading}
-                  required
-                />
-                <button 
-                  type="submit" 
-                  className="btn btn-primary" 
-                  disabled={loading || !termoBusca.trim()}
                 >
-                  {loading ? (
-                    <>
-                      <span className="spinner-mini"></span> Buscando...
-                    </>
-                  ) : (
-                    <>
-                      <FiSearch /> Buscar
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          {erro && (
-            <div className="alert alert-error">
-              <FiAlertCircle /> <strong>Erro:</strong> {erro}
-            </div>
-          )}
-        </form>
-      </div>
-
-      {/* Resumo Estatístico */}
-      {itens.length > 0 && (
-        <ResumoEstatistico 
-          itens={itens} 
-          termoBusca={termoBusca}
-          modoBusca={modoBusca}
-          usuario={usuario}
-        />
-      )}
-
-      {/* Tabela de Resultados */}
-      <div className="card tabela-card">
-        {loading ? (
-          <div className="empty-state">
-            <div className="spinner"></div>
-            <p>Buscando histórico...</p>
-            <p className="empty-state-sub">Consultando registros do sistema</p>
-          </div>
-        ) : !jaBuscou ? (
-          <div className="empty-state empty-state-initial">
-            <FiSearch className="empty-icon" />
-            <h3>Faça uma busca</h3>
-            <p>
-              Digite um número de fatura ou ID de nota para consultar seu histórico de atividades
-            </p>
-          </div>
-        ) : itens.length === 0 ? (
-          <div className="empty-state">
-            <FiAlertCircle className="empty-icon" />
-            <h3>Nenhum histórico encontrado</h3>
-            <p>
-              Nenhum registro encontrado para "<strong>{termoBusca}</strong>"
-            </p>
-            <p className="empty-state-suggestion">
-              Verifique se você realizou ações nesta fatura/nota
-            </p>
-            <button 
-              className="btn btn-primary"
-              onClick={() => {
-                setTermoBusca("");
-                setJaBuscou(false);
-              }}
-            >
-              Nova Busca
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Barra de Ferramentas */}
-            <div className="toolbar">
-              <div className="search-box">
-                <FiSearch className="search-icon" />
-                <input
-                  className="search-input"
-                  type="text"
-                  placeholder="Filtrar histórico..."
-                  value={filtro}
-                  onChange={(e) => setFiltro(e.target.value)}
-                  aria-label="Filtrar histórico"
-                  disabled={loading}
-                />
-                {filtro && (
-                  <button 
-                    className="btn-limpar-filtro"
-                    onClick={() => setFiltro("")}
-                    title="Limpar filtro"
-                  >
-                    ×
-                  </button>
-                )}
+                  <option value="fatura">Número da Fatura</option>
+                  <option value="nota">ID da Nota</option>
+                </select>
               </div>
               
-              <div className="toolbar-stats">
-                
-                <button 
-                  className="btn btn-sm btn-outline"
-                  onClick={async () => {
-                    try{
-                      await exportarDadosNota(itens);
-                    } catch(error){
-                      console.error("Erro ao exportar:", error);
-                      alert(`Erro ao exportar: ${error.message}`);
-                    }
-                  }}
-                  disabled={loading}
-                >
-                  <FiDownload /> Exportar
-                </button>
+              <div className="form-group">
+                <label htmlFor="termoBusca">
+                  {modoBusca === "fatura" ? "Número da Fatura:" : "ID/Integração:"}
+                </label>
+                <div className="input-with-button">
+                  <input
+                    id="termoBusca"
+                    type="text"
+                    placeholder={modoBusca === "fatura" ? "Ex: 158356" : "Ex: RPS_12345_..."}
+                    value={termoBusca}
+                    onChange={(e) => setTermoBusca(e.target.value)}
+                    className="input-busca"
+                    disabled={loading}
+                    required
+                  />
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    disabled={loading || !termoBusca.trim()}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="spinner-mini"></span> Buscando...
+                      </>
+                    ) : (
+                      <>
+                        <FiSearch /> Buscar
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
+            
+            {erro && (
+              <div className="alert alert-error">
+                <FiAlertCircle /> <strong>Erro:</strong> {erro}
+              </div>
+            )}
+          </form>
+        </div>
 
-            {/* Tabela */}
-            <div className="tabela-wrapper">
-              <div className="tabela-scroll">
-                <table className="tabela">
-                  <thead>
-                    <tr>
-                      {/* <th style={{ width: '80px' }}>Tipo</th> */}
-                      <th style={{ width: '100px' }}>Origem</th>
-                      <th style={{ width: '100px' }}>Ação</th>
-                      <th>Mensagem</th>
-                      {/* <th style={{ width: '120px' }}>Usuário</th> */}
-                      <th style={{ width: '140px' }}>Data/Hora</th>
-                      <th style={{ width: '50px' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtrados.map((item, index) => (
-                      <LinhaHistorico key={`${item.id}-${index}`} item={item} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
+        {/* Resumo Estatístico */}
+        {itens.length > 0 && (
+          <ResumoEstatistico 
+            itens={itens} 
+            termoBusca={termoBusca}
+            modoBusca={modoBusca}
+            usuario={usuario}
+          />
         )}
+
+        {/* Tabela de Resultados */}
+        <div className="card tabela-card">
+          {loading ? (
+            <div className="empty-state">
+              <div className="spinner"></div>
+              <p>Buscando histórico...</p>
+              <p className="empty-state-sub">Consultando registros do sistema</p>
+            </div>
+          ) : !jaBuscou ? (
+            <div className="empty-state empty-state-initial">
+              <FiSearch className="empty-icon" />
+              <h3>Faça uma busca</h3>
+              <p>
+                Digite um número de fatura ou ID de nota para consultar seu histórico de atividades
+              </p>
+            </div>
+          ) : itens.length === 0 ? (
+            <div className="empty-state">
+              <FiAlertCircle className="empty-icon" />
+              <h3>Nenhum histórico encontrado</h3>
+              <p>
+                Nenhum registro encontrado para "<strong>{termoBusca}</strong>"
+              </p>
+              <p className="empty-state-suggestion">
+                Verifique se você realizou ações nesta fatura/nota
+              </p>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  setTermoBusca("");
+                  setJaBuscou(false);
+                }}
+              >
+                Nova Busca
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Barra de Ferramentas */}
+              <div className="toolbar">
+                <div className="search-box">
+                  <FiSearch className="search-icon" />
+                  <input
+                    className="search-input"
+                    type="text"
+                    placeholder="Filtrar histórico..."
+                    value={filtro}
+                    onChange={(e) => setFiltro(e.target.value)}
+                    aria-label="Filtrar histórico"
+                    disabled={loading}
+                  />
+                  {filtro && (
+                    <button 
+                      className="btn-limpar-filtro"
+                      onClick={() => setFiltro("")}
+                      title="Limpar filtro"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                
+                <div className="toolbar-stats">
+                  
+                  <button 
+                    className="btn btn-sm btn-outline"
+                    onClick={async () => {
+                      try{
+                        await exportarDadosNota(itens);
+                      } catch(error){
+                        console.error("Erro ao exportar:", error);
+                        alert(`Erro ao exportar: ${error.message}`);
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    <FiDownload /> Exportar
+                  </button>
+                </div>
+              </div>
+
+              {/* Tabela */}
+              <div className="tabela-wrapper">
+                <div className="tabela-scroll">
+                  <table className="tabela">
+                    <thead>
+                      <tr>
+                        {/* <th style={{ width: '80px' }}>Tipo</th> */}
+                        <th style={{ width: '100px' }}>Origem</th>
+                        <th style={{ width: '100px' }}>Ação</th>
+                        <th>Mensagem</th>
+                        {/* <th style={{ width: '120px' }}>Usuário</th> */}
+                        <th style={{ width: '140px' }}>Data/Hora</th>
+                        <th style={{ width: '50px' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtrados.map((item, index) => (
+                        <LinhaHistorico key={`${item.id}-${index}`} item={item} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        
       </div>
-      
-    </div>
+    </PageTemplate>
   );
 }

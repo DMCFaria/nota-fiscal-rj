@@ -6,6 +6,8 @@ import "../../styles/emissao.css";
 import { useSnackbar } from 'notistack';
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
+import PageTemplate from "../../components/PageTemplate";
+import { FaRegFile } from "react-icons/fa";
 
 export default function EmissaoPorRps() {
   const [empresa, setEmpresa] = useState("");
@@ -250,199 +252,206 @@ export default function EmissaoPorRps() {
   }, [podeEmitir, loadingEmitir]);
 
   return (
-    <div className="fc-page">
-      <div className="fc-card">
-        <header className="fc-header">
-          <h2 className="fc-title">Emissão · Por Arquivo</h2>
-          <div className="fc-subtitle">
-            Importe um arquivo CSV/TXT com os dados das notas fiscais
-          </div>
-        </header>
+    <PageTemplate
+      title="Emissão por Arquivo - RPS"
+      subtitle="Importe um arquivo CSV/TXT com os dados das notas fiscais"
+      icon={<FaRegFile />}
+      className="consulta-comercial-page"
+      >
+      <div className="fc-page">
+        <div className="fc-card">
+          {/* <header className="fc-header">
+            <h2 className="fc-title">Emissão · Por Arquivo</h2>
+            <div className="fc-subtitle">
+              Importe um arquivo CSV/TXT com os dados das notas fiscais
+            </div>
+          </header> */}
 
-        <section className="fc-section">
-          <EmpresaSelect
-            value={empresa}
-            onChange={setEmpresa}
-            empresas={empresaData}
-            label="Empresa *"
-            required
-          />
-        </section>
+          <section className="fc-section">
+            <EmpresaSelect
+              value={empresa}
+              onChange={setEmpresa}
+              empresas={empresaData}
+              label="Empresa *"
+              required
+            />
+          </section>
 
-        <form onSubmit={handleGerar} className="fc-form">
-          <h3 className="fc-form-title">Importação de Arquivo</h3>
+          <form onSubmit={handleGerar} className="fc-form">
+            <h3 className="fc-form-title">Importação de Arquivo</h3>
 
-          <div className="fc-form-content">
-            <div className="fc-row fc-row--inputs">
-              <div className="fc-input-group">
-                <label className="fc-input-label">
-                  Arquivo CSV/TXT *
-                </label>
-                <input
-                  type="file"
-                  accept=".csv,.txt"
-                  className="fc-input fc-input--grow"
-                  onChange={(e) => setArquivo(e.target.files?.[0] || null)}
-                />
-                {/* <div className="fc-input-help">
-                  Formato: CNPJ,Nome,Email,Valor,Descrição,Código,Cep,Logradouro,Número,Bairro,Cidade,UF
-                </div> */}
+            <div className="fc-form-content">
+              <div className="fc-row fc-row--inputs">
+                <div className="fc-input-group">
+                  <label className="fc-input-label">
+                    Arquivo CSV/TXT *
+                  </label>
+                  <input
+                    type="file"
+                    accept=".csv,.txt"
+                    className="fc-input fc-input--grow"
+                    onChange={(e) => setArquivo(e.target.files?.[0] || null)}
+                  />
+                  {/* <div className="fc-input-help">
+                    Formato: CNPJ,Nome,Email,Valor,Descrição,Código,Cep,Logradouro,Número,Bairro,Cidade,UF
+                  </div> */}
+                </div>
+
+                {isCondomed && (
+                  <div className="fc-input-group">
+                    <label className="fc-input-label">Código de Serviço Padrão</label>
+                    <select
+                      className="fc-input fc-select"
+                      value={codigoServico}
+                      onChange={(e) => setCodigoServico(e.target.value)}
+                    >
+                      <option value="170901">Cód. 170901</option>
+                      <option value="170902">Cód. 170902</option>
+                      <option value="040301">Cód. 040301</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
-              {isCondomed && (
-                <div className="fc-input-group">
-                  <label className="fc-input-label">Código de Serviço Padrão</label>
-                  <select
-                    className="fc-input fc-select"
-                    value={codigoServico}
-                    onChange={(e) => setCodigoServico(e.target.value)}
-                  >
-                    <option value="170901">Cód. 170901</option>
-                    <option value="170902">Cód. 170902</option>
-                    <option value="040301">Cód. 040301</option>
-                  </select>
+              {/* <div className="fc-input-group">
+                <label className="fc-input-label">
+                  Observação
+                </label>
+                <textarea
+                  className="fc-input fc-textarea"
+                  placeholder="Observação que será aplicada a todas as notas..."
+                  rows={2}
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  maxLength={500}
+                />
+                <div className="fc-input-help">
+                  {observacao.length}/500 caracteres
+                </div>
+              </div> */}
+
+              <button
+                className={gerarBtnClass}
+                type="submit"
+                disabled={!podeGerar || loadingGerar || loadingEmitir}
+                title={!podeGerar ? "Selecione uma empresa e um arquivo" : ""}
+              >
+                {loadingGerar ? (
+                  <>
+                    <span className="fc-spinner"></span>
+                    PROCESSANDO ARQUIVO...
+                  </>
+                ) : "PROCESSAR ARQUIVO"}
+              </button>
+
+              {!podeGerar && (
+                <div className="fc-validation-hint">
+                  ⓘ Selecione: Empresa e Arquivo CSV/TXT
                 </div>
               )}
             </div>
+          </form>
 
-            {/* <div className="fc-input-group">
-              <label className="fc-input-label">
-                Observação
-              </label>
-              <textarea
-                className="fc-input fc-textarea"
-                placeholder="Observação que será aplicada a todas as notas..."
-                rows={2}
-                value={observacao}
-                onChange={(e) => setObservacao(e.target.value)}
-                maxLength={500}
-              />
-              <div className="fc-input-help">
-                {observacao.length}/500 caracteres
-              </div>
-            </div> */}
+          <section className="fc-section">
+            <LogEmissao entries={logs} maxHeight={120} />
 
-            <button
-              className={gerarBtnClass}
-              type="submit"
-              disabled={!podeGerar || loadingGerar || loadingEmitir}
-              title={!podeGerar ? "Selecione uma empresa e um arquivo" : ""}
-            >
-              {loadingGerar ? (
-                <>
-                  <span className="fc-spinner"></span>
-                  PROCESSANDO ARQUIVO...
-                </>
-              ) : "PROCESSAR ARQUIVO"}
-            </button>
-
-            {!podeGerar && (
-              <div className="fc-validation-hint">
-                ⓘ Selecione: Empresa e Arquivo CSV/TXT
+            {loadingEmitir && (
+              <div className="fc-progress-wrapper">
+                <div className="fc-progress">
+                  <div className="fc-progress-bar" style={{ width: `${progresso}%` }} />
+                </div>
+                <div className="fc-progress-label">{progresso}% processado</div>
               </div>
             )}
-          </div>
-        </form>
+          </section>
 
-        <section className="fc-section">
-          <LogEmissao entries={logs} maxHeight={120} />
-
-          {loadingEmitir && (
-            <div className="fc-progress-wrapper">
-              <div className="fc-progress">
-                <div className="fc-progress-bar" style={{ width: `${progresso}%` }} />
-              </div>
-              <div className="fc-progress-label">{progresso}% processado</div>
-            </div>
-          )}
-        </section>
-
-        <section className="fc-section">
-          {preview ? (
-            <div className="fc-preview">
-              <div className="fc-preview-header">
-                <h2 className="fc-preview-title">Conferência de Dados</h2>
-                <div className="fc-preview-badge">
-                  {preview.length} {preview.length === 1 ? 'NOTA' : 'NOTAS'}
-                </div>
-              </div>
-
-              <div className="fc-grid">
-                <div className="fc-metric">
-                  <span className="fc-label">Valor Total:</span>
-                  <p className="fc-value">
-                    {preview
-                      .reduce(
-                        (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
-                        0
-                      )
-                      .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </p>
+          <section className="fc-section">
+            {preview ? (
+              <div className="fc-preview">
+                <div className="fc-preview-header">
+                  <h2 className="fc-preview-title">Conferência de Dados</h2>
+                  <div className="fc-preview-badge">
+                    {preview.length} {preview.length === 1 ? 'NOTA' : 'NOTAS'}
+                  </div>
                 </div>
 
-                <div className="fc-metric">
-                  <span className="fc-label">Código de Serviço</span>
-                  <p className="fc-value">{preview[0]?.servico?.[0]?.codigo || "170901"}</p>
-                </div>
-
-                <div className="fc-grid-span" />
-
-                <div className="fc-metric">
-                  <span className="fc-label">Nº Notas Fiscais</span>
-                  <p className="fc-value">{preview.length}</p>
-                </div>
-
-                <div className="fc-block fc-grid-span">
+                <div className="fc-grid">
                   <div className="fc-metric">
-                    <span className="fc-label">Emissor:</span>
+                    <span className="fc-label">Valor Total:</span>
                     <p className="fc-value">
-                      {fixBrokenLatin(preview[0]?.prestador?.razaoSocial || "")
-                        .split(" ")
-                        .slice(0, 2)
-                        .join(" ")}{" "}
-                      - {preview[0]?.prestador?.cpfCnpj || ""}
+                      {preview
+                        .reduce(
+                          (acc, item) => acc + (item?.servico?.[0]?.valor?.servico || 0),
+                          0
+                        )
+                        .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </p>
                   </div>
 
                   <div className="fc-metric">
-                    <span className="fc-label">Tomador Exemplo:</span>
-                    <p className="fc-value">
-                      {fixBrokenLatin(preview[0]?.tomador?.razaoSocial || "")}
-                      {" "}- {preview[0]?.tomador?.cpfCnpj || ""}
-                    </p>
+                    <span className="fc-label">Código de Serviço</span>
+                    <p className="fc-value">{preview[0]?.servico?.[0]?.codigo || "170901"}</p>
                   </div>
 
                   <div className="fc-grid-span" />
 
-                  <span className="fc-label">Discriminação do Serviço:</span>
-                  <p className="fc-discriminacao">{fixBrokenLatin(preview[0]?.servico?.[0]?.discriminacao || "Serviço prestado conforme arquivo")}</p>
+                  <div className="fc-metric">
+                    <span className="fc-label">Nº Notas Fiscais</span>
+                    <p className="fc-value">{preview.length}</p>
+                  </div>
+
+                  <div className="fc-block fc-grid-span">
+                    <div className="fc-metric">
+                      <span className="fc-label">Emissor:</span>
+                      <p className="fc-value">
+                        {fixBrokenLatin(preview[0]?.prestador?.razaoSocial || "")
+                          .split(" ")
+                          .slice(0, 2)
+                          .join(" ")}{" "}
+                        - {preview[0]?.prestador?.cpfCnpj || ""}
+                      </p>
+                    </div>
+
+                    <div className="fc-metric">
+                      <span className="fc-label">Tomador Exemplo:</span>
+                      <p className="fc-value">
+                        {fixBrokenLatin(preview[0]?.tomador?.razaoSocial || "")}
+                        {" "}- {preview[0]?.tomador?.cpfCnpj || ""}
+                      </p>
+                    </div>
+
+                    <div className="fc-grid-span" />
+
+                    <span className="fc-label">Discriminação do Serviço:</span>
+                    <p className="fc-discriminacao">{fixBrokenLatin(preview[0]?.servico?.[0]?.discriminacao || "Serviço prestado conforme arquivo")}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="fc-placeholder">
-              <p>Aguardando importação de arquivo...</p>
-              <small>Selecione um arquivo CSV/TXT e clique em "Processar Arquivo"</small>
-            </div>
-          )}
-        </section>
-      </div>
+            ) : (
+              <div className="fc-placeholder">
+                <p>Aguardando importação de arquivo...</p>
+                <small>Selecione um arquivo CSV/TXT e clique em "Processar Arquivo"</small>
+              </div>
+            )}
+          </section>
+        </div>
 
-      <footer className="fc-footer">
-        <button
-          className={emitirBtnClass}
-          onClick={handleEmitir}
-          disabled={!podeEmitir || loadingEmitir}
-          title={!podeEmitir ? "Processe o arquivo primeiro" : ""}
-        >
-          {loadingEmitir ? (
-            <>
-              <span className="fc-spinner"></span>
-              PROCESSANDO ({progresso}%)
-            </>
-          ) : "EMITIR NOTAS FISCAIS"}
-        </button>
-      </footer>
-    </div>
+        <footer className="fc-footer">
+          <button
+            className={emitirBtnClass}
+            onClick={handleEmitir}
+            disabled={!podeEmitir || loadingEmitir}
+            title={!podeEmitir ? "Processe o arquivo primeiro" : ""}
+          >
+            {loadingEmitir ? (
+              <>
+                <span className="fc-spinner"></span>
+                PROCESSANDO ({progresso}%)
+              </>
+            ) : "EMITIR NOTAS FISCAIS"}
+          </button>
+        </footer>
+      </div>
+    </PageTemplate>
   );
 }

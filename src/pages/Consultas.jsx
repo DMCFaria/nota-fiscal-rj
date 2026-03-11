@@ -22,6 +22,8 @@ import { fixBrokenLatin } from "../utils/normalizacao_textual";
 import "../styles/consultas.css";
 import "../styles/notaCard.css";
 import "../styles/status-badge.css";
+import { FaSearch } from "react-icons/fa";
+import PageTemplate from "../components/PageTemplate";
 
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
@@ -1728,267 +1730,274 @@ export default function Consultas() {
   };
 
   return (
-    <div className="consultas">
-      <h1 className="tittle-cons">Consultas</h1>
+    <PageTemplate
+      title="Consultas"
+      // subtitle="Consulte informações"
+      icon={<FaSearch />}
+      className="consulta-comercial-page"
+      >
+      <div className="consultas">
+        
 
-      <div className="toolbar">
-        <div className="input-group">
-          <select value={tipoBusca} onChange={(e) => setTipoBusca(e.target.value)} className="select-tipo">
-            <option value="fatura">Fatura</option>
-            <option value="nota">Nº Nota / Protocolo</option>
-          </select>
+        <div className="toolbar">
+          <div className="input-group">
+            <select value={tipoBusca} onChange={(e) => setTipoBusca(e.target.value)} className="select-tipo">
+              <option value="fatura">Fatura</option>
+              <option value="nota">Nº Nota / Protocolo</option>
+            </select>
 
-          <div className="input-inline">
-            <FiSearch className="icon" />
-            <input
-              placeholder="Busque aqui..."
-              value={textoDigitado}
-              onChange={(e) => setTextoDigitado(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && realizarBusca()}
-            />
+            <div className="input-inline">
+              <FiSearch className="icon" />
+              <input
+                placeholder="Busque aqui..."
+                value={textoDigitado}
+                onChange={(e) => setTextoDigitado(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && realizarBusca()}
+              />
+            </div>
+
+            <button className="btn" onClick={realizarBusca} disabled={loading || !textoDigitado.trim()}>
+              {loading ? "..." : "Pesquisar"}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-sync"
+              onClick={handleSincronizar}
+              disabled={loading || sincronizando || !hasSearched}
+              title="Sincronizar as notas do resultado atual e recarregar"
+              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+            >
+              <FiRefreshCw />
+              {sincronizando ? "Sincronizando..." : "Sincronizar"}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-xs secondary"
+              onClick={baixarExcelNotas}
+              disabled={loading || baixandoExcelNotas || !hasSearched}
+              title={!hasSearched ? "Faça uma pesquisa primeiro" : "Baixar Excel com os dados das notas"}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+            >
+              <FiDownload />
+              {baixandoExcelNotas ? "Gerando Excel..." : "Baixar Excel"}
+            </button>
           </div>
-
-          <button className="btn" onClick={realizarBusca} disabled={loading || !textoDigitado.trim()}>
-            {loading ? "..." : "Pesquisar"}
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-sync"
-            onClick={handleSincronizar}
-            disabled={loading || sincronizando || !hasSearched}
-            title="Sincronizar as notas do resultado atual e recarregar"
-            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
-          >
-            <FiRefreshCw />
-            {sincronizando ? "Sincronizando..." : "Sincronizar"}
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-xs secondary"
-            onClick={baixarExcelNotas}
-            disabled={loading || baixandoExcelNotas || !hasSearched}
-            title={!hasSearched ? "Faça uma pesquisa primeiro" : "Baixar Excel com os dados das notas"}
-            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
-          >
-            <FiDownload />
-            {baixandoExcelNotas ? "Gerando Excel..." : "Baixar Excel"}
-          </button>
         </div>
-      </div>
 
-      {hasSearched && (
-        <div className="card">
-          <div className="consultas-resumo">
-            <div className="consultas-resumo__items">
-              <div className="tittle">
-                <h3>Acompanhamento de emissão</h3>
-              </div>
+        {hasSearched && (
+          <div className="card">
+            <div className="consultas-resumo">
+              <div className="consultas-resumo__items">
+                <div className="tittle">
+                  <h3>Acompanhamento de emissão</h3>
+                </div>
 
-              <div className="corpo-resumo">
-                <button
-                  type="button"
-                  className={`consultas-resumo__item ${filtroResumo === "todas" ? "is-active" : ""}`}
-                  onClick={() => toggleFiltro("todas")}
-                  title="Mostrar todas"
-                >
-                  <strong>Total:</strong> {resumoNotas.total}
-                </button>
-
-                <button
-                  type="button"
-                  className={`consultas-resumo__item ${filtroResumo === "concluidas" ? "is-active" : ""}`}
-                  onClick={() => toggleFiltro("concluidas")}
-                  title="Mostrar somente notas concluídas"
-                >
-                  <strong>Concluídas:</strong> {resumoNotas.concluidas}
-                </button>
-
-                <button
-                  type="button"
-                  className={`consultas-resumo__item ${filtroResumo === "pendentes" ? "is-active" : ""}`}
-                  onClick={() => toggleFiltro("pendentes")}
-                  title="Mostrar somente notas pendentes"
-                >
-                  <strong>Pendentes:</strong> {resumoNotas.pendentes}
-                </button>
-
-                {resumoNotas.rejeitadas > 0 && (
+                <div className="corpo-resumo">
                   <button
                     type="button"
-                    className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${filtroResumo === "rejeitadas" ? "is-active" : ""
-                      }`}
-                    onClick={() => toggleFiltro("rejeitadas")}
-                    title="Mostrar somente rejeitadas"
+                    className={`consultas-resumo__item ${filtroResumo === "todas" ? "is-active" : ""}`}
+                    onClick={() => toggleFiltro("todas")}
+                    title="Mostrar todas"
                   >
-                    <strong>Rejeitadas:</strong> {resumoNotas.rejeitadas}
+                    <strong>Total:</strong> {resumoNotas.total}
                   </button>
+
+                  <button
+                    type="button"
+                    className={`consultas-resumo__item ${filtroResumo === "concluidas" ? "is-active" : ""}`}
+                    onClick={() => toggleFiltro("concluidas")}
+                    title="Mostrar somente notas concluídas"
+                  >
+                    <strong>Concluídas:</strong> {resumoNotas.concluidas}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`consultas-resumo__item ${filtroResumo === "pendentes" ? "is-active" : ""}`}
+                    onClick={() => toggleFiltro("pendentes")}
+                    title="Mostrar somente notas pendentes"
+                  >
+                    <strong>Pendentes:</strong> {resumoNotas.pendentes}
+                  </button>
+
+                  {resumoNotas.rejeitadas > 0 && (
+                    <button
+                      type="button"
+                      className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${filtroResumo === "rejeitadas" ? "is-active" : ""
+                        }`}
+                      onClick={() => toggleFiltro("rejeitadas")}
+                      title="Mostrar somente rejeitadas"
+                    >
+                      <strong>Rejeitadas:</strong> {resumoNotas.rejeitadas}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {hasRejected && (
+              <div className="consultas-rejeitadas">
+                <div className="consultas-rejeitadas__text">
+                  <strong>Atenção:</strong> encontramos <strong>{rejectedRows.length}</strong> item(ns) rejeitado(s).{" "}
+                  <span className="consultas-rejeitadas__sub">Baixe o relatório para o time conferir e corrigir.</span>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-xs secondary"
+                  onClick={baixarRelatorioRejeitadas}
+                  disabled={baixandoRelatorio}
+                  title="Baixar relatório (.xlsx) com as notas rejeitadas e detalhes"
+                >
+                  {baixandoRelatorio ? "Gerando..." : "Baixar relatório"}
+                </button>
+              </div>
+            )}
+
+            <table className="tabela tabela-accordion">
+              <thead>
+                {isModoFaturaUI ? (
+                  <tr>
+                    <th>Fatura</th>
+                    <th>Resumo</th>
+                    <th style={{ width: 260, textAlign: "right" }}>Ações</th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th>Faturamento</th>
+                    <th>Data/Hora</th>
+                    <th>Resultados</th>
+                    <th style={{ width: 140, textAlign: "right" }}>Ações</th>
+                  </tr>
                 )}
-              </div>
-            </div>
+              </thead>
+
+              <tbody>
+                {isModoFaturaUI ? (
+                  toArray(faturas)
+                    .map((f) => {
+                      const notasFiltradas = toArray(f?.notas).filter(aplicaFiltroNota);
+                      return { ...f, notas: notasFiltradas };
+                    })
+                    .filter((f) => toArray(f?.notas).length > 0)
+                    .map((f) => (
+                      <LinhaFatura
+                        key={f.id}
+                        fatura={f}
+                        isOpen={expandedFat.has(f.id)}
+                        onToggle={() =>
+                          setExpandedFat((p) => {
+                            const n = new Set(p);
+                            n.has(f.id) ? n.delete(f.id) : n.add(f.id);
+                            return n;
+                          })
+                        }
+                        onBaixarTodas={() => handleDownload(f, "fatura")}
+                        onBaixarUma={(n) => handleDownload(n, "individual")}
+                        baixandoAll={!!baixandoAll[String(f?.id || f?.numero || f?.fatura || "")]}
+                        onCancelarTodas={() => openModalCancel(f, "fatura_all")}
+                        onCancelarUma={(n) => openModalCancel(n, "individual")}
+                        cancelandoAll={!!cancelandoAll[f.id]}
+                        onTratarErro={openTratarErro}
+                      />
+                    ))
+                ) : (
+                  toArray(dados)
+                    .filter(aplicaFiltroNota)
+                    .map((item) => (
+                      <LinhaNota
+                        key={item.id}
+                        item={item}
+                        expanded={expanded}
+                        onToggle={(id) =>
+                          setExpanded((p) => {
+                            const n = new Set(p);
+                            n.has(id) ? n.delete(id) : n.add(id);
+                            return n;
+                          })
+                        }
+                        onOpenCancelar={(i) => openModalCancel(i, "individual")}
+                      />
+                    ))
+                )}
+              </tbody>
+            </table>
           </div>
+        )}
 
-          {hasRejected && (
-            <div className="consultas-rejeitadas">
-              <div className="consultas-rejeitadas__text">
-                <strong>Atenção:</strong> encontramos <strong>{rejectedRows.length}</strong> item(ns) rejeitado(s).{" "}
-                <span className="consultas-rejeitadas__sub">Baixe o relatório para o time conferir e corrigir.</span>
-              </div>
-
-              <button
-                type="button"
-                className="btn btn-xs secondary"
-                onClick={baixarRelatorioRejeitadas}
-                disabled={baixandoRelatorio}
-                title="Baixar relatório (.xlsx) com as notas rejeitadas e detalhes"
-              >
-                {baixandoRelatorio ? "Gerando..." : "Baixar relatório"}
-              </button>
-            </div>
-          )}
-
-          <table className="tabela tabela-accordion">
-            <thead>
-              {isModoFaturaUI ? (
-                <tr>
-                  <th>Fatura</th>
-                  <th>Resumo</th>
-                  <th style={{ width: 260, textAlign: "right" }}>Ações</th>
-                </tr>
-              ) : (
-                <tr>
-                  <th>Faturamento</th>
-                  <th>Data/Hora</th>
-                  <th>Resultados</th>
-                  <th style={{ width: 140, textAlign: "right" }}>Ações</th>
-                </tr>
-              )}
-            </thead>
-
-            <tbody>
-              {isModoFaturaUI ? (
-                toArray(faturas)
-                  .map((f) => {
-                    const notasFiltradas = toArray(f?.notas).filter(aplicaFiltroNota);
-                    return { ...f, notas: notasFiltradas };
-                  })
-                  .filter((f) => toArray(f?.notas).length > 0)
-                  .map((f) => (
-                    <LinhaFatura
-                      key={f.id}
-                      fatura={f}
-                      isOpen={expandedFat.has(f.id)}
-                      onToggle={() =>
-                        setExpandedFat((p) => {
-                          const n = new Set(p);
-                          n.has(f.id) ? n.delete(f.id) : n.add(f.id);
-                          return n;
-                        })
-                      }
-                      onBaixarTodas={() => handleDownload(f, "fatura")}
-                      onBaixarUma={(n) => handleDownload(n, "individual")}
-                      baixandoAll={!!baixandoAll[String(f?.id || f?.numero || f?.fatura || "")]}
-                      onCancelarTodas={() => openModalCancel(f, "fatura_all")}
-                      onCancelarUma={(n) => openModalCancel(n, "individual")}
-                      cancelandoAll={!!cancelandoAll[f.id]}
-                      onTratarErro={openTratarErro}
-                    />
-                  ))
-              ) : (
-                toArray(dados)
-                  .filter(aplicaFiltroNota)
-                  .map((item) => (
-                    <LinhaNota
-                      key={item.id}
-                      item={item}
-                      expanded={expanded}
-                      onToggle={(id) =>
-                        setExpanded((p) => {
-                          const n = new Set(p);
-                          n.has(id) ? n.delete(id) : n.add(id);
-                          return n;
-                        })
-                      }
-                      onOpenCancelar={(i) => openModalCancel(i, "individual")}
-                    />
-                  ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <ModalConfirm
-        open={modal.open}
-        title="Cancelar NFS-e"
-        description="Selecione o sistema e descreva o motivo."
-        confirmLabel="Confirmar"
-        cancelLabel="Voltar"
-        variant="danger"
-        loading={modalLoading}
-        onConfirm={onConfirmCancel}
-        onClose={() => !modalLoading && setModal((m) => ({ ...m, open: false }))}
-        confirmDisabled={!modal.sistema || modal.motivo.trim().length < 5}
-      >
-        <select
-          className="select modal-sistemas-select"
-          value={modal.sistema}
-          onChange={(e) => setModal({ ...modal, sistema: e.target.value })}
-          disabled={modal.opcoes?.length === 1}
+        <ModalConfirm
+          open={modal.open}
+          title="Cancelar NFS-e"
+          description="Selecione o sistema e descreva o motivo."
+          confirmLabel="Confirmar"
+          cancelLabel="Voltar"
+          variant="danger"
+          loading={modalLoading}
+          onConfirm={onConfirmCancel}
+          onClose={() => !modalLoading && setModal((m) => ({ ...m, open: false }))}
+          confirmDisabled={!modal.sistema || modal.motivo.trim().length < 5}
         >
-          <option value="">
-            {modal.opcoes?.length === 1 ? "Sistema selecionado" : "Selecione o sistema..."}
-          </option>
-          {modal.opcoes.map((o) => (
-            <option key={o} value={o}>
-              {o}
+          <select
+            className="select modal-sistemas-select"
+            value={modal.sistema}
+            onChange={(e) => setModal({ ...modal, sistema: e.target.value })}
+            disabled={modal.opcoes?.length === 1}
+          >
+            <option value="">
+              {modal.opcoes?.length === 1 ? "Sistema selecionado" : "Selecione o sistema..."}
             </option>
-          ))}
-        </select>
+            {modal.opcoes.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
 
-        <textarea
-          className="select"
-          style={{ width: "100%", minHeight: 90, marginTop: 12, padding: 10 }}
-          placeholder="Motivo (mín. 5 caracteres)..."
-          value={modal.motivo}
-          onChange={(e) => setModal({ ...modal, motivo: e.target.value })}
-        />
-      </ModalConfirm>
-
-      <ModalConfirm
-        open={tratarModal.open}
-        title="Tratar erro da nota"
-        description="Ajuste o CEP do tomador e reemita a nota."
-        confirmLabel="Reemitir"
-        cancelLabel="Voltar"
-        variant="primary"
-        loading={reemitindo}
-        onConfirm={onConfirmReemitir}
-        onClose={() => !reemitindo && setTratarModal({ open: false, nota: null, cep: "" })}
-        confirmDisabled={normalizeCepDigits(tratarModal.cep).length !== 8}
-      >
-        <div style={{ marginTop: 12 }}>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-            CEP do tomador
-          </label>
-          <input
+          <textarea
             className="select"
-            value={tratarModal.cep}
-            onChange={(e) =>
-              setTratarModal((p) => ({
-                ...p,
-                cep: formatCep(e.target.value)
-              }))
-            }
-            placeholder="00000-000"
-            inputMode="numeric"
+            style={{ width: "100%", minHeight: 90, marginTop: 12, padding: 10 }}
+            placeholder="Motivo (mín. 5 caracteres)..."
+            value={modal.motivo}
+            onChange={(e) => setModal({ ...modal, motivo: e.target.value })}
           />
-          <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
-            Emitente: <strong>{fixBrokenLatin(getEmitenteRazao(tratarModal.nota)) || "—"}</strong>
+        </ModalConfirm>
+
+        <ModalConfirm
+          open={tratarModal.open}
+          title="Tratar erro da nota"
+          description="Ajuste o CEP do tomador e reemita a nota."
+          confirmLabel="Reemitir"
+          cancelLabel="Voltar"
+          variant="primary"
+          loading={reemitindo}
+          onConfirm={onConfirmReemitir}
+          onClose={() => !reemitindo && setTratarModal({ open: false, nota: null, cep: "" })}
+          confirmDisabled={normalizeCepDigits(tratarModal.cep).length !== 8}
+        >
+          <div style={{ marginTop: 12 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+              CEP do tomador
+            </label>
+            <input
+              className="select"
+              value={tratarModal.cep}
+              onChange={(e) =>
+                setTratarModal((p) => ({
+                  ...p,
+                  cep: formatCep(e.target.value)
+                }))
+              }
+              placeholder="00000-000"
+              inputMode="numeric"
+            />
+            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+              Emitente: <strong>{fixBrokenLatin(getEmitenteRazao(tratarModal.nota)) || "—"}</strong>
+            </div>
           </div>
-        </div>
-      </ModalConfirm>
-    </div>
+        </ModalConfirm>
+      </div>
+    </PageTemplate>
   );
 }
