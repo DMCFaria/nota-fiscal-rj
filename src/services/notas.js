@@ -96,36 +96,19 @@ export const transmitirNota = async (payload) => {
 };
 
 export const downloadPdfNota = async (payload) => {
-  console.log(payload.emitente)
-  if (payload.emitente == "FEDCORP ADMINISTRADORA DE BENEFICIOS LTDA") {
-     try {
-      const response = await api.post("api/nfse/download-pdf/nfse/", payload, {
-        responseType: "blob",
-        headers: {
-          Accept:
-            "application/pdf, application/zip, application/x-zip-compressed, application/octet-stream",
-        },
-      });
-      return response;
-    } catch (error) {
-      console.error("Erro no download:", error);
-      throw error;
-    }
-  } else {
-    try {
-      const response = await n8n.post("webhook/baixar-pdf-nfse/", payload, {
-        responseType: "blob",
-        headers: {
-          Accept:
-            "application/pdf, application/zip, application/x-zip-compressed, application/octet-stream",
-        },
-      });
+  try {
+    const response = await api.post("api/nfse/download-pdf/nfse/", payload, {
+      responseType: "blob",
+      headers: {
+        Accept:
+          "application/pdf, application/zip, application/x-zip-compressed, application/octet-stream",
+      },
+    });
 
-      return response;
-    } catch (error) {
-      console.error("Erro no download:", error);
-      throw error;
-    }
+    return response;
+  } catch (error) {
+    console.error("Erro no download:", error);
+    throw error;
   }
 };
 
@@ -143,8 +126,6 @@ export const reemitirNota = async (payload) => {
   try {
     const response = await n8n.post("webhook/reemitir-nfse", {
       id_integracao: payload?.id_integracao ?? payload?.idIntegracao ?? "",
-      id_tecnospeed:
-        payload?.id_tecnospeed ?? payload?.idTecnospeed ?? payload?.id ?? "",
       cep: String(payload?.cep || "")
         .replace(/\D/g, "")
         .slice(0, 8),

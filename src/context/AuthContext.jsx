@@ -25,17 +25,17 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
 
     // Função central para limpar credenciais e redirecionar
-    const logout = useCallback(() => {
+const logout = useCallback(() => {
         localStorage.removeItem(ACCESS_KEY);
         localStorage.removeItem(REFRESH_KEY);
         setUser(null);
         setIsAuthenticated(false);
         setLoading(false);
-        navigate("/login", { replace: true });
-    }, [navigate]);
+        // O redirecionamento será feito automaticamente pelo ProtectedRoute
+        // ao detectar que isAuthenticated é false.
+    }, []);
 
     // Função para buscar dados do usuário e validar estado
     const hydrateUser = useCallback(async () => {
@@ -128,8 +128,7 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={authContextValue}>
-            {!loading && children} 
-            {/* O loading impede que as rotas internas renderizem sem saber se o user está logado */}
+            {children}
         </AuthContext.Provider>
     );
 };

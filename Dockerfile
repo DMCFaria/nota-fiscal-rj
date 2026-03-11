@@ -14,11 +14,10 @@ RUN npm run build
 # Estágio 2: Produção (Servindo com Nginx)
 FROM nginx:stable-alpine
 
-# Copia os arquivos do build para a pasta do Nginx
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 
-# Copia uma configuração customizada do Nginx (opcional, mas recomendada)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# ATENÇÃO: Descomente e garanta que o arquivo nginx.conf existe na raiz
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

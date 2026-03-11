@@ -12,6 +12,7 @@ import Historico from "../pages/Historico";
 // Layout principal (com Sidebar e Breadcrumb)
 import MainLayout from "../layouts/MainLayout";
 import Emitir from "../pages/Emitir";
+import NotFound from "../components/NotFound";
 
 export const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
@@ -49,7 +50,7 @@ export const AppRoutes = () => {
       </Route>
 
       {/* Rota 404 - captura tudo que não foi encontrado */}
-      <Route path="*" element={<div>Página não encontrada</div>} />
+      <Route path="*" element={<NotFound/>} />
     </Routes>
   );
 };
