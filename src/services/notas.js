@@ -119,7 +119,7 @@ export const cancelarNota = async (notasArray) => {
       ? notasArray
       : { notas: [] };
 
-  return await n8n.post("webhook/cancelar-nf", payload);
+  return await api.post("cancela/nfse", payload);
 };
 
 export const reemitirNota = async (payload) => {
