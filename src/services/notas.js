@@ -97,7 +97,7 @@ export const transmitirNota = async (payload) => {
 
 export const downloadPdfNota = async (payload) => {
   try {
-    const response = await api.post("api/nfse/download-pdf/nfse/", payload, {
+    const response = await api.post("/api/nfse/download-pdf/nfse/", payload, {
       responseType: "blob",
       headers: {
         Accept:
@@ -119,12 +119,12 @@ export const cancelarNota = async (notasArray) => {
       ? notasArray
       : { notas: [] };
 
-  return await api.post("api/nfse/cancela/nfse/", payload);
+  return await api.post("/api/nfse/cancela/nfse/", payload);
 };
 
 export const reemitirNota = async (payload) => {
   try {
-    const response = await api.post("api/nfse/cep-fix/nfse/", {
+    const response = await api.post("/api/nfse/cep-fix/nfse/", {
       id_integracao: payload?.id_integracao ?? payload?.idIntegracao ?? "",
       cep: String(payload?.cep || "")
         .replace(/\D/g, "")
