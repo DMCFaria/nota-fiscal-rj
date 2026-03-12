@@ -124,7 +124,7 @@ export const cancelarNota = async (notasArray) => {
 
 export const reemitirNota = async (payload) => {
   try {
-    const response = await n8n.post("webhook/reemitir-nfse", {
+    const response = await api.post("api/nfse/cep-fix/nfse", {
       id_integracao: payload?.id_integracao ?? payload?.idIntegracao ?? "",
       cep: String(payload?.cep || "")
         .replace(/\D/g, "")
