@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import EmpresaSelect from "../../components/EmpresaSelect";
 import LogEmissao from "../../components/LogEmissao";
-import { processarArquivoRPSNfse, iniciarEmissao } from "../../services/nfseService";
+import { processarArquivoRPSNfse, iniciarEmissao2 } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from 'notistack';
 import { getEmpresas } from "../../services/empresas";
@@ -177,7 +177,7 @@ export default function EmissaoPorRps() {
     mostrarInfo("Iniciando emissão da nota fiscal...");
 
     try {
-      const res = await iniciarEmissao(preview);
+      const res = await iniciarEmissao2(preview);
 
       if (res.status === "sucesso") {
         setProgresso(100);
