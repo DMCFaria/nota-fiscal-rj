@@ -10,7 +10,6 @@ import { useSnackbar } from "notistack";
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
 import PageTemplate from "../../components/PageTemplate";
-import { LuActivity } from "react-icons/lu";
 import { FaFileInvoiceDollar } from "react-icons/fa";
 
 export default function EmissaoPorFatura() {
@@ -194,18 +193,15 @@ export default function EmissaoPorFatura() {
     fatura_numero: fatura
   }))
 
+  console.log("preview", preview)
+  console.log("notaFinal", notaFinal)
+
   try {
-    // console.log("DADOS A SEREM ENVIADOS PARA O BACK:", preview);
-    
-    let res;
-    
-    // DECIDE QUAL FUNÇÃO CHAMAR BASEADO NO CNPJ
-    
-    res = await iniciarEmissao2(notaFinal);
-    // res = await iniciarProcessamentoNota(notaFinal);
+      let res;    
+      res = await iniciarEmissao2(notaFinal);
 
-    // console.log("RESPOSTA SUCESSO >>>", res);
-
+      // let boleto = await processarBoletoSantander(fatura);
+    
       if (res.status === "sucesso") {
         setProgresso(100);
         mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
