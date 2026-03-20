@@ -23,7 +23,7 @@ import "../styles/consultas.css";
 import "../styles/notaCard.css";
 import "../styles/status-badge.css";
 import { FaSearch } from "react-icons/fa";
-import PageTemplate from "../components/PageTemplate";
+import PageTemplate from "../components/PageTemplate/PageTemplate";
 
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 

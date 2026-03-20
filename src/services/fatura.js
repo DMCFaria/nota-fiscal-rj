@@ -26,7 +26,7 @@ export const getFaturaPorNumero = async (numeroFatura) => {
 };
 
 export const buscarPorNumeroNota = async (termo) => {
-  const { data } = await api.get(`/api//consultar-faturas/?search=${termo}`);
+  const { data } = await api.get(`/api/consultar-faturas/?search=${termo}`);
   const lista = data.results || data;
   if (lista.length === 0) return { tipo: "nao_encontrado" };
   return {

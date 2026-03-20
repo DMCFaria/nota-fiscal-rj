@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FiMenu,
@@ -7,14 +7,24 @@ import {
   FiHome,
   FiChevronRight
 } from 'react-icons/fi';
-import { useAuth } from '../context/AuthContext';
-import '../styles/breadcrumb.css';
+import { useAuth } from '../../context/AuthContext';
+import '../../styles/breadcrumb.css';
+import { formatarData, formatTempo } from '../../utils/formatar_data';
 
 function Breadcrumb({ onMenuClick, sidebarOpen, isMobile }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Mapeamento de rotas para nomes amigáveis
   const routeNames = {
@@ -104,6 +114,14 @@ function Breadcrumb({ onMenuClick, sidebarOpen, isMobile }) {
       </div>
 
       <div className="breadcrumb-right">
+
+        {!isMobile && (
+          <div className="datetime-container">
+            <span className="date">{formatarData(currentTime)}</span>
+            <span className="time">{formatTempo(currentTime)}</span>
+          </div>
+        )}
+
         {/* Usuário */}
         <div className="user-container">
           <button 

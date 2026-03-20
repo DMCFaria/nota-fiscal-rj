@@ -1,12 +1,12 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
-import EmpresaSelect from "../../components/EmpresaSelect";
-import LogEmissao from "../../components/LogEmissao";
+import EmpresaSelect from "../../components/EmpresaSelect/EmpresaSelect";
+import LogEmissao from "../../components/LogEmissao/LogEmissao";
 import { processarArquivoRPSNfse, iniciarEmissao2 } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from 'notistack';
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
-import PageTemplate from "../../components/PageTemplate";
+import PageTemplate from "../../components/PageTemplate/PageTemplate";
 import { FaRegFile } from "react-icons/fa";
 
 export default function EmissaoPorRps() {

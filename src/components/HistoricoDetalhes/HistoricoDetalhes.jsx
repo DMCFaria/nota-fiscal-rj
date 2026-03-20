@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getNotaPorIDIntegracao } from '../services/notas';
+import { getNotaPorIDIntegracao } from '../../services/notas';
 import "../styles/historico_detalhe.css";
 import { formatarData } from "../utils/formatar_data";
 import { FiArrowLeft, FiFileText, FiCheckCircle, FiXCircle, FiClock, FiAlertCircle } from "react-icons/fi";

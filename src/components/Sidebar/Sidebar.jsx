@@ -2,8 +2,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { FiChevronDown, FiFileText, FiSearch, FiClock, FiHome, FiX } from "react-icons/fi";
 import { BiDoorOpen } from "react-icons/bi";
-import { useAuth } from "../context/AuthContext";
-import "../styles/sidebar.css";
+import { useAuth } from "../../context/AuthContext";
+import "../../styles/sidebar.css";
 
 function Sidebar({ isOpen, onClose }) {
   const location = useLocation();

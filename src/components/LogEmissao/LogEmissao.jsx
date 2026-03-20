@@ -1,4 +1,4 @@
-import "../styles/log.css";
+import "../../styles/log.css";
 
 export default function LogEmissao({
   title = "Log de Acompanhamento",

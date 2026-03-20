@@ -326,3 +326,27 @@
     border-radius: 4px;
   }
 }
+
+.datetime-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  padding-right: 12px;
+  border-right: 1px solid var(--color-border-light);
+  margin-right: 4px;
+}
+
+.datetime-container .date {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.datetime-container .time {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}

@@ -1,12 +1,12 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
-import EmpresaSelect from "../../components/EmpresaSelect";
-import LogEmissao from "../../components/LogEmissao";
+import EmpresaSelect from "../../components/EmpresaSelect/EmpresaSelect";
+import LogEmissao from "../../components/LogEmissao/LogEmissao";
 import { getNfsePreview, iniciarEmissao } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from 'notistack';
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
-import PageTemplate from "../../components/PageTemplate";
+import PageTemplate from "../../components/PageTemplate/PageTemplate";
 import { TbFileInvoice } from "react-icons/tb";
 
 export default function EmissaoIndividual() {
