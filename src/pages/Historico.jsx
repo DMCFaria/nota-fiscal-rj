@@ -19,7 +19,7 @@ import { exportarDadosNota, getHistoricoFatura, getHistoricoNota } from "../serv
 import { authService } from "../services/authService";
 import { useNavigate } from "react-router-dom";
 import { FiArrowRight, FiFileText, FiMapPin, FiCopy, FiMail,FiHash, FiUser,FiCalendar   } from "react-icons/fi";
-import PageTemplate from "../components/PageTemplate";
+import PageTemplate from "../components/PageTemplate/PageTemplate";
 import { LuActivity } from "react-icons/lu";
 
 // Mapeamento de cores para tipos

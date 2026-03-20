@@ -1,4 +1,3 @@
-import axios from "axios";
 import api from "./api";
 
 // 1. Preview: Busca dados no Firebird/Ngrok via Django

@@ -1,71 +1,109 @@
-/* styles/loading.css */
+/* src/styles/loading.css */
+
+/* Overlay do loading */
 .loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgba(255, 255, 255, 0.8); /* Fundo branco embaçado */
-  backdrop-filter: blur(5px); /* Efeito de desfoque */
-  z-index: 9999;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
+/* Container principal */
 .loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2rem !important;
+  padding: 2rem !important;
+  background: transparent !important;
 }
 
-.loading-inline {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+/* Wrapper da logo - AUMENTADO */
+.logo-wrapper {
+  position: relative !important;
+  width: 200px !important;
+  height: 200px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-/* Spinner principal */
-.loading-spinner .spinner {
-  border: 4px solid rgba(59, 130, 246, 0.2); /* Azul claro para o fundo */
-  border-radius: 50%;
-  border-top: 4px solid #3b82f6; /* Azul */
-  animation: spin 1s linear infinite;
+/* Logo - AUMENTADA */
+.loading-logo {
+  width: 160px !important;
+  height: 160px !important;
+  object-fit: contain !important;
+  z-index: 2 !important;
+  display: block !important;
 }
 
-/* Tamanhos */
-.loading-spinner.small .spinner {
-  width: 24px;
-  height: 24px;
-  border-width: 3px;
+/* Barra de progresso circular - AJUSTADA */
+.progress-ring {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform: rotate(-90deg) !important;
 }
 
-.loading-spinner.medium .spinner {
-  width: 40px;
-  height: 40px;
-  border-width: 4px;
+.progress-ring-bg {
+  stroke: #e2e8f0 !important;
+  stroke-width: 4 !important;
 }
 
-.loading-spinner.large .spinner {
-  width: 60px;
-  height: 60px;
-  border-width: 5px;
+.progress-ring-fill {
+  stroke: #2463eb !important;
+  stroke-width: 4 !important;
+  stroke-linecap: round !important;
+  transition: stroke-dashoffset 0.2s linear !important;
 }
 
+/* Mensagem - AUMENTADA */
 .loading-message {
-  color: #374151; /* Cinza escuro */
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-align: center;
-  margin: 0;
+  text-align: center !important;
 }
 
-/* Animação do spinner */
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.loading-text {
+  color: #1e293b !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.loading-percentage {
+  color: #2463eb !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+}
+
+/* Responsivo - AJUSTADO */
+@media (max-width: 640px) {
+  .logo-wrapper {
+    width: 150px !important;
+    height: 150px !important;
+  }
+  
+  .loading-logo {
+    width: 120px !important;
+    height: 120px !important;
+  }
+  
+  .loading-text {
+    font-size: 0.875rem !important;
+  }
+  
+  .loading-percentage {
+    font-size: 1rem !important;
+  }
 }

@@ -12,7 +12,7 @@ import Historico from "../pages/Historico";
 // Layout principal (com Sidebar e Breadcrumb)
 import MainLayout from "../layouts/MainLayout";
 import Emitir from "../pages/Emitir";
-import NotFound from "../components/NotFound";
+import NotFound from "../components/NotFound/NotFound";
 
 export const AppRoutes = () => {
   const { isAuthenticated } = useAuth();

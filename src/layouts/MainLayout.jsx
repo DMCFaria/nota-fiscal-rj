@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useState, useEffect } from "react";
-import Sidebar from "../components/Sidebar";
-import Breadcrumb from "../components/Breadcrumb";
+import Sidebar from "../components/Sidebar/Sidebar";
+import Breadcrumb from "../components/Breadcrumb/Breadcrumb";
 import "../styles/mainlayout.css";
 
 export default function MainLayout() {

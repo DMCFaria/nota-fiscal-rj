@@ -6,15 +6,6 @@ export default function Home() {
 
   return (
     <div className="home-container">
-      {/* <div className="home-header">
-        <Link to="/" className="logo-home">
-          <img
-            src="/imagens/Fedcorp-icone01-50x50.png"
-            alt="Logo"
-            className="logo-desktop"
-          />
-        </Link>
-      </div> */}
       <div className="cards-container">
         <div className="card" onClick={() => navigate("/emitir")}>
           <div className="card-icon">📄</div>

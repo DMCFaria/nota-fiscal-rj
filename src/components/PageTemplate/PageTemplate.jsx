@@ -1,4 +1,4 @@
-import '../styles/pageTemplate.css';
+import '../../styles/pageTemplate.css';
 
 const PageTemplate = ({ 
   children, 

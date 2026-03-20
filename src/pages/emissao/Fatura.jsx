@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
-import EmpresaSelect from "../../components/EmpresaSelect";
-import LogEmissao from "../../components/LogEmissao";
+import EmpresaSelect from "../../components/EmpresaSelect/EmpresaSelect";
+import LogEmissao from "../../components/LogEmissao/LogEmissao";
 import {
   getNfsePreview,
   iniciarEmissao2,
@@ -9,7 +9,7 @@ import "../../styles/emissao.css";
 import { useSnackbar } from "notistack";
 import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
-import PageTemplate from "../../components/PageTemplate";
+import PageTemplate from "../../components/PageTemplate/PageTemplate";
 import { FaFileInvoiceDollar } from "react-icons/fa";
 
 export default function EmissaoPorFatura() {
