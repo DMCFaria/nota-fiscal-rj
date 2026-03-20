@@ -6,7 +6,7 @@ import {
   FiRefreshCw,
   FiDownload,
   FiTrash2,
-  FiAlertTriangle
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { useSnackbar } from "notistack";
 import * as XLSX from "xlsx";
@@ -16,7 +16,7 @@ import {
   cancelarNota,
   getNotaPorID,
   reemitirNota,
-  sincronizarNotas
+  sincronizarNotas,
 } from "../services/notas";
 import { fixBrokenLatin } from "../utils/normalizacao_textual";
 import "../styles/consultas.css";
@@ -79,13 +79,13 @@ function normalizeTomadorForState(nota) {
       tomadorObj?.cnpj ||
       tomadorObj?.cpf ||
       cpfCnpj ||
-      ""
+      "",
   };
 
   return {
     ...nota,
     tomador_cpf_cnpj: cpfCnpj || nota?.tomador_cpf_cnpj || "",
-    tomador: mergedTomador
+    tomador: mergedTomador,
   };
 }
 
@@ -96,12 +96,32 @@ function normalizeStr(v) {
 function isNotaCancelada(nota) {
   const st = normalizeStr(nota?.status).toLowerCase();
   const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
-  return st === "cancelada" || sit === "cancelada";
+  return st === "cancelado" || sit === "cancelado";
+}
+function isNotaReject(nota) {
+  const st = normalizeStr(nota?.status).toLowerCase();
+  const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
+  return (
+    st === "rejeitada" || sit === "rejeitado" || st === "erro" || sit === "erro"
+  );
+}
+
+function isNotaCanceladas(nota) {
+  if (!nota) return false;
+  if (!isNotaCancelada(nota)) return false;
+  const st = normalizeStr(nota?.status).toLowerCase();
+  const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
+
+  const cancelByStatus = ["cancelado"].includes(st);
+  const cancelBySit = ["cancelado"].includes(sit);
+
+  return cancelByStatus || cancelBySit;
 }
 
 function isNotaConcluida(nota) {
   if (!nota) return false;
   if (isNotaCancelada(nota)) return false;
+  if (isNotaReject(nota)) return false;
 
   const st = normalizeStr(nota?.status).toLowerCase();
   const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
@@ -113,7 +133,7 @@ function isNotaConcluida(nota) {
     "concluída",
     "concluida",
     "emitida",
-    "emitido"
+    "emitido",
   ].includes(st);
 
   const concluidaBySituacao = [
@@ -122,7 +142,7 @@ function isNotaConcluida(nota) {
     "concluida",
     "autorizada",
     "emitida",
-    "emitido"
+    "emitido",
   ].includes(sit);
 
   const concluidaIncludes =
@@ -279,7 +299,7 @@ function simplifyDescricao(desc) {
       .map((p) => p.trim())
       .filter(Boolean);
     const prefer = parts.find((p) =>
-      p.toLowerCase().includes("pertence ao município")
+      p.toLowerCase().includes("pertence ao município"),
     );
     if (prefer) return simplifyDescricao(prefer);
   }
@@ -327,7 +347,7 @@ function formatTecnospeedError(err) {
     if (nested) return simplifyDescricao(nested);
 
     const anyString = Object.values(err).find(
-      (v) => typeof v === "string" && v.trim()
+      (v) => typeof v === "string" && v.trim(),
     );
     if (anyString) return simplifyDescricao(anyString);
 
@@ -371,7 +391,7 @@ function extractRejectionReason(nota) {
     nota?.mensagem,
     nota?.erro,
     nota?.error,
-    nota?.situacao_prefeitura
+    nota?.situacao_prefeitura,
   ].filter((v) => v !== undefined && v !== null);
 
   for (const c of candidatesRaw) {
@@ -389,7 +409,11 @@ function extractRejectionReason(nota) {
   if (logs.length) {
     const last = logs[logs.length - 1];
     const formatted = formatTecnospeedError(
-      last?.motivo_erro || last?.mensagem || last?.message || last?.erro || last
+      last?.motivo_erro ||
+        last?.mensagem ||
+        last?.message ||
+        last?.erro ||
+        last,
     );
     if (formatted && formatted !== "—") return formatted;
   }
@@ -398,7 +422,9 @@ function extractRejectionReason(nota) {
 }
 
 function normalizeCepDigits(v) {
-  return String(v || "").replace(/\D/g, "").slice(0, 8);
+  return String(v || "")
+    .replace(/\D/g, "")
+    .slice(0, 8);
 }
 
 function formatCep(cepDigits) {
@@ -438,24 +464,30 @@ function extractCepFromNotaErrors(nota) {
     nota?.mensagem,
     nota?.erro,
     nota?.error,
-    nota?.situacao_prefeitura
+    nota?.situacao_prefeitura,
   ];
 
   for (const c of candidates) {
     if (!c) continue;
-    const cep = extractCepFromText(typeof c === "string" ? c : JSON.stringify(c));
+    const cep = extractCepFromText(
+      typeof c === "string" ? c : JSON.stringify(c),
+    );
     if (cep) return cep;
   }
 
   const erros = toArray(nota?.erros);
   for (const e of erros) {
-    const cep = extractCepFromText(typeof e === "string" ? e : JSON.stringify(e));
+    const cep = extractCepFromText(
+      typeof e === "string" ? e : JSON.stringify(e),
+    );
     if (cep) return cep;
   }
 
   const logs = toArray(nota?.logs || nota?.log);
   for (const l of logs) {
-    const cep = extractCepFromText(typeof l === "string" ? l : JSON.stringify(l));
+    const cep = extractCepFromText(
+      typeof l === "string" ? l : JSON.stringify(l),
+    );
     if (cep) return cep;
   }
 
@@ -468,9 +500,7 @@ function pickFirstCepFromPaths(nota, paths) {
       const v = getter(nota);
       const digits = normalizeCepDigits(v);
       if (digits.length === 8) return digits;
-    } catch {
-
-    }
+    } catch {}
   }
   return "";
 }
@@ -494,7 +524,7 @@ function getCepFromNota(nota) {
     (n) => n?.cep_tomador,
     (n) => n?.tomador_cep,
     (n) => n?.tomadorCep,
-    (n) => n?.cep
+    (n) => n?.cep,
   ];
 
   const extraPathsNonCondocorp = [
@@ -508,10 +538,12 @@ function getCepFromNota(nota) {
     (n) => n?.nfse?.tomador?.endereco?.cep,
     (n) => n?.nfse?.tomador?.enderecoTomador?.cep,
     (n) => n?.payload?.tomador?.endereco?.cep,
-    (n) => n?.payload?.tomador?.enderecoTomador?.cep
+    (n) => n?.payload?.tomador?.enderecoTomador?.cep,
   ];
 
-  const candidates = isCondocorp ? commonPaths : [...commonPaths, ...extraPathsNonCondocorp];
+  const candidates = isCondocorp
+    ? commonPaths
+    : [...commonPaths, ...extraPathsNonCondocorp];
 
   let cep = pickFirstCepFromPaths(nota, candidates);
 
@@ -602,7 +634,7 @@ function ModalConfirm({
   onConfirm,
   onClose,
   confirmDisabled,
-  children
+  children,
 }) {
   if (!open) return null;
 
@@ -663,7 +695,7 @@ function formatDataHoraBR(value, options = {}) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    ...options
+    ...options,
   });
 }
 
@@ -679,14 +711,14 @@ function buildNotasPayloadFromTela({ tipoBusca, faturas, dados }) {
           id_integracao: getIdIntegracao(n),
           protocolo: n?.protocolo,
           numero: n?.numero_nfse || n?.numero || n?.id,
-          fatura: n?.fatura || fat?.numero || fat?.id
+          fatura: n?.fatura || fat?.numero || fat?.id,
         });
       }
     }
     return {
       notas: notas.filter(
-        (x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero
-      )
+        (x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero,
+      ),
     };
   }
 
@@ -695,13 +727,13 @@ function buildNotasPayloadFromTela({ tipoBusca, faturas, dados }) {
     id_integracao: getIdIntegracao(n),
     protocolo: n?.protocolo,
     numero: n?.numero_nfse || n?.numero || n?.id,
-    fatura: n?.fatura || n?.faturamento
+    fatura: n?.fatura || n?.faturamento,
   }));
 
   return {
     notas: notas.filter(
-      (x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero
-    )
+      (x) => x.id_tecnospeed || x.id_integracao || x.protocolo || x.numero,
+    ),
   };
 }
 
@@ -731,14 +763,26 @@ function LinhaFatura({
   onCancelarTodas,
   onCancelarUma,
   cancelandoAll,
-  onTratarErro
+  onTratarErro,
+  filtroResumo, // Prop recebida do componente pai (Consultas)
 }) {
+  // 1. Pegamos todas as notas da fatura
   const notasAll = toArray(fatura.notas);
-  const notas = notasAll.filter((n) => !isNotaCancelada(n));
 
+  // 2. Definimos quais notas serão exibidas e contadas com base no filtro
+  // Usamos useMemo para performance, ou apenas uma variável comum
+  const notas = useMemo(() => {
+    if (filtroResumo === "canceladas") {
+      // Se o toggle de canceladas estiver ativo, mostra apenas as canceladas
+      return notasAll.filter(isNotaCancelada);
+    }
+    // Caso contrário (filtro "todas" ou "ativas"), removemos as canceladas da visualização e da contagem
+    return notasAll.filter((n) => !isNotaCancelada(n));
+  }, [notasAll, filtroResumo]);
+
+  // 3. Agora os cálculos são feitos em cima da lista já filtrada acima
   const qtdNotas = notas.length;
   const qtdBaixaveis = notas.filter(isNotaBaixavel).length;
-
   const hasCancelavel = notas.some(isNotaCancelavel);
   const qtdRejeitadas = notas.filter(isNotaRejeitada).length;
 
@@ -833,23 +877,29 @@ function LinhaFatura({
                         >
                           <td className="mono">{n.id || n.numero || "—"}</td>
 
-                          <td>{fixBrokenLatin(n.tomador?.razao_social) || "—"}</td>
+                          <td>
+                            {fixBrokenLatin(n.tomador?.razao_social) || "—"}
+                          </td>
 
-                          <td className="mono">{getTomadorCpfCnpj(n) || "—"}</td>
+                          <td className="mono">
+                            {getTomadorCpfCnpj(n) || "—"}
+                          </td>
 
                           <td style={{ textAlign: "right" }}>
                             {n.valor_servico
-                              ? `R$ ${parseFloat(n.valor_servico).toLocaleString(
-                                "pt-BR",
-                                { minimumFractionDigits: 2 }
-                              )}`
+                              ? `R$ ${parseFloat(
+                                  n.valor_servico,
+                                ).toLocaleString("pt-BR", {
+                                  minimumFractionDigits: 2,
+                                })}`
                               : "—"}
                           </td>
 
                           <td>
                             <span
-                              className={`status-badge status-${n.status?.toLowerCase() || "unknown"
-                                }`}
+                              className={`status-badge status-${
+                                n.status?.toLowerCase() || "unknown"
+                              }`}
                             >
                               {n.status || "—"}
                             </span>
@@ -859,7 +909,7 @@ function LinhaFatura({
                                 style={{
                                   marginTop: 6,
                                   fontSize: 12,
-                                  color: "#92400e"
+                                  color: "#92400e",
                                 }}
                               >
                                 Motivo: {extractRejectionReason(n)}
@@ -867,7 +917,10 @@ function LinhaFatura({
                             )}
                           </td>
 
-                          <td className="acoes-col" style={{ textAlign: "right" }}>
+                          <td
+                            className="acoes-col"
+                            style={{ textAlign: "right" }}
+                          >
                             {rejeitada ? (
                               <button
                                 type="button"
@@ -909,7 +962,10 @@ function LinhaFatura({
                       <tr>
                         <td
                           colSpan={5}
-                          style={{ padding: 14, color: "var(--text-soft,#525a6a)" }}
+                          style={{
+                            padding: 14,
+                            color: "var(--text-soft,#525a6a)",
+                          }}
                         >
                           Nenhuma nota ativa vinculada nessa fatura.
                         </td>
@@ -930,7 +986,7 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
   const isOpen = expanded.has(item.id);
   const sistemas = toArray(item.sistemas);
   const hasElegivel = sistemas.some(
-    (s) => s.status === "sucesso" && s.protocolo && !s.cancelada
+    (s) => s.status === "sucesso" && s.protocolo && !s.cancelada,
   );
 
   return (
@@ -949,7 +1005,9 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
           </button>
         </td>
 
-        <td>{item.quando ? new Date(item.quando).toLocaleString("pt-BR") : "—"}</td>
+        <td>
+          {item.quando ? new Date(item.quando).toLocaleString("pt-BR") : "—"}
+        </td>
 
         <td className="resultados-compactos">
           {sistemas.map((s) => (
@@ -985,7 +1043,8 @@ function LinhaNota({ item, expanded, onToggle, onOpenCancelar }) {
                       <Badge status={s.status} substituida={s.substituida} />
                     </div>
                     <div className="sist-proto">
-                      Protocolo: <span className="mono">{s.protocolo ?? "—"}</span>
+                      Protocolo:{" "}
+                      <span className="mono">{s.protocolo ?? "—"}</span>
                     </div>
                   </div>
 
@@ -1009,7 +1068,8 @@ function toExcelValue(v) {
   if (typeof v === "number") return v;
   if (typeof v === "boolean") return v ? "true" : "false";
 
-  if (v instanceof Date) return Number.isNaN(v.getTime()) ? "" : v.toISOString();
+  if (v instanceof Date)
+    return Number.isNaN(v.getTime()) ? "" : v.toISOString();
 
   if (typeof v === "string") {
     const s = v.trim();
@@ -1069,7 +1129,7 @@ function normalizeForExcelRow(nota, extras = {}) {
     protocolo: String(nota?.protocolo || ""),
     numero_nfse: String(nota?.numero_nfse || nota?.numero || nota?.id || ""),
     status: String(nota?.status || ""),
-    situacao_prefeitura: String(nota?.situacao_prefeitura || "")
+    situacao_prefeitura: String(nota?.situacao_prefeitura || ""),
   };
 
   const flat = flattenForExcel(nota);
@@ -1096,7 +1156,7 @@ export default function Consultas() {
     payload: null,
     motivo: "",
     sistema: "",
-    opcoes: []
+    opcoes: [],
   });
 
   const [modalLoading, setModalLoading] = useState(false);
@@ -1107,7 +1167,7 @@ export default function Consultas() {
   const [tratarModal, setTratarModal] = useState({
     open: false,
     nota: null,
-    cep: ""
+    cep: "",
   });
   const [reemitindo, setReemitindo] = useState(false);
 
@@ -1121,16 +1181,15 @@ export default function Consultas() {
 
   const aplicaFiltroNota = useCallback(
     (nota) => {
-      if (isNotaCancelada(nota)) return false;
-
       if (filtroResumo === "todas") return true;
       if (filtroResumo === "concluidas") return isNotaConcluida(nota);
       if (filtroResumo === "rejeitadas") return isNotaRejeitada(nota);
+      if (filtroResumo === "canceladas") return isNotaCanceladas(nota);
       if (filtroResumo === "pendentes") return isNotaPendente(nota);
 
       return true;
     },
-    [filtroResumo]
+    [filtroResumo],
   );
 
   const toggleFiltro = useCallback((novo) => {
@@ -1151,9 +1210,10 @@ export default function Consultas() {
         const notasOrdenadas =
           res?.tipo === "multiplas" && Array.isArray(res?.notas)
             ? [...res.notas].sort(
-              (a, b) =>
-                new Date(b?.datas?.criacao || 0) - new Date(a?.datas?.criacao || 0)
-            )
+                (a, b) =>
+                  new Date(b?.datas?.criacao || 0) -
+                  new Date(a?.datas?.criacao || 0),
+              )
             : [];
 
         if (res && res.status === "success") {
@@ -1163,7 +1223,7 @@ export default function Consultas() {
                 id: String(res.fatura || termo),
                 numero: String(res.fatura || termo),
                 quando: notasOrdenadas[0]?.datas?.criacao || null,
-                
+
                 notas: notasOrdenadas.map((nota) => {
                   const nn = normalizeTomadorForState(nota);
 
@@ -1183,13 +1243,12 @@ export default function Consultas() {
                     datas: nn.datas,
                     motivo_erro: nn.motivo_erro,
                     motivo_rejeicao: nn.motivo_rejeicao,
-                    erros: nn.erros
+                    erros: nn.erros,
                   };
-                })
-              }
+                }),
+              },
             ]);
           } else if (res.nfse) {
-            
             const nfseNorm = normalizeTomadorForState(res.nfse);
 
             setFaturas([
@@ -1197,15 +1256,17 @@ export default function Consultas() {
                 id: String(nfseNorm.fatura || termo),
                 numero: String(nfseNorm.fatura || termo),
                 quando: nfseNorm.datas?.criacao || null,
-                notas: [nfseNorm]
-              }
+                notas: [nfseNorm],
+              },
             ]);
           }
           setDados([]);
         } else {
           setFaturas([]);
           setDados([]);
-          enqueueSnackbar(res?.message || "Nenhuma nota encontrada", { variant: "info" });
+          enqueueSnackbar(res?.message || "Nenhuma nota encontrada", {
+            variant: "info",
+          });
         }
       } else {
         const res = await getNotaPorID(termo);
@@ -1214,9 +1275,10 @@ export default function Consultas() {
           if (isNotaCancelada(res.nfse)) {
             setFaturas([]);
             setDados([]);
-            enqueueSnackbar("Nota cancelada (não exibida).", { variant: "info" });
+            enqueueSnackbar("Nota cancelada (não exibida).", {
+              variant: "info",
+            });
           } else {
-            
             const nfseBase = normalizeTomadorForState(res.nfse);
 
             const nfse = {
@@ -1238,19 +1300,20 @@ export default function Consultas() {
               motivo_erro: nfseBase.motivo_erro,
               motivo_rejeicao: nfseBase.motivo_rejeicao,
 
-              datas: nfseBase.datas
+              datas: nfseBase.datas,
             };
 
             const faturaNumero = String(nfse.fatura || "—");
-            const fatId = faturaNumero !== "—" ? faturaNumero : String(nfse.id || termo);
+            const fatId =
+              faturaNumero !== "—" ? faturaNumero : String(nfse.id || termo);
 
             setFaturas([
               {
                 id: fatId,
                 numero: faturaNumero !== "—" ? faturaNumero : fatId,
                 quando: nfse.datas?.criacao || null,
-                notas: [nfse]
-              }
+                notas: [nfse],
+              },
             ]);
 
             setDados([]);
@@ -1259,7 +1322,9 @@ export default function Consultas() {
         } else {
           setFaturas([]);
           setDados([]);
-          enqueueSnackbar(res?.message || "Nota não encontrada", { variant: "info" });
+          enqueueSnackbar(res?.message || "Nota não encontrada", {
+            variant: "info",
+          });
         }
       }
 
@@ -1278,7 +1343,9 @@ export default function Consultas() {
     if (loading || sincronizando) return;
 
     if (!hasSearched) {
-      enqueueSnackbar("Faça uma busca antes de sincronizar.", { variant: "info" });
+      enqueueSnackbar("Faça uma busca antes de sincronizar.", {
+        variant: "info",
+      });
       return;
     }
 
@@ -1288,13 +1355,15 @@ export default function Consultas() {
       const payload = buildNotasPayloadFromTela({ tipoBusca, faturas, dados });
 
       if (!payload?.notas?.length) {
-        enqueueSnackbar("Nenhuma nota encontrada para sincronizar.", { variant: "info" });
+        enqueueSnackbar("Nenhuma nota encontrada para sincronizar.", {
+          variant: "info",
+        });
         return;
       }
 
       const res = await sincronizarNotas({
         ...payload,
-        origem: "portal_nacional"
+        origem: "portal_nacional",
       });
 
       const msg = res?.message || res?.mensagem || "Sincronização solicitada.";
@@ -1307,7 +1376,16 @@ export default function Consultas() {
     } finally {
       setSincronizando(false);
     }
-  }, [loading, sincronizando, hasSearched, tipoBusca, faturas, dados, enqueueSnackbar, realizarBusca]);
+  }, [
+    loading,
+    sincronizando,
+    hasSearched,
+    tipoBusca,
+    faturas,
+    dados,
+    enqueueSnackbar,
+    realizarBusca,
+  ]);
 
   const rejectedRows = useMemo(() => {
     const rows = [];
@@ -1315,7 +1393,9 @@ export default function Consultas() {
     if (tipoBusca === "fatura" || tipoBusca === "nota") {
       for (const fat of toArray(faturas)) {
         const numeroFatura = String(fat?.numero || fat?.id || "");
-        const notasVisiveis = toArray(fat?.notas).filter((n) => !isNotaCancelada(n));
+        const notasVisiveis = toArray(fat?.notas).filter(
+          (n) => !isNotaCancelada(n),
+        );
 
         for (const n of notasVisiveis) {
           if (!isNotaRejeitada(n)) continue;
@@ -1329,7 +1409,7 @@ export default function Consultas() {
             valor_servico: n?.valor_servico ?? "",
             status: String(n?.status || ""),
             situacao_prefeitura: String(n?.situacao_prefeitura || ""),
-            motivo: extractRejectionReason(n)
+            motivo: extractRejectionReason(n),
           });
         }
       }
@@ -1350,7 +1430,7 @@ export default function Consultas() {
         valor_servico: baseNota?.valor_servico ?? "",
         status: String(baseNota?.status || ""),
         situacao_prefeitura: String(baseNota?.situacao_prefeitura || ""),
-        motivo: extractRejectionReason(baseNota)
+        motivo: extractRejectionReason(baseNota),
       });
     }
 
@@ -1361,25 +1441,26 @@ export default function Consultas() {
 
   const resumoNotas = useMemo(() => {
     const notasVisiveis = [];
-
+    console.log(notasVisiveis);
     if (tipoBusca === "fatura" || tipoBusca === "nota") {
       for (const fat of toArray(faturas)) {
         for (const n of toArray(fat?.notas)) {
-          if (!isNotaCancelada(n)) notasVisiveis.push(n);
+          notasVisiveis.push(n);
         }
       }
     } else {
       for (const n of toArray(dados)) {
-        if (!isNotaCancelada(n)) notasVisiveis.push(n);
+        notasVisiveis.push(n);
       }
     }
 
-    const total = notasVisiveis.length;
     const concluidas = notasVisiveis.filter(isNotaConcluida).length;
     const rejeitadas = notasVisiveis.filter(isNotaRejeitada).length;
+    const canceladas = notasVisiveis.filter(isNotaCanceladas).length;
     const pendentes = notasVisiveis.filter(isNotaPendente).length;
+    const total = notasVisiveis.length - canceladas;
 
-    return { total, concluidas, pendentes, rejeitadas };
+    return { total, concluidas, pendentes, rejeitadas, canceladas };
   }, [faturas, dados, tipoBusca]);
 
   const baixarRelatorioRejeitadas = async () => {
@@ -1387,7 +1468,9 @@ export default function Consultas() {
       setBaixandoRelatorio(true);
 
       if (!rejectedRows.length) {
-        enqueueSnackbar("Nenhuma rejeição encontrada para exportar.", { variant: "info" });
+        enqueueSnackbar("Nenhuma rejeição encontrada para exportar.", {
+          variant: "info",
+        });
         return;
       }
 
@@ -1398,14 +1481,15 @@ export default function Consultas() {
       const now = new Date();
       const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
         2,
-        "0"
-      )}-${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(
-        2,
-        "0"
-      )}${String(now.getMinutes()).padStart(2, "0")}`;
+        "0",
+      )}-${String(now.getDate()).padStart(2, "0")}_${String(
+        now.getHours(),
+      ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
 
       const nameBase =
-        tipoBusca === "fatura" ? "relatorio_rejeitadas_fatura" : "relatorio_rejeitadas_nota";
+        tipoBusca === "fatura"
+          ? "relatorio_rejeitadas_fatura"
+          : "relatorio_rejeitadas_nota";
       const fileName = `${nameBase}_${stamp}.xlsx`;
 
       XLSX.writeFile(wb, fileName);
@@ -1425,7 +1509,9 @@ export default function Consultas() {
       setBaixandoExcelNotas(true);
 
       if (!hasSearched) {
-        enqueueSnackbar("Faça uma busca antes de exportar.", { variant: "info" });
+        enqueueSnackbar("Faça uma busca antes de exportar.", {
+          variant: "info",
+        });
         return;
       }
 
@@ -1441,8 +1527,8 @@ export default function Consultas() {
 
             rowsNotasRaw.push(
               normalizeForExcelRow(n, {
-                fatura_numero: faturaNumero
-              })
+                fatura_numero: faturaNumero,
+              }),
             );
           }
         }
@@ -1453,8 +1539,8 @@ export default function Consultas() {
 
           rowsNotasRaw.push(
             normalizeForExcelRow(n, {
-              fatura_numero: String(n?.fatura || n?.faturamento || "")
-            })
+              fatura_numero: String(n?.fatura || n?.faturamento || ""),
+            }),
           );
         }
       }
@@ -1478,13 +1564,15 @@ export default function Consultas() {
         "tomador_razao_social",
         "tomador_cpf_cnpj",
         "status",
-        "situacao_prefeitura"
+        "situacao_prefeitura",
       ];
 
       const allKeys = Array.from(allKeysSet);
       const headers = [
         ...preferred.filter((k) => allKeysSet.has(k)),
-        ...allKeys.filter((k) => !preferred.includes(k)).sort((a, b) => a.localeCompare(b))
+        ...allKeys
+          .filter((k) => !preferred.includes(k))
+          .sort((a, b) => a.localeCompare(b)),
       ];
 
       const rowsNotas = rowsNotasRaw.map((r) => {
@@ -1500,13 +1588,16 @@ export default function Consultas() {
       const now = new Date();
       const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
         2,
-        "0"
-      )}-${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(
-        2,
-        "0"
-      )}${String(now.getMinutes()).padStart(2, "0")}`;
+        "0",
+      )}-${String(now.getDate()).padStart(2, "0")}_${String(
+        now.getHours(),
+      ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
 
-      const termo = textoDigitado.trim().replace(/[^\w.-]+/g, "_").slice(0, 40) || "resultado";
+      const termo =
+        textoDigitado
+          .trim()
+          .replace(/[^\w.-]+/g, "_")
+          .slice(0, 40) || "resultado";
       const fileName = `notas_${termo}_${stamp}.xlsx`;
 
       XLSX.writeFile(wb, fileName);
@@ -1517,11 +1608,21 @@ export default function Consultas() {
     } finally {
       setBaixandoExcelNotas(false);
     }
-  }, [baixandoExcelNotas, loading, hasSearched, faturas, dados, textoDigitado, enqueueSnackbar]);
+  }, [
+    baixandoExcelNotas,
+    loading,
+    hasSearched,
+    faturas,
+    dados,
+    textoDigitado,
+    enqueueSnackbar,
+  ]);
 
   const handleDownload = async (item, tipo) => {
     const isFatura = tipo === "fatura";
-    const idFat = isFatura ? String(item?.id || item?.numero || item?.fatura || "") : null;
+    const idFat = isFatura
+      ? String(item?.id || item?.numero || item?.fatura || "")
+      : null;
 
     if (isFatura && idFat) setBaixandoAll((p) => ({ ...p, [idFat]: true }));
 
@@ -1531,17 +1632,24 @@ export default function Consultas() {
         const baixaveis = notas.filter(isNotaBaixavel);
 
         if (!baixaveis.length) {
-          enqueueSnackbar("Nenhuma nota concluída ativa disponível para download.", { variant: "info" });
+          enqueueSnackbar(
+            "Nenhuma nota concluída ativa disponível para download.",
+            { variant: "info" },
+          );
           return;
         }
 
-        const faturaNumero = String(item?.numero || item?.fatura || item?.numero_fatura || "");
+        const faturaNumero = String(
+          item?.numero || item?.fatura || item?.numero_fatura || "",
+        );
 
         const emitenteNome =
           item?.emitente?.razao_social ||
           item?.prestador?.razao_social ||
-          baixaveis.find((n) => n?.emitente?.razao_social)?.emitente?.razao_social ||
-          baixaveis.find((n) => n?.prestador?.razao_social)?.prestador?.razao_social ||
+          baixaveis.find((n) => n?.emitente?.razao_social)?.emitente
+            ?.razao_social ||
+          baixaveis.find((n) => n?.prestador?.razao_social)?.prestador
+            ?.razao_social ||
           "emitente";
 
         const resp = await downloadPdfNota({
@@ -1549,17 +1657,24 @@ export default function Consultas() {
           idIntegracao: "",
           fatura: faturaNumero,
           emitente: emitenteNome,
-          nfs_emitidas: String(baixaveis.length)
+          nfs_emitidas: String(baixaveis.length),
         });
 
-        const ct = resp?.headers?.["content-type"] || resp?.headers?.["Content-Type"];
-        const cd = resp?.headers?.["content-disposition"] || resp?.headers?.["Content-Disposition"];
+        const ct =
+          resp?.headers?.["content-type"] || resp?.headers?.["Content-Type"];
+        const cd =
+          resp?.headers?.["content-disposition"] ||
+          resp?.headers?.["Content-Disposition"];
 
         const fromHeader = getFilenameFromContentDisposition(cd);
         const ext = extFromContentType(ct);
 
-        const safeEmit = String(emitenteNome || "emitente").replace(/[^\w.-]+/g, "_").slice(0, 40);
-        const safeFat = String(faturaNumero || "fatura").replace(/[^\w.-]+/g, "_").slice(0, 30);
+        const safeEmit = String(emitenteNome || "emitente")
+          .replace(/[^\w.-]+/g, "_")
+          .slice(0, 40);
+        const safeFat = String(faturaNumero || "fatura")
+          .replace(/[^\w.-]+/g, "_")
+          .slice(0, 30);
 
         const fallbackName =
           ext === "zip"
@@ -1571,47 +1686,69 @@ export default function Consultas() {
         forceDownloadBlob({ blob: resp.data, filename });
 
         if (ext === "zip" || String(filename).toLowerCase().endsWith(".zip")) {
-          enqueueSnackbar(`Download em ZIP iniciado (${baixaveis.length} nota(s)).`, { variant: "warning" });
+          enqueueSnackbar(
+            `Download em ZIP iniciado (${baixaveis.length} nota(s)).`,
+            { variant: "warning" },
+          );
         } else {
-          enqueueSnackbar(`Download da fatura iniciado (${baixaveis.length} nota(s))!`, { variant: "success" });
+          enqueueSnackbar(
+            `Download da fatura iniciado (${baixaveis.length} nota(s))!`,
+            { variant: "success" },
+          );
         }
 
         return;
       }
 
       if (isNotaCancelada(item)) {
-        enqueueSnackbar("Nota cancelada (não disponível).", { variant: "info" });
+        enqueueSnackbar("Nota cancelada (não disponível).", {
+          variant: "info",
+        });
         return;
       }
 
       if (isNotaRejeitada(item)) {
-        enqueueSnackbar("Nota rejeitada: use “Tratar erro”.", { variant: "info" });
+        enqueueSnackbar("Nota rejeitada: use “Tratar erro”.", {
+          variant: "info",
+        });
         return;
       }
 
       const idIntegracao = String(getIdIntegracao(item) || "");
       if (!idIntegracao) {
-        enqueueSnackbar("Esta nota não possui idIntegracao para download.", { variant: "warning" });
+        enqueueSnackbar("Esta nota não possui idIntegracao para download.", {
+          variant: "warning",
+        });
         return;
       }
 
-      const emitenteNome = item?.emitente?.razao_social || item?.prestador?.razao_social || "emitente";
+      const emitenteNome =
+        item?.emitente?.razao_social ||
+        item?.prestador?.razao_social ||
+        "emitente";
 
       const resp = await downloadPdfNota({
         tipo: "individual",
         idIntegracao,
-        fatura: String(item?.fatura || item?.numero_fatura || item?.numero || ""),
+        fatura: String(
+          item?.fatura || item?.numero_fatura || item?.numero || "",
+        ),
         emitente: emitenteNome,
-        nfs_emitidas: "1"
+        nfs_emitidas: "1",
       });
 
-      const ct = resp?.headers?.["content-type"] || resp?.headers?.["Content-Type"];
-      const cd = resp?.headers?.["content-disposition"] || resp?.headers?.["Content-Disposition"];
+      const ct =
+        resp?.headers?.["content-type"] || resp?.headers?.["Content-Type"];
+      const cd =
+        resp?.headers?.["content-disposition"] ||
+        resp?.headers?.["Content-Disposition"];
 
       const fromHeader = getFilenameFromContentDisposition(cd);
       const ext = extFromContentType(ct) || "pdf";
 
-      const safeId = String(idIntegracao).replace(/[^\w.-]+/g, "_").slice(0, 40);
+      const safeId = String(idIntegracao)
+        .replace(/[^\w.-]+/g, "_")
+        .slice(0, 40);
       const filename = fromHeader || `nfse_${safeId}.${ext}`;
 
       forceDownloadBlob({ blob: resp.data, filename });
@@ -1628,16 +1765,18 @@ export default function Consultas() {
   const openModalCancel = (item, tipo) => {
     const nfs =
       tipo === "fatura_all"
-        ? toArray(item.notas).filter((n) => !isNotaCancelada(n)).filter(isNotaCancelavel)
+        ? toArray(item.notas)
+            .filter((n) => !isNotaCancelada(n))
+            .filter(isNotaCancelavel)
         : [item];
 
     const sists = toArray(nfs[0]?.sistemas || (nfs[0]?.status ? [nfs[0]] : []));
-    const opcoes = sists.filter((s) => s.status === "sucesso" && !s.cancelada).map((s) => s.nome);
+    const opcoes = sists
+      .filter((s) => s.status === "sucesso" && !s.cancelada)
+      .map((s) => s.nome);
     const safeOpcoes = opcoes.length ? opcoes : ["prefeitura"];
 
-    const notasPayload = nfs
-      .map(buildCancelRef)
-      .filter(Boolean);
+    const notasPayload = nfs.map(buildCancelRef).filter(Boolean);
 
     console.log("[cancel] nota selecionada:", nfs[0]);
     console.log("[cancel] id_tecnospeed:", getIdTecnospeed(nfs[0]));
@@ -1652,8 +1791,8 @@ export default function Consultas() {
       opcoes: safeOpcoes,
       payload: {
         notas: notasPayload,
-        faturaIdInternal: item?.id
-      }
+        faturaIdInternal: item?.id,
+      },
     });
   };
 
@@ -1668,17 +1807,21 @@ export default function Consultas() {
 
     try {
       if (!Array.isArray(notas) || !notas.length) {
-        enqueueSnackbar("Nenhuma nota elegível para cancelamento.", { variant: "info" });
+        enqueueSnackbar("Nenhuma nota elegível para cancelamento.", {
+          variant: "info",
+        });
         return;
       }
 
       await cancelarNota({
         sistema: modal.sistema,
         motivo: modal.motivo.trim(),
-        notas
+        notas,
       });
 
-      enqueueSnackbar("Solicitação enviada com sucesso!", { variant: "success" });
+      enqueueSnackbar("Solicitação enviada com sucesso!", {
+        variant: "success",
+      });
       setModal((m) => ({ ...m, open: false }));
       await realizarBusca();
     } catch (e) {
@@ -1698,14 +1841,14 @@ export default function Consultas() {
     if (!cepDigits) {
       enqueueSnackbar(
         "Não encontrei o CEP automaticamente para esta nota. Informe manualmente para reemitir.",
-        { variant: "warning" }
+        { variant: "warning" },
       );
     }
 
     setTratarModal({
       open: true,
       nota,
-      cep: cepFmt
+      cep: cepFmt,
     });
   };
 
@@ -1717,12 +1860,14 @@ export default function Consultas() {
     const cepDigits = normalizeCepDigits(tratarModal.cep);
 
     //if (!id_tecnospeed) {
-     // enqueueSnackbar("Não encontrei o id_tecnospeed dessa nota.", { variant: "error" });
-     // return;
+    // enqueueSnackbar("Não encontrei o id_tecnospeed dessa nota.", { variant: "error" });
+    // return;
     //}
 
     if (cepDigits.length !== 8) {
-      enqueueSnackbar("Informe um CEP válido (8 dígitos).", { variant: "warning" });
+      enqueueSnackbar("Informe um CEP válido (8 dígitos).", {
+        variant: "warning",
+      });
       return;
     }
 
@@ -1731,10 +1876,12 @@ export default function Consultas() {
       await reemitirNota({
         id_integracao: getIdIntegracao(nota),
         //id_tecnospeed: getIdTecnospeed(nota),
-        cep: cepDigits
+        cep: cepDigits,
       });
 
-      enqueueSnackbar("Reemissão solicitada com sucesso!", { variant: "success" });
+      enqueueSnackbar("Reemissão solicitada com sucesso!", {
+        variant: "success",
+      });
       setTratarModal({ open: false, nota: null, cep: "" });
       await realizarBusca();
     } catch (e) {
@@ -1750,13 +1897,15 @@ export default function Consultas() {
       // subtitle="Consulte informações"
       icon={<FaSearch />}
       className="consulta-comercial-page"
-      >
+    >
       <div className="consultas">
-        
-
         <div className="toolbar">
           <div className="input-group">
-            <select value={tipoBusca} onChange={(e) => setTipoBusca(e.target.value)} className="select-tipo">
+            <select
+              value={tipoBusca}
+              onChange={(e) => setTipoBusca(e.target.value)}
+              className="select-tipo"
+            >
               <option value="fatura">Fatura</option>
               <option value="nota">Nº Nota / Protocolo</option>
             </select>
@@ -1771,7 +1920,11 @@ export default function Consultas() {
               />
             </div>
 
-            <button className="btn" onClick={realizarBusca} disabled={loading || !textoDigitado.trim()}>
+            <button
+              className="btn"
+              onClick={realizarBusca}
+              disabled={loading || !textoDigitado.trim()}
+            >
               {loading ? "..." : "Pesquisar"}
             </button>
 
@@ -1792,7 +1945,11 @@ export default function Consultas() {
               className="btn btn-xs secondary"
               onClick={baixarExcelNotas}
               disabled={loading || baixandoExcelNotas || !hasSearched}
-              title={!hasSearched ? "Faça uma pesquisa primeiro" : "Baixar Excel com os dados das notas"}
+              title={
+                !hasSearched
+                  ? "Faça uma pesquisa primeiro"
+                  : "Baixar Excel com os dados das notas"
+              }
               style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
             >
               <FiDownload />
@@ -1837,15 +1994,31 @@ export default function Consultas() {
                     <strong>Pendentes:</strong> {resumoNotas.pendentes}
                   </button>
 
-                  {resumoNotas.rejeitadas > 0 && (
+                  {resumoNotas.rejeitadas > 0 &&
+                  (
                     <button
                       type="button"
-                      className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${filtroResumo === "rejeitadas" ? "is-active" : ""
-                        }`}
+                      className={`consultas-resumo__item consultas-resumo__item--rejeitadas ${
+                        filtroResumo === "rejeitadas" ? "is-active" : ""
+                      }`}
                       onClick={() => toggleFiltro("rejeitadas")}
                       title="Mostrar somente rejeitadas"
                     >
-                      <strong>Rejeitadas:</strong> {resumoNotas.rejeitadas}
+                      <strong>Rejeitadas:</strong>{" "}
+                      {resumoNotas.rejeitadas}
+                    </button>
+                  )}
+
+                  {resumoNotas.canceladas > 0 &&
+                  (
+                    <button
+                      type="button"
+                      className={`consultas-resumo__item  ${filtroResumo === "canceladas" ? "is-active" : ""}`}
+                      onClick={() => toggleFiltro("canceladas")}
+                      title="Mostrar somente Canceladas"
+                    >
+                      <strong>Canceladas:</strong>
+                      {resumoNotas.canceladas}
                     </button>
                   )}
                 </div>
@@ -1855,8 +2028,11 @@ export default function Consultas() {
             {hasRejected && (
               <div className="consultas-rejeitadas">
                 <div className="consultas-rejeitadas__text">
-                  <strong>Atenção:</strong> encontramos <strong>{rejectedRows.length}</strong> item(ns) rejeitado(s).{" "}
-                  <span className="consultas-rejeitadas__sub">Baixe o relatório para o time conferir e corrigir.</span>
+                  <strong>Atenção:</strong> encontramos{" "}
+                  <strong>{rejectedRows.length}</strong> item(ns) rejeitado(s).{" "}
+                  <span className="consultas-rejeitadas__sub">
+                    Baixe o relatório para o time conferir e corrigir.
+                  </span>
                 </div>
 
                 <button
@@ -1890,53 +2066,64 @@ export default function Consultas() {
               </thead>
 
               <tbody>
-                {isModoFaturaUI ? (
-                  toArray(faturas)
-                    .map((f) => {
-                      const notasFiltradas = toArray(f?.notas).filter(aplicaFiltroNota);
-                      return { ...f, notas: notasFiltradas };
-                    })
-                    .filter((f) => toArray(f?.notas).length > 0)
-                    .map((f) => (
-                      <LinhaFatura
-                        key={f.id}
-                        fatura={f}
-                        isOpen={expandedFat.has(f.id)}
-                        onToggle={() =>
-                          setExpandedFat((p) => {
-                            const n = new Set(p);
-                            n.has(f.id) ? n.delete(f.id) : n.add(f.id);
-                            return n;
-                          })
-                        }
-                        onBaixarTodas={() => handleDownload(f, "fatura")}
-                        onBaixarUma={(n) => handleDownload(n, "individual")}
-                        baixandoAll={!!baixandoAll[String(f?.id || f?.numero || f?.fatura || "")]}
-                        onCancelarTodas={() => openModalCancel(f, "fatura_all")}
-                        onCancelarUma={(n) => openModalCancel(n, "individual")}
-                        cancelandoAll={!!cancelandoAll[f.id]}
-                        onTratarErro={openTratarErro}
-                      />
-                    ))
-                ) : (
-                  toArray(dados)
-                    .filter(aplicaFiltroNota)
-                    .map((item) => (
-                      <LinhaNota
-                        key={item.id}
-                        item={item}
-                        expanded={expanded}
-                        onToggle={(id) =>
-                          setExpanded((p) => {
-                            const n = new Set(p);
-                            n.has(id) ? n.delete(id) : n.add(id);
-                            return n;
-                          })
-                        }
-                        onOpenCancelar={(i) => openModalCancel(i, "individual")}
-                      />
-                    ))
-                )}
+                {isModoFaturaUI
+                  ? toArray(faturas)
+                      .map((f) => {
+                        const notasFiltradas = toArray(f?.notas).filter(
+                          aplicaFiltroNota,
+                        );
+                        return { ...f, notas: notasFiltradas };
+                      })
+                      .filter((f) => toArray(f?.notas).length > 0)
+                      .map((f) => (
+                        <LinhaFatura
+                          key={f.id}
+                          fatura={f}
+                          isOpen={expandedFat.has(f.id)}
+                          onToggle={() =>
+                            setExpandedFat((p) => {
+                              const n = new Set(p);
+                              n.has(f.id) ? n.delete(f.id) : n.add(f.id);
+                              return n;
+                            })
+                          }
+                          onBaixarTodas={() => handleDownload(f, "fatura")}
+                          onBaixarUma={(n) => handleDownload(n, "individual")}
+                          baixandoAll={
+                            !!baixandoAll[
+                              String(f?.id || f?.numero || f?.fatura || "")
+                            ]
+                          }
+                          onCancelarTodas={() =>
+                            openModalCancel(f, "fatura_all")
+                          }
+                          onCancelarUma={(n) =>
+                            openModalCancel(n, "individual")
+                          }
+                          cancelandoAll={!!cancelandoAll[f.id]}
+                          onTratarErro={openTratarErro}
+                          filtroResumo={filtroResumo}
+                        />
+                      ))
+                  : toArray(dados)
+                      .filter(aplicaFiltroNota)
+                      .map((item) => (
+                        <LinhaNota
+                          key={item.id}
+                          item={item}
+                          expanded={expanded}
+                          onToggle={(id) =>
+                            setExpanded((p) => {
+                              const n = new Set(p);
+                              n.has(id) ? n.delete(id) : n.add(id);
+                              return n;
+                            })
+                          }
+                          onOpenCancelar={(i) =>
+                            openModalCancel(i, "individual")
+                          }
+                        />
+                      ))}
               </tbody>
             </table>
           </div>
@@ -1951,7 +2138,9 @@ export default function Consultas() {
           variant="danger"
           loading={modalLoading}
           onConfirm={onConfirmCancel}
-          onClose={() => !modalLoading && setModal((m) => ({ ...m, open: false }))}
+          onClose={() =>
+            !modalLoading && setModal((m) => ({ ...m, open: false }))
+          }
           confirmDisabled={!modal.sistema || modal.motivo.trim().length < 5}
         >
           <select
@@ -1961,7 +2150,9 @@ export default function Consultas() {
             disabled={modal.opcoes?.length === 1}
           >
             <option value="">
-              {modal.opcoes?.length === 1 ? "Sistema selecionado" : "Selecione o sistema..."}
+              {modal.opcoes?.length === 1
+                ? "Sistema selecionado"
+                : "Selecione o sistema..."}
             </option>
             {modal.opcoes.map((o) => (
               <option key={o} value={o}>
@@ -1988,11 +2179,20 @@ export default function Consultas() {
           variant="primary"
           loading={reemitindo}
           onConfirm={onConfirmReemitir}
-          onClose={() => !reemitindo && setTratarModal({ open: false, nota: null, cep: "" })}
+          onClose={() =>
+            !reemitindo && setTratarModal({ open: false, nota: null, cep: "" })
+          }
           confirmDisabled={normalizeCepDigits(tratarModal.cep).length !== 8}
         >
           <div style={{ marginTop: 12 }}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 700,
+                marginBottom: 6,
+              }}
+            >
               CEP do tomador
             </label>
             <input
@@ -2001,14 +2201,17 @@ export default function Consultas() {
               onChange={(e) =>
                 setTratarModal((p) => ({
                   ...p,
-                  cep: formatCep(e.target.value)
+                  cep: formatCep(e.target.value),
                 }))
               }
               placeholder="00000-000"
               inputMode="numeric"
             />
             <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
-              Emitente: <strong>{fixBrokenLatin(getEmitenteRazao(tratarModal.nota)) || "—"}</strong>
+              Emitente:{" "}
+              <strong>
+                {fixBrokenLatin(getEmitenteRazao(tratarModal.nota)) || "—"}
+              </strong>
             </div>
           </div>
         </ModalConfirm>
