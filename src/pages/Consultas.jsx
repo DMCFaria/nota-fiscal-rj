@@ -121,7 +121,7 @@ function isNotaCanceladas(nota) {
 function isNotaConcluida(nota) {
   if (!nota) return false;
   if (isNotaCancelada(nota)) return false;
-  if (isNotaReject(nota)) return false;
+  if (isNotaReject(nota)) return true;
 
   const st = normalizeStr(nota?.status).toLowerCase();
   const sit = normalizeStr(nota?.situacao_prefeitura).toLowerCase();
@@ -1630,7 +1630,7 @@ export default function Consultas() {
       if (isFatura) {
         const notas = toArray(item?.notas).filter((n) => !isNotaCancelada(n));
         const baixaveis = notas.filter(isNotaBaixavel);
-
+        console.log(baixaveis)
         if (!baixaveis.length) {
           enqueueSnackbar(
             "Nenhuma nota concluída ativa disponível para download.",
