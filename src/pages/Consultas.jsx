@@ -1441,7 +1441,6 @@ export default function Consultas() {
 
   const resumoNotas = useMemo(() => {
     const notasVisiveis = [];
-    console.log(notasVisiveis);
     if (tipoBusca === "fatura" || tipoBusca === "nota") {
       for (const fat of toArray(faturas)) {
         for (const n of toArray(fat?.notas)) {
@@ -1630,7 +1629,6 @@ export default function Consultas() {
       if (isFatura) {
         const notas = toArray(item?.notas).filter((n) => !isNotaCancelada(n));
         const baixaveis = notas.filter(isNotaBaixavel);
-        console.log(baixaveis)
         if (!baixaveis.length) {
           enqueueSnackbar(
             "Nenhuma nota concluída ativa disponível para download.",
