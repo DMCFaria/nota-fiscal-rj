@@ -1676,8 +1676,8 @@ export default function Consultas() {
 
         const fallbackName =
           ext === "zip"
-            ? `NFSE_FATURA_${safeFat}.zip`
-            : `NFSE_FATURA${safeFat}.pdf`;
+            ? `NF_FATURA_${safeFat}.zip`
+            : `NF_FATURA_${safeFat}.pdf`;
 
         const filename = fromHeader || fallbackName;
 
