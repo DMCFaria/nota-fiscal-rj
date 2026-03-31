@@ -296,21 +296,6 @@ export default function EmissaoPorRps() {
                     Formato: CNPJ,Nome,Email,Valor,Descrição,Código,Cep,Logradouro,Número,Bairro,Cidade,UF
                   </div> */}
                 </div>
-
-                {isCondomed && (
-                  <div className="fc-input-group">
-                    <label className="fc-input-label">Código de Serviço Padrão</label>
-                    <select
-                      className="fc-input fc-select"
-                      value={codigoServico}
-                      onChange={(e) => setCodigoServico(e.target.value)}
-                    >
-                      <option value="170901">Cód. 170901</option>
-                      <option value="170902">Cód. 170902</option>
-                      <option value="040301">Cód. 040301</option>
-                    </select>
-                  </div>
-                )}
               </div>
 
               {/* <div className="fc-input-group">
