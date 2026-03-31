@@ -288,7 +288,6 @@ export default function EmissaoPorRps() {
                   </label>
                   <input
                     type="file"
-                    accept=".csv,.txt"
                     className="fc-input fc-input--grow"
                     onChange={(e) => setArquivo(e.target.files?.[0] || null)}
                   />
