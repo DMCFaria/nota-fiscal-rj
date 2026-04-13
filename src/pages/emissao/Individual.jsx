@@ -634,31 +634,31 @@ export default function EmissaoIndividual() {
                   </div>
                 )}
 
-                <div className="fc-input-group">
-                  <label className="fc-input-label">ISS Retido?</label>
-                  <div className="fc-radio-group">
-                    <label className="fc-radio">
-                      <input
-                        type="radio"
-                        name="issRetido"
-                        value="sim"
-                        checked={valores.issRetido === "sim"}
-                        onChange={(e) => setValores(prev => ({ ...prev, issRetido: e.target.value }))}
-                      />
-                      <span>Sim</span>
-                    </label>
-                    <label className="fc-radio">
-                      <input
-                        type="radio"
-                        name="issRetido"
-                        value="nao"
-                        checked={valores.issRetido === "nao"}
-                        onChange={(e) => setValores(prev => ({ ...prev, issRetido: e.target.value }))}
-                      />
-                      <span>Não</span>
-                    </label>
-                  </div>
+              <div className="fc-input-group">
+                <label className="fc-input-label">ISS Retido?</label>
+                <div className="fc-radio-group">
+                  <label className="fc-radio">
+                    <input
+                      type="radio"
+                      name="issRetido"
+                      value="sim"
+                      checked={valores.issRetido === "sim"}
+                      onChange={(e) => setValores(prev => ({ ...prev, issRetido: e.target.value }))}
+                    />
+                    <span>Sim</span>
+                  </label>
+                  <label className="fc-radio">
+                    <input
+                      type="radio"
+                      name="issRetido"
+                      value="nao"
+                      checked={valores.issRetido === "nao"}
+                      onChange={(e) => setValores(prev => ({ ...prev, issRetido: e.target.value }))}
+                    />
+                    <span>Não</span>
+                  </label>
                 </div>
+              </div>
               </div>
 
               <button

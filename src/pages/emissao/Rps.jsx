@@ -12,8 +12,8 @@ import { FaRegFile } from "react-icons/fa";
 export default function EmissaoPorRps() {
   const [empresa, setEmpresa] = useState("");
   const [arquivo, setArquivo] = useState(null);
-  const [observacao, setObservacao] = useState("");
-  const [codigoServico, setCodigoServico] = useState("170901");
+  // const [observacao, setObservacao] = useState("");
+  // const [codigoServico, setCodigoServico] = useState("170901");
 
   const [preview, setPreview] = useState(null);
   const [logs, setLogs] = useState([]);
@@ -23,6 +23,8 @@ export default function EmissaoPorRps() {
   const [progresso, setProgresso] = useState(0);
 
   const { enqueueSnackbar } = useSnackbar();
+
+  console.log("preview", preview)
 
   // Precisa ter empresa e arquivo para gerar
   const podeGerar = useMemo(() => {
@@ -188,7 +190,7 @@ export default function EmissaoPorRps() {
         // Limpa o formulário após sucesso
         setTimeout(() => {
           setArquivo(null);
-          setObservacao("");
+          // setObservacao("");
           setPreview(null);
           setProgresso(0);
         }, 2000);
@@ -354,9 +356,9 @@ export default function EmissaoPorRps() {
               <div className="fc-preview">
                 <div className="fc-preview-header">
                   <h2 className="fc-preview-title">Conferência de Dados</h2>
-                  <div className="fc-preview-badge">
+                  {/* <div className="fc-preview-badge">
                     {preview.length} {preview.length === 1 ? 'NOTA' : 'NOTAS'}
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="fc-grid">
