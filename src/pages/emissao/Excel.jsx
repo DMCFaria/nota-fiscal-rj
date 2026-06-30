@@ -11,6 +11,8 @@ const statusMap = {
   concluido: { label: "Concluído", icon: FiCheckCircle, className: "status-concluido" },
   concluído: { label: "Concluído", icon: FiCheckCircle, className: "status-concluido" },
   erro: { label: "Erro", icon: FiAlertCircle, className: "status-erro" },
+  erro_autorizacao: { label: "Erro Autorização", icon: FiAlertCircle, className: "status-erro" },
+  erro_autorização: { label: "Erro Autorização", icon: FiAlertCircle, className: "status-erro" },
 };
 
 const normalizarStatus = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
