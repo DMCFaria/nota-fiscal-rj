@@ -9,8 +9,11 @@ const statusMap = {
   pendente: { label: "Pendente", icon: FiClock, className: "status-pendente" },
   processando: { label: "Processando", icon: FiAlertCircle, className: "status-processando" },
   concluido: { label: "Concluído", icon: FiCheckCircle, className: "status-concluido" },
+  concluído: { label: "Concluído", icon: FiCheckCircle, className: "status-concluido" },
   erro: { label: "Erro", icon: FiAlertCircle, className: "status-erro" },
 };
+
+const normalizarStatus = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 export default function ImportacaoExcel() {
   const { enqueueSnackbar } = useSnackbar();
@@ -86,7 +89,7 @@ export default function ImportacaoExcel() {
     }
 
     if (filtroStatus) {
-      items = items.filter(item => (item.status || "").toLowerCase() === filtroStatus.toLowerCase());
+      items = items.filter(item => normalizarStatus(item.status) === filtroStatus);
     }
 
     return items;
@@ -241,8 +244,9 @@ export default function ImportacaoExcel() {
                 </thead>
                 <tbody>
                   {notasFiltradas.map((item, idx) => {
-                    const StatusIcon = statusMap[item.status]?.icon || FiClock;
-                    const statusClass = statusMap[item.status]?.className || "status-pendente";
+                    const st = normalizarStatus(item.status);
+                    const StatusIcon = (statusMap[item.status] || statusMap[st])?.icon || FiClock;
+                    const statusClass = (statusMap[item.status] || statusMap[st])?.className || "status-pendente";
                     const valor = parseFloat(item.valor_servico) || 0;
                     return (
                       <tr key={item.id || idx} className="excel-table-row">
@@ -265,7 +269,7 @@ export default function ImportacaoExcel() {
                         <td>
                           <span className={`excel-status-badge ${statusClass}`}>
                             <StatusIcon size={12} />
-                            {statusMap[item.status]?.label || item.status || "Desconhecido"}
+                            {(statusMap[item.status] || statusMap[st])?.label || item.status || "Desconhecido"}
                           </span>
                         </td>
                       </tr>
