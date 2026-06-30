@@ -31,7 +31,7 @@ function Breadcrumb({ onMenuClick, sidebarOpen, isMobile }) {
     '/': 'Home',
     '/emitir': 'Opções de Emissão',
     '/emitir/fatura': 'Fatura',
-    '/emitir/rps': 'RPS',
+    '/emitir/excel': 'EXCEL',
     '/emitir/individual': 'Individual',
     '/consultas': 'Consultas',
     '/historico': 'Histórico',

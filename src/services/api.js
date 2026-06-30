@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://fedcorp-nfs-e-django-ebh2e.ondigitalocean.app"
-//   baseURL: "http://localhost:8000"
+    // baseURL: "https://fedcorp-nfs-e-django-ebh2e.ondigitalocean.app"
+    baseURL: "http://localhost:8000"
 });
 
 // No seu arquivo api.js ou authService.js
@@ -26,7 +26,7 @@ api.interceptors.response.use(
             try {
                 const { access } = await authService.refreshToken();
                 localStorage.setItem("accessToken", access);
-                
+
                 // Refaz a requisição original com o novo token
                 originalRequest.headers.Authorization = `Bearer ${access}`;
                 return api(originalRequest);

@@ -20,10 +20,10 @@ export default function Emitir() {
           <p>Emissão individual</p>
         </div>
 
-        <div className="opcao-card" onClick={() => navigate("/emitir/rps")}>
-          <span className="opcao-icon">📋</span>
-          <h3>RPS</h3>
-          <p>Emissão de RPS</p>
+        <div className="opcao-card" onClick={() => navigate("/emitir/excel")}>
+          <span className="opcao-icon">📊</span>
+          <h3>Excel</h3>
+          <p>Importação de planilha</p>
         </div>
       </div>
     </div>

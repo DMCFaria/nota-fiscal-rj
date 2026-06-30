@@ -52,7 +52,7 @@ function Sidebar({ isOpen, onClose }) {
               className="logo-mobile"
             />
           </Link>
-          
+
           {/* Botão de fechar no mobile */}
           {isMobile && (
             <button className="close-sidebar" onClick={onClose}>
@@ -84,18 +84,18 @@ function Sidebar({ isOpen, onClose }) {
               <Link to="/emitir/fatura" className={isActive("/emitir/fatura")} onClick={handleLinkClick}>
                 Fatura
               </Link>
-              <Link to="/emitir/rps" className={isActive("/emitir/rps")} onClick={handleLinkClick}>
-                  RPS
-                </Link>
+              <Link to="/emitir/excel" className={isActive("/emitir/excel")} onClick={handleLinkClick}>
+                Excel
+              </Link>
               {["adm", "dev"].includes(nivelAcesso) && (
                 <>
-                <Link to="/emitir/individual" className={isActive("/emitir/individual")} onClick={handleLinkClick}>
-                  Individual
-                </Link>
-                
-               </>
+                  <Link to="/emitir/individual" className={isActive("/emitir/individual")} onClick={handleLinkClick}>
+                    Individual
+                  </Link>
+
+                </>
               )}
-             
+
             </div>
           )}
         </div>
@@ -104,7 +104,7 @@ function Sidebar({ isOpen, onClose }) {
         <Link to="/consultas" className={isActive("/consultas")} onClick={handleLinkClick}>
           <FiSearch className="icon" /> Consultar
         </Link>
-              
+
         {/* Histórico (apenas para adm/dev) */}
         {["adm", "dev"].includes(nivelAcesso) && (
           <Link to="/historico" className={isActive("/historico")} onClick={handleLinkClick}>
