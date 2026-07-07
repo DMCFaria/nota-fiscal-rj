@@ -43,8 +43,8 @@ export default function EmissaoPorFatura() {
     const timestamp = new Date().toLocaleTimeString();
     const tipoPrefix =
       tipo === "erro" ? "❌ ERRO" :
-      tipo === "sucesso" ? "✅ SUCESSO" :
-      tipo === "alerta" ? "⚠️ ALERTA" : "ℹ️ INFO";
+        tipo === "sucesso" ? "✅ SUCESSO" :
+          tipo === "alerta" ? "⚠️ ALERTA" : "ℹ️ INFO";
 
     setLogs((prev) => [...prev, `[${timestamp}] ${tipoPrefix}: ${msg}`].slice(-200));
   }, []);
@@ -188,20 +188,18 @@ export default function EmissaoPorFatura() {
 
     mostrarInfo("Iniciando emissão da nota fiscal...");
 
-  const notaFinal = preview.map(nota => ({
-    ...nota,
-    fatura_numero: fatura
-  }))
+    const notaFinal = preview.map(nota => ({
+      ...nota,
+      fatura_numero: fatura,
+      tipo_nfe: tipoFatura === "vr" ? "vr" : "comum"
+    }))
 
-  console.log("preview", preview)
-  console.log("notaFinal", notaFinal)
-
-  try {
-      let res;    
+    try {
+      let res;
       res = await iniciarEmissao2(notaFinal);
 
       // let boleto = await processarBoletoSantander(fatura);
-    
+
       if (res.status === "sucesso") {
         setProgresso(100);
         mostrarSucesso("Lote enviado com sucesso! Acompanhe o status das notas no setor de consultas.");
@@ -210,7 +208,7 @@ export default function EmissaoPorFatura() {
 
         setTimeout(() => {
           setFatura("");
-          setTipoFatura("normal"); 
+          setTipoFatura("normal");
           setObservacao("");
           setPreview(null);
           setProgresso(0);
@@ -278,7 +276,7 @@ export default function EmissaoPorFatura() {
       subtitle="Preencha todos os campos obrigatórios para gerar a prévia da nota fiscal"
       icon={<FaFileInvoiceDollar />}
       className="consulta-comercial-page"
-      >
+    >
       <div className="fc-page">
         <div className="fc-card">
           {/* <header className="fc-header">
@@ -332,21 +330,6 @@ export default function EmissaoPorFatura() {
                     <option value="vr">Fatura VR</option>
                   </select>
                 </div>
-
-                {isCondomed && (
-                  <div className="fc-input-group">
-                    <label className="fc-input-label">Código de Serviço</label>
-                    <select
-                      className="fc-input fc-select"
-                      value={codigoServico}
-                      onChange={(e) => setCodigoServico(e.target.value)}
-                    >
-                      <option value="170901">Cód. 170901</option>
-                      <option value="170902">Cód. 170902</option>
-                      <option value="040301">Cód. 040301</option>
-                    </select>
-                  </div>
-                )}
               </div>
 
               <div className="fc-input-group">
@@ -413,7 +396,7 @@ export default function EmissaoPorFatura() {
 
                   <div className="fc-metric">
                     <span className="fc-label">Código de Serviço</span>
-                    <p className="fc-value">{preview[0].servico[0].codigo}</p>
+                    <p className="fc-value">Automático</p>
                   </div>
 
                   <div className="fc-grid-span" />
