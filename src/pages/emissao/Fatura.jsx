@@ -191,7 +191,8 @@ export default function EmissaoPorFatura() {
     const notaFinal = preview.map(nota => ({
       ...nota,
       fatura_numero: fatura,
-      tipo_nfe: tipoFatura === "vr" ? "vr" : "comum"
+      tipo_nfe: tipoFatura === "vr" ? "vr" : "comum",
+      codigo: codigoServico
     }))
 
     try {
@@ -257,6 +258,12 @@ export default function EmissaoPorFatura() {
   }, [mostrarErro, mostrarInfo]);
 
   const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
+
+  useEffect(() => {
+    if (isCondomed && !["2119", "3039"].includes(codigoServico)) {
+      setCodigoServico("2119");
+    }
+  }, [isCondomed]);
 
   const gerarBtnClass = useMemo(() => {
     const base = "fc-btn fc-btn--primary fc-btn--full";
@@ -330,7 +337,20 @@ export default function EmissaoPorFatura() {
                     <option value="vr">Fatura VR</option>
                   </select>
                 </div>
+                {isCondomed && <div className="fc-input-group fc-input-group--narrow">
+                  <label className="fc-input-label">Cód. de Serviço</label>
+                  <select
+                    className="fc-input fc-select"
+                    value={codigoServico}
+                    onChange={(e) => setCodigoServico(e.target.value)}
+                    disabled={loadingGerar || loadingEmitir}
+                  >
+                    <option value="2119">02119</option>
+                    <option value="3039">03093</option>
+                  </select>
+                </div>}
               </div>
+                    
 
               <div className="fc-input-group">
                 <textarea
