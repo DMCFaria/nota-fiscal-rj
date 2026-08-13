@@ -1205,6 +1205,7 @@ export default function Consultas() {
     cep: "",
     tomador_codigo: "",
     buscandoIbge: false,
+    ibgeManual: false,
   });
   const [reemitindo, setReemitindo] = useState(false);
 
@@ -1876,6 +1877,7 @@ export default function Consultas() {
       cep: "",
       tomador_codigo: "",
       buscandoIbge: false,
+      ibgeManual: false,
     });
   }, []);
 
@@ -1889,8 +1891,9 @@ export default function Consultas() {
         const info = await buscarIbgePorCep(cepDigits);
 
         setTratarModal((p) => {
-          // Evita sobrescrever se o usuário já mudou o CEP enquanto buscava
-          if (normalizeCepDigits(p.cep) !== cepDigits) {
+          // Não sobrescreve se o usuário mudou o CEP ou editou o IBGE
+          // manualmente enquanto a busca estava em andamento
+          if (normalizeCepDigits(p.cep) !== cepDigits || p.ibgeManual) {
             return { ...p, buscandoIbge: false };
           }
           return {
@@ -1918,7 +1921,8 @@ export default function Consultas() {
   const onTratarCepChange = useCallback(
     (value) => {
       const cepFmt = formatCep(value);
-      setTratarModal((p) => ({ ...p, cep: cepFmt }));
+      // CEP novo libera o preenchimento automático do IBGE novamente
+      setTratarModal((p) => ({ ...p, cep: cepFmt, ibgeManual: false }));
 
       const digits = normalizeCepDigits(cepFmt);
       if (digits.length === 8) {
@@ -1946,6 +1950,7 @@ export default function Consultas() {
       cep: cepFmt,
       tomador_codigo: tomadorCodigo,
       buscandoIbge: false,
+      ibgeManual: false,
     });
 
     // Já busca o código IBGE do CEP encontrado para agilizar o tratamento
@@ -2330,6 +2335,7 @@ export default function Consultas() {
                 setTratarModal((p) => ({
                   ...p,
                   tomador_codigo: normalizeIbgeDigits(e.target.value),
+                  ibgeManual: true,
                 }))
               }
               placeholder={
@@ -2339,7 +2345,6 @@ export default function Consultas() {
               }
               inputMode="numeric"
               maxLength={7}
-              disabled={tratarModal.buscandoIbge}
             />
             {tratarModal.buscandoIbge && (
               <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
