@@ -129,6 +129,9 @@ export const reemitirNota = async (payload) => {
       cep: String(payload?.cep || "")
         .replace(/\D/g, "")
         .slice(0, 8),
+      tomador_codigo: String(payload?.tomador_codigo || "")
+        .replace(/\D/g, "")
+        .slice(0, 7),
     });
 
     return response.data;
@@ -136,4 +139,31 @@ export const reemitirNota = async (payload) => {
     console.error("Erro ao reemitir nota:", error);
     throw error;
   }
+};
+
+export const buscarIbgePorCep = async (cep) => {
+  const cepDigits = String(cep || "")
+    .replace(/\D/g, "")
+    .slice(0, 8);
+
+  if (cepDigits.length !== 8) return null;
+
+  try {
+    const { data } = await axios.get(
+      `https://viacep.com.br/ws/${cepDigits}/json/`,
+      { timeout: 10000 },
+    );
+
+    if (data && !data.erro && data.ibge) {
+      return {
+        ibge: String(data.ibge),
+        cidade: data.localidade || "",
+        uf: data.uf || "",
+      };
+    }
+  } catch (error) {
+    console.error("Erro ao buscar IBGE pelo CEP:", error);
+  }
+
+  return null;
 };

@@ -17,6 +17,7 @@ import {
   getNotaPorID,
   reemitirNota,
   sincronizarNotas,
+  buscarIbgePorCep,
 } from "../services/notas";
 import { fixBrokenLatin } from "../utils/normalizacao_textual";
 import "../styles/consultas.css";
@@ -553,6 +554,40 @@ function getCepFromNota(nota) {
   }
 
   return cep;
+}
+
+function normalizeIbgeDigits(v) {
+  return String(v || "")
+    .replace(/\D/g, "")
+    .slice(0, 7);
+}
+
+function getTomadorCodigoFromNota(nota) {
+  if (!nota) return "";
+
+  const candidates = [
+    nota?.tomador_codigo,
+    nota?.tomadorCodigo,
+    nota?.codigo_municipio_tomador,
+    nota?.tomador?.codigo,
+    nota?.tomador?.codigo_municipio,
+    nota?.tomador?.codigoMunicipio,
+    nota?.tomador?.endereco?.codigoCidade,
+    nota?.tomador?.endereco?.codigo_cidade,
+    nota?.tomador?.endereco?.codigoMunicipio,
+    nota?.dados?.tomador_codigo,
+    nota?.dados?.tomador?.endereco?.codigoCidade,
+    nota?.nfse?.tomador_codigo,
+    nota?.nfse?.tomador?.endereco?.codigoCidade,
+    nota?.payload?.tomador_codigo,
+  ];
+
+  for (const c of candidates) {
+    const digits = normalizeIbgeDigits(c);
+    if (digits) return digits;
+  }
+
+  return "";
 }
 
 function getFilenameFromContentDisposition(cd) {
@@ -1168,6 +1203,8 @@ export default function Consultas() {
     open: false,
     nota: null,
     cep: "",
+    tomador_codigo: "",
+    buscandoIbge: false,
   });
   const [reemitindo, setReemitindo] = useState(false);
 
@@ -1832,9 +1869,69 @@ export default function Consultas() {
     }
   };
 
+  const fecharTratarModal = useCallback(() => {
+    setTratarModal({
+      open: false,
+      nota: null,
+      cep: "",
+      tomador_codigo: "",
+      buscandoIbge: false,
+    });
+  }, []);
+
+  const buscarIbgeParaModal = useCallback(
+    async (cepDigits) => {
+      if (cepDigits.length !== 8) return;
+
+      setTratarModal((p) => ({ ...p, buscandoIbge: true }));
+
+      try {
+        const info = await buscarIbgePorCep(cepDigits);
+
+        setTratarModal((p) => {
+          // Evita sobrescrever se o usuário já mudou o CEP enquanto buscava
+          if (normalizeCepDigits(p.cep) !== cepDigits) {
+            return { ...p, buscandoIbge: false };
+          }
+          return {
+            ...p,
+            buscandoIbge: false,
+            tomador_codigo: info?.ibge
+              ? normalizeIbgeDigits(info.ibge)
+              : p.tomador_codigo,
+          };
+        });
+
+        if (!info?.ibge) {
+          enqueueSnackbar(
+            "Não encontrei o código IBGE para este CEP. Informe manualmente.",
+            { variant: "warning" },
+          );
+        }
+      } catch {
+        setTratarModal((p) => ({ ...p, buscandoIbge: false }));
+      }
+    },
+    [enqueueSnackbar],
+  );
+
+  const onTratarCepChange = useCallback(
+    (value) => {
+      const cepFmt = formatCep(value);
+      setTratarModal((p) => ({ ...p, cep: cepFmt }));
+
+      const digits = normalizeCepDigits(cepFmt);
+      if (digits.length === 8) {
+        buscarIbgeParaModal(digits);
+      }
+    },
+    [buscarIbgeParaModal],
+  );
+
   const openTratarErro = (nota) => {
     const cepDigits = getCepFromNota(nota);
     const cepFmt = formatCep(cepDigits);
+    const tomadorCodigo = getTomadorCodigoFromNota(nota);
 
     if (!cepDigits) {
       enqueueSnackbar(
@@ -1847,7 +1944,14 @@ export default function Consultas() {
       open: true,
       nota,
       cep: cepFmt,
+      tomador_codigo: tomadorCodigo,
+      buscandoIbge: false,
     });
+
+    // Já busca o código IBGE do CEP encontrado para agilizar o tratamento
+    if (cepDigits.length === 8) {
+      buscarIbgeParaModal(cepDigits);
+    }
   };
 
   const onConfirmReemitir = async () => {
@@ -1856,6 +1960,7 @@ export default function Consultas() {
 
     const id_tecnospeed = String(getIdTecnospeed(nota) || "");
     const cepDigits = normalizeCepDigits(tratarModal.cep);
+    const tomadorCodigo = normalizeIbgeDigits(tratarModal.tomador_codigo);
 
     //if (!id_tecnospeed) {
     // enqueueSnackbar("Não encontrei o id_tecnospeed dessa nota.", { variant: "error" });
@@ -1869,18 +1974,26 @@ export default function Consultas() {
       return;
     }
 
+    if (tratarModal.tomador_codigo && !tomadorCodigo) {
+      enqueueSnackbar("O código IBGE deve conter apenas números.", {
+        variant: "warning",
+      });
+      return;
+    }
+
     setReemitindo(true);
     try {
       await reemitirNota({
         id_integracao: getIdIntegracao(nota),
         //id_tecnospeed: getIdTecnospeed(nota),
         cep: cepDigits,
+        tomador_codigo: tomadorCodigo,
       });
 
       enqueueSnackbar("Reemissão solicitada com sucesso!", {
         variant: "success",
       });
-      setTratarModal({ open: false, nota: null, cep: "" });
+      fecharTratarModal();
       await realizarBusca();
     } catch (e) {
       enqueueSnackbar(getFriendlyApiErrorMessage(e), { variant: "error" });
@@ -2171,15 +2284,13 @@ export default function Consultas() {
         <ModalConfirm
           open={tratarModal.open}
           title="Tratar erro da nota"
-          description="Ajuste o CEP do tomador e reemita a nota."
+          description="Ajuste o CEP e o código IBGE do tomador e reemita a nota."
           confirmLabel="Reemitir"
           cancelLabel="Voltar"
           variant="primary"
           loading={reemitindo}
           onConfirm={onConfirmReemitir}
-          onClose={() =>
-            !reemitindo && setTratarModal({ open: false, nota: null, cep: "" })
-          }
+          onClose={() => !reemitindo && fecharTratarModal()}
           confirmDisabled={normalizeCepDigits(tratarModal.cep).length !== 8}
         >
           <div style={{ marginTop: 12 }}>
@@ -2196,15 +2307,46 @@ export default function Consultas() {
             <input
               className="select"
               value={tratarModal.cep}
-              onChange={(e) =>
-                setTratarModal((p) => ({
-                  ...p,
-                  cep: formatCep(e.target.value),
-                }))
-              }
+              onChange={(e) => onTratarCepChange(e.target.value)}
               placeholder="00000-000"
               inputMode="numeric"
             />
+
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 700,
+                marginBottom: 6,
+                marginTop: 12,
+              }}
+            >
+              Código IBGE do tomador
+            </label>
+            <input
+              className="select"
+              value={tratarModal.tomador_codigo}
+              onChange={(e) =>
+                setTratarModal((p) => ({
+                  ...p,
+                  tomador_codigo: normalizeIbgeDigits(e.target.value),
+                }))
+              }
+              placeholder={
+                tratarModal.buscandoIbge
+                  ? "Buscando código IBGE..."
+                  : "Ex: 3304557"
+              }
+              inputMode="numeric"
+              maxLength={7}
+              disabled={tratarModal.buscandoIbge}
+            />
+            {tratarModal.buscandoIbge && (
+              <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
+                Buscando código IBGE pelo CEP...
+              </div>
+            )}
+
             <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
               Emitente:{" "}
               <strong>
