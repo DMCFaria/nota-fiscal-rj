@@ -1,5 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
-import EmpresaSelect from "../../components/EmpresaSelect/EmpresaSelect";
+import { useMemo, useState, useCallback } from "react";
 import LogEmissao from "../../components/LogEmissao/LogEmissao";
 import {
   getNfsePreview,
@@ -7,13 +6,11 @@ import {
 } from "../../services/nfseService";
 import "../../styles/emissao.css";
 import { useSnackbar } from "notistack";
-import { getEmpresas } from "../../services/empresas";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
 import PageTemplate from "../../components/PageTemplate/PageTemplate";
 import { FaFileInvoiceDollar } from "react-icons/fa";
 
 export default function EmissaoPorFatura() {
-  const [empresa, setEmpresa] = useState("");
   const [fatura, setFatura] = useState("");
 
   const [tipoFatura, setTipoFatura] = useState("normal");
@@ -22,17 +19,18 @@ export default function EmissaoPorFatura() {
   const [codigoServico, setCodigoServico] = useState("170901");
 
   const [preview, setPreview] = useState(null);
+  // Emissor identificado pelo backend via cedente da fatura (FedHub)
+  const [emissor, setEmissor] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
-  const [empresaData, setEmpresaData] = useState([]);
   const [progresso, setProgresso] = useState(0);
 
   const { enqueueSnackbar } = useSnackbar();
 
   const podeGerar = useMemo(() => {
-    return !!empresa && !!fatura.trim() && fatura.trim().length >= 6;
-  }, [empresa, fatura]);
+    return !!fatura.trim() && fatura.trim().length >= 6;
+  }, [fatura]);
 
   const podeEmitir = useMemo(
     () => !!preview && !loadingGerar && !loadingEmitir,
@@ -86,11 +84,6 @@ export default function EmissaoPorFatura() {
   const handleGerar = useCallback(async (e) => {
     e?.preventDefault();
 
-    if (!empresa) {
-      mostrarErro("Selecione uma empresa para continuar");
-      return;
-    }
-
     if (!fatura.trim()) {
       mostrarErro("Informe o número da fatura");
       return;
@@ -98,11 +91,6 @@ export default function EmissaoPorFatura() {
 
     if (fatura.trim().length < 6) {
       mostrarErro("O número da fatura deve ter pelo menos 6 dígitos");
-      return;
-    }
-
-    if (!empresa.CNPJ || !empresa.CEDENTE) {
-      mostrarErro("Dados da empresa incompletos. Selecione novamente.");
       return;
     }
 
@@ -116,11 +104,10 @@ export default function EmissaoPorFatura() {
       const isParcelada = tipoFatura === "parcelada";
       const isVr = tipoFatura === "vr";
 
+      // O emissor não é mais enviado: o backend identifica pelo cedente da fatura
       const payload = {
         protocolo_id: "NFSe_FAT_" + Date.now(),
         fatura_numero: fatura,
-        prestador_cnpj: empresa.CNPJ,
-        razaoSocial: empresa.CEDENTE,
         observacao: observacao.trim(),
         parcela: 1,
         codigo: codigoServico,
@@ -134,6 +121,16 @@ export default function EmissaoPorFatura() {
 
       if (response.sucesso) {
         setPreview(response.data);
+
+        const prestador = response.metadata?.prestador || response.data[0]?.prestador || null;
+        setEmissor(prestador);
+        if (prestador?.razaoSocial) {
+          pushLog(`Emissor identificado pela fatura: ${fixBrokenLatin(prestador.razaoSocial)} - ${prestador.cpfCnpj}`, "info");
+        }
+
+        const codigoRetornado = response.data[0]?.servico?.[0]?.codigo;
+        if (codigoRetornado) setCodigoServico(String(codigoRetornado));
+
         mostrarSucesso("Dados carregados com sucesso! Verifique abaixo antes de emitir.");
 
         pushLog(`Prévia gerada: ${response.data.length} nota(s) fiscal(is) encontrada(s)`, "sucesso");
@@ -148,7 +145,7 @@ export default function EmissaoPorFatura() {
         if (erroMsg.includes("fatura") && erroMsg.includes("não encontrada")) {
           mostrarErro(`Fatura ${fatura} não encontrada no sistema`);
         } else if (erroMsg.includes("CNPJ") || erroMsg.includes("prestador")) {
-          mostrarErro("Problema com os dados do prestador. Verifique a empresa selecionada.");
+          mostrarErro("Problema com os dados do prestador. Verifique a fatura informada.");
         } else if (erroMsg.includes("serviço") || erroMsg.includes("código")) {
           mostrarErro("Código de serviço inválido ou não configurado para esta empresa");
         } else {
@@ -158,7 +155,10 @@ export default function EmissaoPorFatura() {
     } catch (err) {
       let mensagemErro = "Erro ao conectar com o serviço";
 
-      if (err.message?.includes("Network Error") || err.message?.includes("timeout")) {
+      if (err.response?.status === 422 && err.response?.data?.error) {
+        // Backend não conseguiu identificar/validar o emissor pelo cedente da fatura
+        mensagemErro = err.response.data.error;
+      } else if (err.message?.includes("Network Error") || err.message?.includes("timeout")) {
         mensagemErro = "Falha na conexão com o servidor. Verifique sua internet e tente novamente.";
       } else if (err.response?.status === 500) {
         mensagemErro = "Erro interno do servidor. Tente novamente mais tarde.";
@@ -170,7 +170,7 @@ export default function EmissaoPorFatura() {
     } finally {
       setLoadingGerar(false);
     }
-  }, [empresa, fatura, observacao, codigoServico, tipoFatura, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
+  }, [fatura, observacao, codigoServico, tipoFatura, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
 
   const handleEmitir = useCallback(async () => {
     if (!preview) {
@@ -212,6 +212,8 @@ export default function EmissaoPorFatura() {
           setTipoFatura("normal");
           setObservacao("");
           setPreview(null);
+          setEmissor(null);
+          setCodigoServico("170901");
           setProgresso(0);
         }, 2000);
       } else {
@@ -244,26 +246,7 @@ export default function EmissaoPorFatura() {
     }
   }, [preview, fatura, tipoFatura, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
 
-  useEffect(() => {
-    const carregarEmpresas = async () => {
-      try {
-        const response = await getEmpresas();
-        setEmpresaData(response.data || []);
-      } catch (error) {
-        mostrarErro("Erro ao carregar empresas", error.message);
-        console.error("Erro ao carregar empresas:", error);
-      }
-    };
-    carregarEmpresas();
-  }, [mostrarErro, mostrarInfo]);
-
-  const isCondomed = empresa?.CEDENTE?.includes("CONDOMED");
-
-  useEffect(() => {
-    if (isCondomed && !["2119", "3039"].includes(codigoServico)) {
-      setCodigoServico("2119");
-    }
-  }, [isCondomed]);
+  const isCondomed = emissor?.razaoSocial?.toUpperCase().includes("CONDOMED");
 
   const gerarBtnClass = useMemo(() => {
     const base = "fc-btn fc-btn--primary fc-btn--full";
@@ -292,16 +275,6 @@ export default function EmissaoPorFatura() {
               Preencha todos os campos obrigatórios para gerar a prévia da nota fiscal
             </div>
           </header> */}
-
-          <section className="fc-section">
-            <EmpresaSelect
-              value={empresa}
-              onChange={setEmpresa}
-              empresas={empresaData}
-              label="Empresa *"
-              required
-            />
-          </section>
 
           <form onSubmit={handleGerar} className="fc-form">
             <h3 className="fc-form-title">Dados de Importação</h3>
@@ -342,7 +315,11 @@ export default function EmissaoPorFatura() {
                   <select
                     className="fc-input fc-select"
                     value={codigoServico}
-                    onChange={(e) => setCodigoServico(e.target.value)}
+                    onChange={(e) => {
+                      setCodigoServico(e.target.value);
+                      // Código muda o payload: exige gerar a prévia novamente
+                      setPreview(null);
+                    }}
                     disabled={loadingGerar || loadingEmitir}
                   >
                     <option value="2119">02119</option>
