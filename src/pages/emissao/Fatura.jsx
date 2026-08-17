@@ -21,6 +21,8 @@ export default function EmissaoPorFatura() {
   const [preview, setPreview] = useState(null);
   // Emissor identificado pelo backend via cedente da fatura (FedHub)
   const [emissor, setEmissor] = useState(null);
+  // Histórico de NFS-e já emitidas para a fatura (vem no metadata do preview)
+  const [nfseEmitidas, setNfseEmitidas] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
@@ -81,6 +83,15 @@ export default function EmissaoPorFatura() {
     pushLog(mensagem, "info");
   }, [enqueueSnackbar, pushLog]);
 
+  const mostrarAlerta = useCallback((mensagem) => {
+    enqueueSnackbar(mensagem, {
+      variant: "warning",
+      autoHideDuration: 6000,
+      anchorOrigin: { vertical: "top", horizontal: "right" }
+    });
+    pushLog(mensagem, "alerta");
+  }, [enqueueSnackbar, pushLog]);
+
   const handleGerar = useCallback(async (e) => {
     e?.preventDefault();
 
@@ -96,6 +107,7 @@ export default function EmissaoPorFatura() {
 
     setLoadingGerar(true);
     setPreview(null);
+    setNfseEmitidas(null);
     setProgresso(0);
 
     mostrarInfo(`Consultando dados da fatura #${fatura}...`);
@@ -130,6 +142,18 @@ export default function EmissaoPorFatura() {
 
         const codigoRetornado = response.data[0]?.servico?.[0]?.codigo;
         if (codigoRetornado) setCodigoServico(String(codigoRetornado));
+
+        const emitidas = response.metadata?.nfse_emitidas || null;
+        setNfseEmitidas(emitidas);
+        if (emitidas?.ja_emitida) {
+          mostrarAlerta(
+            `Atenção: esta fatura já possui ${emitidas.total_autorizadas} NFS-e emitida(s). Confira antes de emitir novamente.`
+          );
+        } else if (emitidas?.total_registros > 0) {
+          mostrarAlerta(
+            `Esta fatura já possui ${emitidas.total_registros} registro(s) de emissão em andamento ou com erro.`
+          );
+        }
 
         mostrarSucesso("Dados carregados com sucesso! Verifique abaixo antes de emitir.");
 
@@ -170,7 +194,7 @@ export default function EmissaoPorFatura() {
     } finally {
       setLoadingGerar(false);
     }
-  }, [fatura, observacao, codigoServico, tipoFatura, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
+  }, [fatura, observacao, codigoServico, tipoFatura, mostrarErro, mostrarInfo, mostrarSucesso, mostrarAlerta, pushLog]);
 
   const handleEmitir = useCallback(async () => {
     if (!preview) {
@@ -213,6 +237,7 @@ export default function EmissaoPorFatura() {
           setObservacao("");
           setPreview(null);
           setEmissor(null);
+          setNfseEmitidas(null);
           setCodigoServico("170901");
           setProgresso(0);
         }, 2000);
@@ -244,9 +269,28 @@ export default function EmissaoPorFatura() {
     } finally {
       setLoadingEmitir(false);
     }
-  }, [preview, fatura, tipoFatura, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
+  }, [preview, fatura, tipoFatura, codigoServico, mostrarErro, mostrarInfo, mostrarSucesso, pushLog]);
 
-  const isCondomed = emissor?.razaoSocial?.toUpperCase().includes("CONDOMED");
+  // CONDOMED ASSESSORIA (SP) é a única empresa com escolha de código de serviço
+  const isCondomedAssessoria =
+    (emissor?.cpfCnpj || "").replace(/\D/g, "") === "09551400000160" ||
+    (emissor?.razaoSocial || "").toUpperCase().includes("CONDOMED ASSESSORIA");
+
+  // Troca de código não exige nova prévia: atualiza o código nas notas já geradas,
+  // que é de onde o backend lê (servico[0].codigo) na emissão
+  const handleTrocarCodigo = useCallback((novoCodigo) => {
+    setCodigoServico(novoCodigo);
+    setPreview((prev) =>
+      prev
+        ? prev.map((nota) => ({
+          ...nota,
+          servico: nota.servico?.length
+            ? [{ ...nota.servico[0], codigo: novoCodigo }, ...nota.servico.slice(1)]
+            : nota.servico,
+        }))
+        : prev
+    );
+  }, []);
 
   const gerarBtnClass = useMemo(() => {
     const base = "fc-btn fc-btn--primary fc-btn--full";
@@ -310,24 +354,8 @@ export default function EmissaoPorFatura() {
                     <option value="vr">Fatura VR</option>
                   </select>
                 </div>
-                {isCondomed && <div className="fc-input-group fc-input-group--narrow">
-                  <label className="fc-input-label">Cód. de Serviço</label>
-                  <select
-                    className="fc-input fc-select"
-                    value={codigoServico}
-                    onChange={(e) => {
-                      setCodigoServico(e.target.value);
-                      // Código muda o payload: exige gerar a prévia novamente
-                      setPreview(null);
-                    }}
-                    disabled={loadingGerar || loadingEmitir}
-                  >
-                    <option value="2119">02119</option>
-                    <option value="3039">03093</option>
-                  </select>
-                </div>}
               </div>
-                    
+
 
               <div className="fc-input-group">
                 <textarea
@@ -378,6 +406,31 @@ export default function EmissaoPorFatura() {
                   <h2 className="fc-preview-title">Conferência de Dados</h2>
                 </div>
 
+                {nfseEmitidas?.total_registros > 0 && (
+                  <div className={`fc-alert ${nfseEmitidas.ja_emitida ? "fc-alert--warning" : "fc-alert--info"}`}>
+                    <strong>
+                      {nfseEmitidas.ja_emitida
+                        ? `⚠️ Esta fatura já possui ${nfseEmitidas.total_autorizadas} NFS-e emitida(s)!`
+                        : `ℹ️ Esta fatura já possui ${nfseEmitidas.total_registros} registro(s) de emissão (pendente/erro).`}
+                    </strong>
+                    <ul className="fc-alert-list">
+                      {nfseEmitidas.notas.slice(0, 5).map((n, i) => (
+                        <li key={i}>
+                          {n.numero_nfse ? `NFS-e nº ${n.numero_nfse}` : "Sem número"}
+                          {" · "}{(n.situacao_prefeitura || n.status || "—").toUpperCase()}
+                          {n.data_emissao_prefeitura || n.data_criacao
+                            ? ` · ${new Date(n.data_emissao_prefeitura || n.data_criacao).toLocaleDateString("pt-BR")}`
+                            : ""}
+                          {n.tomador ? ` · ${fixBrokenLatin(n.tomador)}` : ""}
+                        </li>
+                      ))}
+                      {nfseEmitidas.notas.length > 5 && (
+                        <li>… e mais {nfseEmitidas.notas.length - 5} registro(s)</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="fc-grid">
                   <div className="fc-metric">
                     <span className="fc-label">Valor Total:</span>
@@ -393,7 +446,19 @@ export default function EmissaoPorFatura() {
 
                   <div className="fc-metric">
                     <span className="fc-label">Código de Serviço</span>
-                    <p className="fc-value">Automático</p>
+                    {isCondomedAssessoria ? (
+                      <select
+                        className="fc-input fc-select"
+                        value={codigoServico}
+                        onChange={(e) => handleTrocarCodigo(e.target.value)}
+                        disabled={loadingGerar || loadingEmitir}
+                      >
+                        <option value="2119">02119</option>
+                        <option value="3093">03093</option>
+                      </select>
+                    ) : (
+                      <p className="fc-value">Automático</p>
+                    )}
                   </div>
 
                   <div className="fc-grid-span" />

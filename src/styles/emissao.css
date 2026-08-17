@@ -566,3 +566,33 @@ button {
   color: var(--color-primary);
   font-weight: 600;
 }
+
+/* Alerta de NFS-e já emitidas para a fatura (conferência de dados) */
+.fc-alert {
+  border-radius: var(--radius-md);
+  padding: 0.875rem 1rem;
+  margin-bottom: var(--fc-gap);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.fc-alert--warning {
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+}
+
+.fc-alert--info {
+  background: var(--color-primary-light);
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary-hover);
+}
+
+.fc-alert-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.fc-alert-list li {
+  margin-top: 0.125rem;
+}
