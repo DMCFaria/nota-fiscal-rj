@@ -4,6 +4,7 @@ import Login from "../login/Login";
 import ProtectedRoute from "./ProtectedRoute";
 import Home from "../pages/Home";
 import Fatura from "../pages/emissao/Fatura";
+import FaturaPlanilha from "../pages/emissao/FaturaPlanilha";
 import Individual from "../pages/emissao/Individual";
 import Excel from "../pages/emissao/Excel";
 import Consultas from "../pages/Consultas";
@@ -41,6 +42,7 @@ export const AppRoutes = () => {
         {/* Rotas de emissão */}
         <Route path="/emitir" element={<Emitir />} />
         <Route path="/emitir/fatura" element={<Fatura />} />
+        <Route path="/emitir/fatura-planilha" element={<FaturaPlanilha />} />
         <Route path="/emitir/individual" element={<Individual />} />
         <Route path="/emitir/excel" element={<Excel />} />
         

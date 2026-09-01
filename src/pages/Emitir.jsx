@@ -14,6 +14,12 @@ export default function Emitir() {
           <p>Emissão de faturas</p>
         </div>
 
+        <div className="opcao-card" onClick={() => navigate("/emitir/fatura-planilha")}>
+          <span className="opcao-icon">📋</span>
+          <h3>Fatura + Planilha</h3>
+          <p>Fatura com descrições por condômino via planilha</p>
+        </div>
+
         <div className="opcao-card" onClick={() => navigate("/emitir/individual")}>
           <span className="opcao-icon">👤</span>
           <h3>Individual</h3>

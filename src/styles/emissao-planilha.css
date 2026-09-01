@@ -1,0 +1,313 @@
+/* ============ Emissão · Fatura + Planilha (prefixo fpl-) ============ */
+
+/* Erro inline de label (usado também na tela Fatura, que referencia a classe) */
+.fc-input-error {
+  color: var(--color-danger, #ef4444);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---------- Dropzone ---------- */
+.fpl-dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  border: 2px dashed var(--color-border, #d1d5db);
+  border-radius: 12px;
+  background: var(--color-bg-tertiary, #f9fafb);
+  color: var(--color-text-secondary, #6b7280);
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  cursor: pointer;
+}
+
+.fpl-dropzone:hover {
+  border-color: var(--color-primary, #1d40a8);
+  background: #eff6ff;
+}
+
+.fpl-dropzone--active {
+  border-style: solid;
+  border-color: var(--color-success, #10b981);
+  background: #e8f7ee;
+  cursor: default;
+}
+
+.fpl-dropzone p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.fpl-dropzone-hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.fpl-file-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fpl-file-selected {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  color: var(--color-text-primary, #111827);
+}
+
+.fpl-file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fpl-file-info strong {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.fpl-file-info span {
+  font-size: 12px;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.fpl-btn-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.fpl-btn-remove:hover {
+  background: #fecaca;
+}
+
+/* ---------- Métricas ---------- */
+.fpl-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.fpl-value--ok {
+  color: var(--color-success, #10b981);
+}
+
+.fpl-value--erro {
+  color: var(--color-danger, #ef4444);
+}
+
+/* ---------- Filtros ---------- */
+.fpl-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fpl-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 220px;
+}
+
+.fpl-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--color-text-tertiary, #9ca3af);
+  pointer-events: none;
+}
+
+.fpl-search-input {
+  width: 100%;
+  padding: 8px 32px 8px 32px;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+.fpl-search-input:focus {
+  border-color: var(--color-primary, #1d40a8);
+}
+
+.fpl-clear-filter {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary, #9ca3af);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.fpl-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.fpl-toggle input {
+  accent-color: var(--color-danger, #ef4444);
+  cursor: pointer;
+}
+
+/* ---------- Tabela de conferência ---------- */
+.fpl-table-wrapper {
+  overflow-x: auto;
+  max-height: 480px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 12px;
+}
+
+.fpl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.fpl-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg-tertiary, #f9fafb);
+  color: var(--color-text-secondary, #6b7280);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--color-border, #e5e7eb);
+  white-space: nowrap;
+}
+
+.fpl-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border, #f3f4f6);
+  vertical-align: top;
+}
+
+.fpl-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fpl-table tbody tr:hover td {
+  background: rgba(29, 64, 168, 0.04);
+}
+
+/* Linha sem descrição na planilha (mismatch) */
+.fpl-row--erro td {
+  background: #fef2f2;
+}
+
+.fpl-row--erro td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-danger, #ef4444);
+}
+
+.fpl-row--erro:hover td {
+  background: #fee2e2 !important;
+}
+
+.fpl-cell-nome {
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+  min-width: 200px;
+}
+
+.fpl-cell-doc {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  white-space: nowrap;
+}
+
+.fpl-cell-servico {
+  min-width: 260px;
+  max-width: 420px;
+  color: var(--color-text-secondary, #374151);
+}
+
+.fpl-row--erro .fpl-cell-servico {
+  color: #9b2c2c;
+  font-style: italic;
+}
+
+.fpl-th-valor,
+.fpl-cell-valor {
+  text-align: right;
+}
+
+.fpl-cell-valor {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fpl-empty {
+  text-align: center;
+  color: var(--color-text-tertiary, #9ca3af);
+  padding: 24px !important;
+}
+
+/* ---------- Badges ---------- */
+.fpl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fpl-badge--ok {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.fpl-badge--erro {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@media (max-width: 768px) {
+  .fpl-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .fpl-table-wrapper {
+    max-height: 380px;
+  }
+}
