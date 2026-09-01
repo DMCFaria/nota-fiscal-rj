@@ -16,7 +16,7 @@ export default function Emitir() {
 
         <div className="opcao-card" onClick={() => navigate("/emitir/fatura-planilha")}>
           <span className="opcao-icon">📋</span>
-          <h3>Fatura + Planilha</h3>
+          <h3>Fatura + Descrição</h3>
           <p>Fatura com descrições por condômino via planilha</p>
         </div>
 

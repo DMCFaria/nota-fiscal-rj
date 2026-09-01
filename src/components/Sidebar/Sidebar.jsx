@@ -85,7 +85,7 @@ function Sidebar({ isOpen, onClose }) {
                 Fatura
               </Link>
               <Link to="/emitir/fatura-planilha" className={isActive("/emitir/fatura-planilha")} onClick={handleLinkClick}>
-                Fatura + Planilha
+                Fatura + Descrição
               </Link>
               <Link to="/emitir/excel" className={isActive("/emitir/excel")} onClick={handleLinkClick}>
                 Excel

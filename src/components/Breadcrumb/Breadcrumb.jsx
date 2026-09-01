@@ -31,7 +31,7 @@ function Breadcrumb({ onMenuClick, sidebarOpen, isMobile }) {
     '/': 'Home',
     '/emitir': 'Opções de Emissão',
     '/emitir/fatura': 'Fatura',
-    '/emitir/fatura-planilha': 'Fatura + Planilha',
+    '/emitir/fatura-planilha': 'Fatura + Descrição',
     '/emitir/excel': 'EXCEL',
     '/emitir/individual': 'Individual',
     '/consultas': 'Consultas',

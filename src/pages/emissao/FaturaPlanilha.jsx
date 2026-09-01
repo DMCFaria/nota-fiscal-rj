@@ -385,7 +385,7 @@ export default function EmissaoFaturaPlanilha() {
 
   return (
     <PageTemplate
-      title="Emissão · Fatura + Planilha"
+      title="Emissão · Fatura + Descrição"
       subtitle="Emita notas de uma fatura com descrições individuais por condômino, importadas de planilha"
       icon={<FaFileInvoiceDollar />}
       className="consulta-comercial-page"
@@ -527,7 +527,7 @@ export default function EmissaoFaturaPlanilha() {
                 </div>
 
                 {nfseEmitidas?.total_registros > 0 && (
-                  <div className={`fc-alert ${nfseEmitidas.ja_emitida ? "fc-alert--warning" : "fc-alert--info"}`}>
+                  <div className="fc-alert fc-alert--warning">
                     <strong>
                       {nfseEmitidas.ja_emitida
                         ? `⚠️ Esta fatura já possui ${nfseEmitidas.total_autorizadas} NFS-e emitida(s)!`
@@ -552,9 +552,9 @@ export default function EmissaoFaturaPlanilha() {
                 )}
 
                 {sobrasPlanilha.length > 0 && (
-                  <div className="fc-alert fc-alert--info">
+                  <div className="fc-alert fc-alert--warning">
                     <strong>
-                      ℹ️ {sobrasPlanilha.length} CNPJ(s) da planilha não estão na fatura e serão ignorados:
+                      ⚠️ {sobrasPlanilha.length} CNPJ(s) da planilha não estão na fatura e serão ignorados:
                     </strong>
                     <ul className="fc-alert-list">
                       {sobrasPlanilha.slice(0, 8).map((s, i) => (
