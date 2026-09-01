@@ -122,6 +122,16 @@ export const cancelarNota = async (notasArray) => {
   return await api.post("/api/nfse/cancela/nfse/", payload);
 };
 
+// Reprocessamento em massa: volta todas as notas rejeitadas/erro para 'pendente',
+// para a fila do backend reenviar ao Focus (mesma referência).
+export const reprocessarRejeitadas = async ({ ids_integracao = [], fatura = "" } = {}) => {
+  const response = await api.post("/api/nfse/reprocessa/nfse/", {
+    ids_integracao,
+    fatura,
+  });
+  return response.data;
+};
+
 export const reemitirNota = async (payload) => {
   try {
     const response = await api.post("/api/nfse/cep-fix/nfse/", {

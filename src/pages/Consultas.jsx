@@ -16,6 +16,7 @@ import {
   cancelarNota,
   getNotaPorID,
   reemitirNota,
+  reprocessarRejeitadas,
   sincronizarNotas,
   buscarIbgePorCep,
 } from "../services/notas";
@@ -1198,6 +1199,7 @@ export default function Consultas() {
   const [baixandoAll, setBaixandoAll] = useState({});
   const [cancelandoAll, setCancelandoAll] = useState({});
   const [baixandoRelatorio, setBaixandoRelatorio] = useState(false);
+  const [reprocessando, setReprocessando] = useState(false);
 
   const [tratarModal, setTratarModal] = useState({
     open: false,
@@ -1499,6 +1501,57 @@ export default function Consultas() {
 
     return { total, concluidas, pendentes, rejeitadas, canceladas };
   }, [faturas, dados, tipoBusca]);
+
+  // Reprocessa em massa: todas as rejeitadas do resultado atual voltam para
+  // 'pendente' e a fila do backend reenvia (útil quando a rejeição é espúria).
+  const reprocessarTodasRejeitadas = async () => {
+    const ids = rejectedRows
+      .map((r) => String(r.idIntegracao || "").trim())
+      .filter(Boolean);
+
+    if (!ids.length) {
+      enqueueSnackbar("Nenhuma nota rejeitada com ID de integração para reprocessar.", {
+        variant: "info",
+      });
+      return;
+    }
+
+    const confirmado = window.confirm(
+      `Reprocessar ${ids.length} nota(s) rejeitada(s)?\n\nElas voltarão para PENDENTE e a fila tentará emitir novamente em até 1 minuto.`
+    );
+    if (!confirmado) return;
+
+    try {
+      setReprocessando(true);
+      const res = await reprocessarRejeitadas({ ids_integracao: ids });
+      const total = res?.total_reprocessadas ?? 0;
+
+      if (total > 0) {
+        enqueueSnackbar(
+          `${total} nota(s) reprocessada(s)! A fila reenvia automaticamente em até 1 minuto.`,
+          { variant: "success" }
+        );
+      } else {
+        enqueueSnackbar("Nenhuma nota elegível para reprocessamento foi encontrada.", {
+          variant: "warning",
+        });
+      }
+
+      const semId = rejectedRows.length - ids.length;
+      if (semId > 0) {
+        enqueueSnackbar(`${semId} nota(s) sem ID de integração foram ignoradas.`, {
+          variant: "warning",
+        });
+      }
+
+      await realizarBusca();
+    } catch (e) {
+      console.error(e);
+      enqueueSnackbar(getFriendlyApiErrorMessage(e), { variant: "error" });
+    } finally {
+      setReprocessando(false);
+    }
+  };
 
   const baixarRelatorioRejeitadas = async () => {
     try {
@@ -2150,6 +2203,18 @@ export default function Consultas() {
                     Baixe o relatório para o time conferir e corrigir.
                   </span>
                 </div>
+
+                <button
+                  type="button"
+                  className="btn btn-xs"
+                  onClick={reprocessarTodasRejeitadas}
+                  disabled={reprocessando || loading}
+                  title="Voltar todas as notas rejeitadas para PENDENTE — a fila reenvia automaticamente"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  <FiRefreshCw />
+                  {reprocessando ? "Reprocessando..." : "Reprocessar todas"}
+                </button>
 
                 <button
                   type="button"
