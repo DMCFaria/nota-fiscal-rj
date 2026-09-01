@@ -407,7 +407,7 @@ export default function EmissaoPorFatura() {
                 </div>
 
                 {nfseEmitidas?.total_registros > 0 && (
-                  <div className={`fc-alert ${nfseEmitidas.ja_emitida ? "fc-alert--warning" : "fc-alert--info"}`}>
+                  <div className="fc-alert fc-alert--warning">
                     <strong>
                       {nfseEmitidas.ja_emitida
                         ? `⚠️ Esta fatura já possui ${nfseEmitidas.total_autorizadas} NFS-e emitida(s)!`

@@ -104,6 +104,49 @@
   background: #fecaca;
 }
 
+/* ---------- Alerta de IBGE com botão de correção em massa ---------- */
+.fpl-alert-ibge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.fpl-alert-ibge-texto {
+  flex: 1;
+  min-width: 240px;
+}
+
+.fpl-btn-fix {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: var(--color-warning, #f59e0b);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.fpl-btn-fix:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.fpl-btn-fix:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.fpl-btn-fix:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ---------- Métricas ---------- */
 .fpl-metrics {
   display: grid;
@@ -241,6 +284,19 @@
   background: #fee2e2 !important;
 }
 
+/* Linha com IBGE não resolvido (descrição OK) */
+.fpl-row--ibge td {
+  background: #fffbeb;
+}
+
+.fpl-row--ibge td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-warning, #f59e0b);
+}
+
+.fpl-row--ibge:hover td {
+  background: #fef3c7 !important;
+}
+
 .fpl-cell-nome {
   font-weight: 600;
   color: var(--color-text-primary, #111827);
@@ -300,6 +356,17 @@
 .fpl-badge--erro {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.fpl-badge--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.fpl-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 @media (max-width: 768px) {

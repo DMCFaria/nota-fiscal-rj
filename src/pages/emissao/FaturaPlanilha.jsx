@@ -6,6 +6,7 @@ import "../../styles/emissao-planilha.css";
 import { useSnackbar } from "notistack";
 import { fixBrokenLatin } from "../../utils/normalizacao_textual";
 import { lerPlanilhaDescricoes, normalizarDocumento } from "../../utils/planilha_descricoes";
+import { resolverCepsEmLote } from "../../utils/viacep";
 import PageTemplate from "../../components/PageTemplate/PageTemplate";
 import { FaFileInvoiceDollar } from "react-icons/fa";
 import {
@@ -15,6 +16,7 @@ import {
   FiSearch,
   FiCheckCircle,
   FiAlertCircle,
+  FiTool,
 } from "react-icons/fi";
 
 const formatarDoc = (doc) => {
@@ -26,6 +28,24 @@ const formatarDoc = (doc) => {
 
 const formatarBRL = (v) =>
   (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// Código IBGE não resolvido: o backend zera ("0000000") ou marca "9999999",
+// e o emissao2 grava essas notas com status ERRO (não entram na fila).
+const ibgeInvalido = (nota) => {
+  const c = String(nota?.tomador?.endereco?.codigoCidade || "").replace(/\D/g, "");
+  return !c || /^0+$/.test(c) || c === "9999999";
+};
+
+// CEP usável para a correção: o backend zera o "cep" quando o IBGE não resolve,
+// mas preserva o original em "cepOriginal".
+const cepParaCorrecao = (nota) => {
+  const end = nota?.tomador?.endereco || {};
+  for (const candidato of [end.cepOriginal, end.cep]) {
+    const d = String(candidato || "").replace(/\D/g, "");
+    if (d.length === 8 && !/^0+$/.test(d)) return d;
+  }
+  return "";
+};
 
 export default function EmissaoFaturaPlanilha() {
   const [fatura, setFatura] = useState("");
@@ -44,6 +64,7 @@ export default function EmissaoFaturaPlanilha() {
   const [logs, setLogs] = useState([]);
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
+  const [loadingIbge, setLoadingIbge] = useState(false);
   const [progresso, setProgresso] = useState(0);
 
   const [filtroTexto, setFiltroTexto] = useState("");
@@ -164,12 +185,24 @@ export default function EmissaoFaturaPlanilha() {
         valor: nota?.servico?.[0]?.valor?.servico || 0,
         temDescricao: !!itemPlanilha,
         descricaoFinal,
+        ibgeOk: !ibgeInvalido(nota),
+        cepCorrecao: cepParaCorrecao(nota),
       };
     });
   }, [preview, planilha, obsPrevia]);
 
   const totalSemDescricao = useMemo(
     () => linhas.filter((l) => !l.temDescricao).length,
+    [linhas]
+  );
+
+  const totalIbgeErro = useMemo(
+    () => linhas.filter((l) => !l.ibgeOk).length,
+    [linhas]
+  );
+
+  const totalPendencias = useMemo(
+    () => linhas.filter((l) => !l.temDescricao || !l.ibgeOk).length,
     [linhas]
   );
 
@@ -187,7 +220,7 @@ export default function EmissaoFaturaPlanilha() {
 
   const linhasVisiveis = useMemo(() => {
     let items = linhas;
-    if (soPendencias) items = items.filter((l) => !l.temDescricao);
+    if (soPendencias) items = items.filter((l) => !l.temDescricao || !l.ibgeOk);
     if (filtroTexto.trim()) {
       const termo = filtroTexto.trim().toLowerCase();
       const termoDigitos = termo.replace(/\D/g, "");
@@ -304,6 +337,81 @@ export default function EmissaoFaturaPlanilha() {
     }
   }, [fatura, observacao, codigoServico, tipoFatura, planilha, mostrarErro, mostrarInfo, mostrarSucesso, mostrarAlerta, pushLog]);
 
+  // Correção em massa: pesquisa no ViaCEP o CEP de todas as notas com código
+  // IBGE não resolvido e atualiza codigoCidade/cidade/UF/CEP direto na prévia.
+  const handleCorrigirIbge = useCallback(async () => {
+    if (!preview) return;
+
+    const alvos = preview.filter(ibgeInvalido);
+    if (alvos.length === 0) {
+      mostrarInfo("Nenhuma nota com erro de código IBGE.");
+      return;
+    }
+
+    const cepsPesquisar = [...new Set(alvos.map(cepParaCorrecao).filter(Boolean))];
+    const semCep = alvos.filter((n) => !cepParaCorrecao(n)).length;
+
+    if (cepsPesquisar.length === 0) {
+      mostrarErro("Nenhuma das notas com erro possui CEP válido para pesquisar.");
+      return;
+    }
+
+    setLoadingIbge(true);
+    mostrarInfo(`Pesquisando ${cepsPesquisar.length} CEP(s) no ViaCEP...`);
+
+    try {
+      const resultados = await resolverCepsEmLote(cepsPesquisar, { concorrencia: 6 });
+
+      let corrigidas = 0;
+      const falhas = [];
+
+      const novoPreview = preview.map((nota) => {
+        if (!ibgeInvalido(nota)) return nota;
+
+        const cep = cepParaCorrecao(nota);
+        const hit = cep ? resultados[cep] : null;
+        if (!hit) {
+          falhas.push({
+            nome: fixBrokenLatin(nota?.tomador?.razaoSocial || "—"),
+            cep: cep || "sem CEP",
+          });
+          return nota;
+        }
+
+        corrigidas += 1;
+        const endereco = nota.tomador?.endereco || {};
+        return {
+          ...nota,
+          tomador: {
+            ...nota.tomador,
+            endereco: {
+              ...endereco,
+              cep: hit.cep,
+              codigoCidade: hit.ibge,
+              descricaoCidade: hit.cidade || endereco.descricaoCidade,
+              estado: hit.uf || endereco.estado,
+            },
+          },
+        };
+      });
+
+      setPreview(novoPreview);
+
+      if (corrigidas > 0) {
+        mostrarSucesso(`${corrigidas} nota(s) corrigida(s) com código IBGE do ViaCEP!`);
+      }
+      if (falhas.length > 0 || semCep > 0) {
+        mostrarAlerta(`${falhas.length + semCep} nota(s) não puderam ser corrigidas (CEP inválido ou não encontrado no ViaCEP).`);
+        falhas.slice(0, 10).forEach((f) => pushLog(`IBGE não corrigido: ${f.nome} (CEP ${f.cep})`, "alerta"));
+        if (falhas.length > 10) pushLog(`… e mais ${falhas.length - 10} nota(s) sem correção`, "alerta");
+      }
+    } catch (err) {
+      mostrarErro("Erro ao consultar o ViaCEP. Tente novamente.", err.message);
+    } finally {
+      setLoadingIbge(false);
+    }
+  }, [preview, mostrarErro, mostrarInfo, mostrarSucesso, mostrarAlerta, pushLog]);
+
   const handleEmitir = useCallback(async () => {
     if (!preview || preview.length === 0) {
       mostrarErro("Gere a prévia antes de emitir.");
@@ -312,6 +420,9 @@ export default function EmissaoFaturaPlanilha() {
 
     if (totalSemDescricao > 0) {
       mostrarAlerta(`${totalSemDescricao} nota(s) sem descrição da planilha serão emitidas com a discriminação padrão.`);
+    }
+    if (totalIbgeErro > 0) {
+      mostrarAlerta(`${totalIbgeErro} nota(s) com código IBGE não resolvido serão gravadas com status ERRO e não entrarão na fila de emissão.`);
     }
 
     setLoadingEmitir(true);
@@ -371,7 +482,7 @@ export default function EmissaoFaturaPlanilha() {
     } finally {
       setLoadingEmitir(false);
     }
-  }, [preview, linhas, totalSemDescricao, fatura, codigoServico, mostrarErro, mostrarInfo, mostrarSucesso, mostrarAlerta, pushLog]);
+  }, [preview, linhas, totalSemDescricao, totalIbgeErro, fatura, codigoServico, mostrarErro, mostrarInfo, mostrarSucesso, mostrarAlerta, pushLog]);
 
   const gerarBtnClass = useMemo(() => {
     const base = "fc-btn fc-btn--primary fc-btn--full";
@@ -569,6 +680,35 @@ export default function EmissaoFaturaPlanilha() {
                   </div>
                 )}
 
+                {totalIbgeErro > 0 && (
+                  <div className="fc-alert fc-alert--warning fpl-alert-ibge">
+                    <div className="fpl-alert-ibge-texto">
+                      <strong>
+                        ⚠️ {totalIbgeErro} nota(s) com código IBGE não resolvido.
+                      </strong>{" "}
+                      Se emitidas assim, serão gravadas com status ERRO e não entrarão na fila.
+                      Use o botão ao lado para pesquisar o CEP de todas e corrigir de uma vez.
+                    </div>
+                    <button
+                      type="button"
+                      className="fpl-btn-fix"
+                      onClick={handleCorrigirIbge}
+                      disabled={loadingIbge || loadingGerar || loadingEmitir}
+                    >
+                      {loadingIbge ? (
+                        <>
+                          <span className="fc-spinner"></span>
+                          CORRIGINDO...
+                        </>
+                      ) : (
+                        <>
+                          <FiTool size={14} /> CORRIGIR IBGE PELO CEP ({totalIbgeErro})
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
                 {totalSemDescricao > 0 && (
                   <div className="fc-alert fc-alert--warning">
                     <strong>
@@ -596,6 +736,12 @@ export default function EmissaoFaturaPlanilha() {
                     <span className="fc-label">Sem descrição</span>
                     <p className={`fc-value ${totalSemDescricao > 0 ? "fpl-value--erro" : "fpl-value--ok"}`}>
                       {totalSemDescricao}
+                    </p>
+                  </div>
+                  <div className="fc-metric">
+                    <span className="fc-label">Erro de IBGE</span>
+                    <p className={`fc-value ${totalIbgeErro > 0 ? "fpl-value--erro" : "fpl-value--ok"}`}>
+                      {totalIbgeErro}
                     </p>
                   </div>
                   <div className="fc-metric">
@@ -629,7 +775,7 @@ export default function EmissaoFaturaPlanilha() {
                       checked={soPendencias}
                       onChange={(e) => setSoPendencias(e.target.checked)}
                     />
-                    Mostrar só pendências ({totalSemDescricao})
+                    Mostrar só pendências ({totalPendencias})
                   </label>
                 </div>
 
@@ -641,14 +787,20 @@ export default function EmissaoFaturaPlanilha() {
                         <th>CNPJ</th>
                         <th>Serviço (Discriminação)</th>
                         <th className="fpl-th-valor">Valor</th>
-                        <th>Planilha</th>
+                        <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {linhasVisiveis.map((l, idx) => (
                         <tr
                           key={l.nota?.idIntegracao || idx}
-                          className={l.temDescricao ? "" : "fpl-row--erro"}
+                          className={
+                            !l.temDescricao
+                              ? "fpl-row--erro"
+                              : !l.ibgeOk
+                                ? "fpl-row--ibge"
+                                : ""
+                          }
                         >
                           <td className="fpl-cell-nome">{l.nome || "—"}</td>
                           <td className="fpl-cell-doc">{formatarDoc(l.doc)}</td>
@@ -659,15 +811,23 @@ export default function EmissaoFaturaPlanilha() {
                           </td>
                           <td className="fpl-cell-valor">{formatarBRL(l.valor)}</td>
                           <td>
-                            {l.temDescricao ? (
-                              <span className="fpl-badge fpl-badge--ok">
-                                <FiCheckCircle size={12} /> OK
-                              </span>
-                            ) : (
-                              <span className="fpl-badge fpl-badge--erro">
-                                <FiAlertCircle size={12} /> SEM DESCRIÇÃO
-                              </span>
-                            )}
+                            <div className="fpl-badges">
+                              {l.temDescricao && l.ibgeOk && (
+                                <span className="fpl-badge fpl-badge--ok">
+                                  <FiCheckCircle size={12} /> OK
+                                </span>
+                              )}
+                              {!l.temDescricao && (
+                                <span className="fpl-badge fpl-badge--erro">
+                                  <FiAlertCircle size={12} /> SEM DESCRIÇÃO
+                                </span>
+                              )}
+                              {!l.ibgeOk && (
+                                <span className="fpl-badge fpl-badge--warn" title={l.cepCorrecao ? `CEP ${l.cepCorrecao}` : "Sem CEP para pesquisa"}>
+                                  <FiAlertCircle size={12} /> IBGE
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
